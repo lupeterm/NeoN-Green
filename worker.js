@@ -70,7 +70,7 @@ function corridorStats(section, corridor, base, effect, inExtent) {
   let n = 0, before = 0, after = 0, maxCooling = 0, shaded = 0;
   for (let y = y0 + cell / 2; y < y1; y += cell) {
     for (let x = x0 + cell / 2; x < x1; x += cell) {
-      if (!inExtent(x, y) || distToPolyline(x, y, section) > corridor) continue;
+      if (!inExtent(x, y) || NG.distToPolyline(x, y, section) > corridor) continue;
       const b = base(x, y);
       if (b !== b) continue;
       const e = effect(x, y);
@@ -80,16 +80,6 @@ function corridorStats(section, corridor, base, effect, inExtent) {
     }
   }
   return n ? {before: before / n, after: after / n, maxCooling, shadedArea: shaded, area: n * cell * cell} : null;
-}
-
-function distToPolyline(x, y, pts) {
-  let best = Infinity;
-  for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1], b = pts[i], dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
-    const t = l2 ? Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / l2)) : 0;
-    best = Math.min(best, Math.hypot(x - a.x - t * dx, y - a.y - t * dy));
-  }
-  return best;
 }
 
 async function render([w, s, e, n], [W, H], P, value, [d0, d1], colors) {

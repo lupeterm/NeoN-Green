@@ -74,5 +74,29 @@
     return {dT: -(p.shade.max_cooling_K * f.shade * shade + etCooling), shade: shade * (f.shade > 0 ? 1 : 0)};
   }
 
-  root.NG = {DEG, projection, sunFactors, shadowEllipse, ellipseRing, treeEffect};
+  // ---- small geometry helpers (local metres), shared by app.js and worker.js
+
+  function distToPolyline(x, y, pts) {
+    let best = Infinity;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i], dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
+      const t = l2 ? Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / l2)) : 0;
+      best = Math.min(best, Math.hypot(x - a.x - t * dx, y - a.y - t * dy));
+    }
+    return best;
+  }
+
+  // rings: [outer, ...holes], each [{x, y}, ...] (even-odd rule)
+  function inPolygon(x, y, rings) {
+    let inside = false;
+    for (const ring of rings) {
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const a = ring[i], b = ring[j];
+        if ((a.y > y) !== (b.y > y) && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+      }
+    }
+    return inside;
+  }
+
+  root.NG = {DEG, projection, sunFactors, shadowEllipse, ellipseRing, treeEffect, distToPolyline, inPolygon};
 })(self);

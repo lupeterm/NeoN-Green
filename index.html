@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>NeoN-Green – Was wäre, wenn?</title>
+  <title>NeoN-Green – What if?</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
@@ -14,7 +14,8 @@
     html, body { margin: 0; height: 100%; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--fg); }
     #map { position: absolute; inset: 0; }
     .card { position: absolute; z-index: 2; background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
-            box-shadow: 0 2px 12px #0002; padding: 12px 14px; width: 280px; max-width: calc(100vw - 52px); box-sizing: border-box; }
+            box-shadow: 0 2px 12px #0002; padding: 12px 14px; width: 280px; max-width: calc(100vw - 52px); box-sizing: border-box;
+            max-height: calc(100vh - 40px); overflow-y: auto; }
     #panel { top: 10px; left: 10px; }
     #scenario { top: 10px; right: 52px; }
     h1, h2 { font-size: 15px; margin: 0 0 8px; }
@@ -24,7 +25,19 @@
     input[type=range] { width: 100%; margin: 2px 0; accent-color: var(--accent); }
     .muted { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
     .err { color: #c92a2a; }
-    #ramp { height: 10px; border-radius: 3px; margin-top: 10px; }
+    #ramp, .ramp { height: 10px; border-radius: 3px; margin-top: 10px; }
+    .ramp { margin-top: 6px; height: 8px; }
+    button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 5px 10px; }
+    button.primary { width: 100%; margin-top: 10px; background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+    button.primary.active { background: #fff; color: var(--accent); }
+    label.check { display: flex; gap: 6px; align-items: center; font-weight: 400; color: var(--fg); font-size: 13px; }
+    .seg { display: flex; margin-top: 10px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+    .seg label { flex: 1; margin: 0; text-align: center; padding: 5px 0; cursor: pointer; color: var(--fg); font-weight: 400; font-size: 13px; }
+    .seg input { display: none; }
+    .seg label:has(input:checked) { background: var(--accent); color: #fff; font-weight: 600; }
+    #layers { margin-top: 4px; border-top: 1px solid var(--line); }
+    .maplibregl-popup-content dl { margin: 6px 0 0; padding: 0; border: 0; font-size: 12px; }
+    #hint { color: #c92a2a; min-height: 0; }
     .ticks { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
     header { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
     #close { border: 0; background: none; font-size: 20px; line-height: 1; cursor: pointer; color: var(--muted); padding: 0; }
@@ -43,38 +56,49 @@
   <div id="map"></div>
 
   <aside id="panel" class="card">
-    <h1>Was wäre, wenn …?</h1>
-    <label>Daten</label>
+    <h1>What if …?</h1>
+    <label>Data</label>
     <select id="overlay"></select>
     <p id="status" class="muted"></p>
-    <label>Datum</label>
+    <label>Date</label>
     <input type="date" id="date">
-    <label>Uhrzeit <span id="timeLabel"></span></label>
+    <label>Time of day <span id="timeLabel"></span></label>
     <input type="range" id="time" min="300" max="1320" step="10" value="900">
     <p id="sun" class="muted"></p>
     <div id="ramp"></div>
     <div class="ticks"><span id="dmin"></span><span id="unit"></span><span id="dmax"></span></div>
     <div id="hotspotBox" hidden>
-      <label>Hitze-Hotspots <span>Rad-Messfahrten</span></label>
+      <label>Heat hotspots <span>bike rides</span></label>
       <ol id="hotspots"></ol>
       <p id="hotspotNote" class="muted"></p>
     </div>
-    <p class="muted">Hineinzoomen und auf eine Straße klicken, um Bäume zu pflanzen.</p>
+    <button id="drawBtn" class="primary">Draw a section</button>
+    <p class="muted">Draw around part of a street, or click a street to select all of it.</p>
+    <div id="layers"></div>
   </aside>
 
   <aside id="scenario" class="card" hidden>
-    <header><h2 id="street"></h2><button id="close" title="Szenario entfernen">×</button></header>
-    <label>Abschnitt von <span id="secLabel"></span></label>
-    <input type="range" id="secStart" min="0" max="100" value="0">
-    <label>bis</label>
-    <input type="range" id="secEnd" min="0" max="100" value="100">
-    <label>Bäume <span id="treeLabel"></span></label>
-    <input type="range" id="trees" min="0" max="40" value="8">
-    <label>Baumgröße</label>
+    <header><h2 id="street"></h2><button id="close" title="Remove scenario">×</button></header>
+    <p id="secLabel" class="muted"></p>
+    <div class="seg">
+      <label><input type="radio" name="mode" value="even" checked>evenly spaced</label>
+      <label><input type="radio" name="mode" value="manual">by hand</label>
+    </div>
+    <div id="evenCtl">
+      <label>Trees <span id="treeLabel"></span></label>
+      <input type="range" id="trees" min="0" max="40" value="8">
+    </div>
+    <div id="manualCtl" hidden>
+      <p class="muted">Click the map to plant a tree, click a new tree to remove it.</p>
+      <label><span id="manualCount" style="float:none"></span></label>
+      <button id="clearTrees">Remove all</button>
+    </div>
+    <label>Tree size</label>
     <select id="preset"></select>
+    <p id="hint" class="muted"></p>
     <dl id="result"></dl>
-    <p class="muted">Vereinfachtes Lehrmodell: Kronenschatten nach Sonnenstand plus Verdunstungskühlung.
-      Werte in <code>config/model.json</code>.</p>
+    <p class="muted">Simplified teaching model: crown shadows from the sun position plus evaporative cooling.
+      Parameters in <code>config/model.json</code>.</p>
   </aside>
 
   <script src="app.js"></script>
