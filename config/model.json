@@ -46,6 +46,7 @@
     "_about": "Where trees may go. Road half widths (m) by OSM class; footways and pedestrian zones are not obstacles.",
     "clearance_m": 1.0,
     "path_offset_m": 2.0,
+    "max_offset_m": 12,
     "crown_overlap": 0.7,
     "avoid_buildings": true,
     "avoid_water": true,

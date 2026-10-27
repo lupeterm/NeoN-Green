@@ -278,10 +278,12 @@ function currentTrees(P) {
   return S.placement.trees;
 }
 
-// Evenly spaced, alternating kerb sides; a blocked spot slides along the street until one fits.
+// Evenly spaced on alternating sides. A blocked spot first moves away from the centre line
+// (real streets are often wider than their class suggests, e.g. tram tracks in a pedestrian
+// zone) but never past a building or water, then slides along the street until one fits.
 function placeEvenly(n, r, P) {
   const st = S.street, pl = S.model.placement, placed = [];
-  const offset = (st.halfWidth || pl.path_offset_m) + pl.clearance_m + 0.5;
+  const start = (st.halfWidth || pl.path_offset_m) + pl.clearance_m + 0.5;
   const spacing = (st.b - st.a) / Math.max(n, 1), reach = Math.max(2, spacing / 2);
   for (let i = 0; i < n; i++) {
     const d0 = st.a + (i + 0.5) * spacing, sides = i % 2 ? [-1, 1] : [1, -1];
@@ -290,8 +292,12 @@ function placeEvenly(n, r, P) {
         if (d < st.a || d > st.b) continue;
         const q = alongXY(st, d);
         for (const side of sides) {
-          const p = {x: q.x - q.ty * side * offset, y: q.y + q.tx * side * offset};
-          if (!blocked(p, r, placed, st.obstacles)) { placed.push(p); break search; }
+          for (let off = start; off <= Math.max(start, pl.max_offset_m); off += 0.5) {
+            const p = {x: q.x - q.ty * side * off, y: q.y + q.tx * side * off};
+            const why = blocked(p, r, placed, st.obstacles);
+            if (!why) { placed.push(p); break search; }
+            if (why === 'building' || why === 'water') break;
+          }
         }
       }
     }

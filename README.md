@@ -32,8 +32,9 @@ SunCalc load from unpkg, and the basemap is CARTO Positron.
 
 Trees are only planted where there is room: not on a roadway (width estimated from the road
 class), not inside a building or water, and not under the crown of an existing or another
-new tree. Evenly spaced trees go to the kerb on alternating sides and slide along the street
-until they fit. The panel says how many of the requested trees fit; a click by hand that
+new tree. Evenly spaced trees alternate sides. A blocked spot first moves away from the
+centre line, up to `placement.max_offset_m` but never past a building or water, and then
+slides along the street until it fits. The panel says how many of the requested trees fit; a click by hand that
 does not fit says why.
 
 ## Files
