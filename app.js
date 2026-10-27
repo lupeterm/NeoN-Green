@@ -5,6 +5,8 @@ const BASEMAP = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 const RAMP = ['#ffffcc', '#ffeda0', '#fed976', '#feb24c', '#fd8d3c', '#fc4e2a', '#e31a1c', '#b10026'];
 const STITCH_TOLERANCE_M = 2;
 const MIN_SELECT_ZOOM = 14.5;
+const HOTSPOT_ZOOM = 17;
+const HOTSPOT_SECTION_M = 200;  // section preselected around a hotspot
 
 const $ = id => document.getElementById(id);
 const S = {cfg: null, model: null, overlay: null, records: [], hasTime: false, extent: null, domain: null,
@@ -19,6 +21,7 @@ async function main() {
   await S.map.once('style.load');  // don't wait for every basemap tile
   setupLayers();
   setupUi();
+  loadHotspots();
   await loadOverlay(S.cfg.overlays[0], {initial: true});
 }
 
@@ -43,6 +46,14 @@ function setupLayers() {
   m.addLayer({id: 'trees', type: 'circle', source: 'trees', paint: {
     'circle-color': '#2f9e44', 'circle-opacity': 0.85, 'circle-stroke-color': '#1b5e20', 'circle-stroke-width': 1,
     'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 12, ['*', ['get', 'r'], px(12)], 22, ['*', ['get', 'r'], px(22)]]}}, firstLabel);
+
+  const font = layers.find(l => l.layout && l.layout['text-font'])?.layout['text-font'];
+  m.addSource('hotspots', {type: 'geojson', data: fc([])});
+  m.addLayer({id: 'hotspots', type: 'circle', source: 'hotspots', paint: {
+    'circle-radius': 9, 'circle-color': '#c92a2a', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2}});
+  m.addLayer({id: 'hotspot-labels', type: 'symbol', source: 'hotspots', layout: {
+    'text-field': ['to-string', ['get', 'rang']], 'text-font': font, 'text-size': 11, 'text-allow-overlap': true},
+    paint: {'text-color': '#fff'}});
 
   m.on('moveend', update);
   m.on('click', pickStreet);
@@ -137,8 +148,8 @@ function currentPoints() {
 
 function pickStreet(e) {
   if (S.map.getZoom() < MIN_SELECT_ZOOM) return setStatus('Zum Auswählen einer Straße näher heranzoomen.');
-  const hits = S.map.queryRenderedFeatures(box(e.point, 10), {layers: S.roadLayers});
-  const hit = hits.find(f => f.properties.name) || hits[0];
+  const hits = S.map.queryRenderedFeatures(box(e.point, e.radius || 10), {layers: S.roadLayers});
+  const hit = hits.find(f => e.name && f.properties.name === e.name) || hits.find(f => f.properties.name) || hits[0];
   if (!hit) return;
   const name = hit.properties.name;
   // Tiles cut streets into pieces: collect every loaded piece with the same name and join them.
@@ -158,6 +169,44 @@ function pickStreet(e) {
     S.map.fitBounds(turf.bbox(line), {padding: {top: 60, bottom: 60, left: 310, right: 350}, maxZoom: S.map.getZoom(), duration: 600});
   }
   update();
+}
+
+// ------------------------------------------------------------------ hotspots
+
+// Warm street spots found in the bike rides by scripts/find_hotspots.py; a click selects the street there.
+async function loadHotspots() {
+  if (!S.cfg.hotspots) return;
+  let gj;
+  try { gj = await getJSON(S.cfg.hotspots); } catch { return; }
+  setData('hotspots', gj);
+  $('hotspots').replaceChildren(...gj.features.map(f => {
+    const p = f.properties, li = document.createElement('li'), b = document.createElement('button');
+    const name = document.createElement('span'), val = document.createElement('b');
+    name.textContent = `${p.rang}. ${p.strasse}`;
+    val.textContent = `${signed(p.anomalie_K)} K`;
+    b.title = `${p.fahrten} Fahrten von ${p.raeder} Rädern, Ø ${p.temperatur_mittel} °C (± ${p.fehler_K} K)`;
+    b.append(name, val);
+    b.onclick = () => goToHotspot(f);
+    li.append(b);
+    return li;
+  }));
+  const day = s => s.split('-').reverse().join('.');
+  $('hotspotNote').textContent = 'Wärmer als der Rest derselben Fahrt' + (gj.meta ? `, ${day(gj.meta.von)} – ${day(gj.meta.bis)}` : '') + '.';
+  $('hotspotBox').hidden = false;
+}
+
+function goToHotspot(f) {
+  const ll = f.geometry.coordinates, previous = S.street;
+  S.map.flyTo({center: ll, zoom: Math.max(S.map.getZoom(), HOTSPOT_ZOOM)});
+  S.map.once('idle', () => {
+    pickStreet({point: S.map.project(ll), lngLat: {lng: ll[0], lat: ll[1]}, radius: 25, name: f.properties.strasse});
+    if (S.street === previous) return setStatus('Keine Straße am Hotspot gefunden, bitte direkt anklicken.', true);
+    const at = turf.nearestPointOnLine(S.street.line, ll, {units: 'meters'}).properties.location;
+    const pct = m => Math.round(Math.min(100, Math.max(0, (m / S.street.length) * 100)));
+    $('secStart').value = pct(at - HOTSPOT_SECTION_M / 2);
+    $('secEnd').value = pct(at + HOTSPOT_SECTION_M / 2);
+    update();
+  });
 }
 
 function stitch(lines) {
