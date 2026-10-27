@@ -1,0 +1,71 @@
+{
+  "version": "v1",
+  "config": {
+    "visState": {
+      "filters": [
+        {"dataId": ["heat"], "id": "t_heat", "name": ["zeit"], "type": "timeRange",
+         "auto": {"anchor": "start", "offsetMinutes": 780, "windowMinutes": 30},
+         "enlarged": true, "view": "enlarged", "plotType": {"type": "histogram"}, "animationWindow": "free", "speed": 1, "enabled": true},
+        {"dataId": ["air"], "id": "t_air", "name": ["datum"], "type": "timeRange",
+         "auto": {"anchor": "end", "windowMinutes": 1440},
+         "enlarged": false, "view": "side", "plotType": {"type": "histogram"}, "animationWindow": "free", "speed": 1, "enabled": true}
+      ],
+      "layers": [
+        {"id": "heat", "type": "point",
+         "config": {"dataId": "heat", "label": "Hitze – Temperatur Bürgersensoren", "color": [252, 78, 42],
+                    "columns": {"lat": "lat", "lng": "lon", "altitude": null}, "isVisible": true,
+                    "visConfig": {"radius": 16, "fixedRadius": false, "opacity": 0.9, "outline": true, "thickness": 1.5,
+                                  "strokeColor": [30, 30, 30], "radiusRange": [10, 28], "filled": true,
+                                  "colorRange": {"name": "Heat", "type": "sequential", "category": "Custom",
+                                                 "colors": ["#ffffcc", "#ffeda0", "#fed976", "#feb24c", "#fd8d3c", "#fc4e2a", "#e31a1c", "#b10026"]}},
+                    "textLabel": []},
+         "visualChannels": {"colorField": {"name": "temperatur", "type": "real"}, "colorScale": "quantize",
+                            "sizeField": {"name": "temperatur", "type": "real"}, "sizeScale": "sqrt",
+                            "strokeColorField": null, "strokeColorScale": "quantile"}},
+        {"id": "air", "type": "point",
+         "config": {"dataId": "air", "label": "Luft – NO₂ Tagesmittel (LUBW/UBA)", "color": [222, 45, 38],
+                    "columns": {"lat": "lat", "lng": "lon", "altitude": null}, "isVisible": true,
+                    "visConfig": {"radius": 22, "fixedRadius": false, "opacity": 0.9, "outline": true, "thickness": 1.5,
+                                  "strokeColor": [30, 30, 30], "radiusRange": [8, 30], "filled": true,
+                                  "colorRange": {"name": "NO2", "type": "sequential", "category": "Custom",
+                                                 "colors": ["#fee5d9", "#fcbba1", "#fc9272", "#fb6a4a", "#de2d26", "#a50f15"]}},
+                    "textLabel": []},
+         "visualChannels": {"colorField": {"name": "NO2_tagesmittel", "type": "real"}, "colorScale": "quantize",
+                            "sizeField": null, "sizeScale": "sqrt", "strokeColorField": null, "strokeColorScale": "quantile"}},
+        {"id": "noise", "type": "geojson",
+         "config": {"dataId": "noise", "label": "Lärm – Straße Lden 2022", "color": [240, 59, 32],
+                    "columns": {"geojson": "_geojson"}, "isVisible": true,
+                    "visConfig": {"opacity": 0.55, "strokeOpacity": 0.9, "thickness": 0.6, "strokeColor": null,
+                                  "stroked": false, "filled": true, "enable3d": false, "wireframe": false,
+                                  "colorRange": {"name": "Lden", "type": "sequential", "category": "Custom",
+                                                 "colors": ["#ffffb2", "#fecc5c", "#fd8d3c", "#f03b20", "#bd0026"]}},
+                    "textLabel": []},
+         "visualChannels": {"colorField": {"name": "pegelklasse", "type": "string"}, "colorScale": "ordinal",
+                            "strokeColorField": null, "strokeColorScale": "quantile", "sizeField": null, "sizeScale": "linear",
+                            "heightField": null, "heightScale": "linear", "radiusField": null, "radiusScale": "linear"}},
+        {"id": "districts", "type": "geojson",
+         "config": {"dataId": "districts", "label": "Stadtteile", "color": [180, 180, 180],
+                    "columns": {"geojson": "_geojson"}, "isVisible": true,
+                    "visConfig": {"opacity": 0.9, "strokeOpacity": 0.9, "thickness": 0.8, "strokeColor": [180, 180, 180],
+                                  "stroked": true, "filled": false, "enable3d": false, "wireframe": false},
+                    "textLabel": []},
+         "visualChannels": {"colorField": null, "colorScale": "quantile", "strokeColorField": null, "strokeColorScale": "quantile",
+                            "sizeField": null, "sizeScale": "linear", "heightField": null, "heightScale": "linear",
+                            "radiusField": null, "radiusScale": "linear"}}
+      ],
+      "interactionConfig": {
+        "tooltip": {"enabled": true, "compareMode": false, "compareType": "absolute",
+                    "fieldsToShow": {
+                      "heat": [{"name": "zeit"}, {"name": "standort_id"}, {"name": "temperatur"}, {"name": "luftfeuchte"}, {"name": "pm10"}, {"name": "pm25"}],
+                      "air": [{"name": "datum"}, {"name": "station"}, {"name": "name"}, {"name": "typ"}, {"name": "NO2_tagesmittel"}, {"name": "PM10_tagesmittel"}, {"name": "PM2.5_tagesmittel"}, {"name": "O3_max_1h"}],
+                      "noise": [{"name": "quelle"}, {"name": "pegelklasse"}],
+                      "districts": [{"name": "stadtteil"}]}},
+        "brush": {"size": 0.5, "enabled": false}, "geocoder": {"enabled": false}, "coordinate": {"enabled": true}
+      },
+      "layerBlending": "normal", "splitMaps": [], "animationConfig": {"currentTime": null, "speed": 1}
+    },
+    "mapState": {"bearing": 0, "dragRotate": false, "latitude": 49.128, "longitude": 9.18, "pitch": 0, "zoom": 11.6, "isSplit": false},
+    "mapStyle": {"styleType": "dark-matter", "topLayerGroups": {},
+                 "visibleLayerGroups": {"label": true, "road": true, "border": false, "building": true, "water": true, "land": true}}
+  }
+}

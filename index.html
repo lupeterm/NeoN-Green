@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Heilbronn – Lärm, Luft, Hitze</title>
+  <link href="https://unpkg.com/kepler.gl@3.1.9/umd/keplergl.min.css" rel="stylesheet">
+  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet">
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/redux@4.2.1/dist/redux.js" crossorigin></script>
+  <script src="https://unpkg.com/react-redux@8.1.2/dist/react-redux.min.js" crossorigin></script>
+  <script src="https://unpkg.com/styled-components@6.1.8/dist/styled-components.min.js" crossorigin></script>
+  <script src="https://unpkg.com/kepler.gl@3.1.9/umd/keplergl.min.js" crossorigin></script>
+  <style>body {margin: 0; overflow: hidden; background: #0e1116;}</style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    // Everything shown comes from data/manifest.json: a list of files plus one kepler.gl config.
+    // Replace a file (same columns) and reload. Time filters marked "auto" pick their window from the data.
+    const reducer = Redux.combineReducers({
+      keplerGl: KeplerGl.keplerGlReducer.initialState({uiState: {currentModal: null}, mapStyle: {styleType: 'dark-matter'}})
+    });
+    const store = Redux.createStore(reducer, {}, Redux.applyMiddleware(...KeplerGl.enhanceReduxMiddleware([])));
+    window.keplerStore = store;
+
+    function App() {
+      const [dim, setDim] = React.useState({width: innerWidth, height: innerHeight});
+      React.useEffect(() => {
+        const onResize = () => setDim({width: innerWidth, height: innerHeight});
+        addEventListener('resize', onResize);
+        return () => removeEventListener('resize', onResize);
+      }, []);
+      return React.createElement(KeplerGl.KeplerGl, {id: 'map', width: dim.width, height: dim.height, mapboxApiAccessToken: ''});
+    }
+    ReactDOM.createRoot(document.getElementById('app')).render(
+      React.createElement(ReactRedux.Provider, {store}, React.createElement(App)));
+
+    const parseTime = s => Date.parse(String(s).replace(' ', 'T') + 'Z');  // kepler treats naive timestamps as UTC
+
+    function resolveAutoFilters(config, datasets) {
+      for (const f of config.config.visState.filters) {
+        if (!f.auto) continue;
+        const ds = datasets.find(d => d.info.id === f.dataId[0]);
+        const col = ds.data.fields.findIndex(x => x.name === f.name[0]);
+        const times = ds.data.rows.map(r => parseTime(r[col])).filter(Number.isFinite);
+        const win = (f.auto.windowMinutes || 30) * 60000, off = (f.auto.offsetMinutes || 0) * 60000;
+        const start = f.auto.anchor === 'end' ? Math.max(...times) - win : Math.min(...times) + off;
+        f.value = [start, start + win];
+        delete f.auto;
+      }
+      return config;
+    }
+
+    (async () => {
+      const manifest = await (await fetch('data/manifest.json')).json();
+      const config = await (await fetch(manifest.config)).json();
+      const datasets = await Promise.all(manifest.datasets.map(async d => {
+        const res = await fetch(d.file);
+        const data = d.format === 'geojson' ? KeplerGl.processGeojson(await res.json()) : KeplerGl.processCsvData(await res.text());
+        return {info: {id: d.id, label: d.label}, data};
+      }));
+      store.dispatch(KeplerGl.addDataToMap({datasets, config: resolveAutoFilters(config, datasets), options: {centerMap: false}}));
+    })().catch(e => { console.error(e); document.body.insertAdjacentHTML('beforeend', `<pre style="color:#f05e45;position:fixed;top:8px;left:8px">${e}</pre>`); });
+  </script>
+</body>
+</html>
