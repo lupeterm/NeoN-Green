@@ -1,11 +1,14 @@
 {
   "timezone": "Europe/Berlin",
-  "center": [9.2185, 49.1422],
+  "center": [
+    9.2185,
+    49.1422
+  ],
   "zoom": 16,
   "overlays": [
     {
       "id": "heat",
-      "label": "Hitze – Bürgersensoren 2.7.2025",
+      "label": "Heat – citizen sensors, 2 Jul 2025",
       "url": "data/heat_sensors.csv",
       "format": "csv",
       "lon": "lon",
@@ -13,16 +16,161 @@
       "value": "temperatur",
       "time": "zeit",
       "unit": "°C",
-      "domain": [22, 44]
+      "domain": [
+        22,
+        44
+      ]
     },
     {
       "id": "bikes",
-      "label": "Hitze – senseBox:bike (live, Ingestor)",
+      "label": "Heat – senseBox:bike (live, ingestor)",
       "url": "http://localhost:8000/collections/track_points/items?limit=100000",
       "format": "geojson",
       "value": "temperature",
       "unit": "°C",
       "refreshSeconds": 300
+    }
+  ],
+  "layers": [
+    {
+      "id": "trees",
+      "label": "Existing trees, city centre (2017)",
+      "url": "data/trees_hn_innenstadt_2017.geojson",
+      "type": "circle",
+      "color": "#2b8a3e",
+      "crownDiameterField": "KRONE_DM",
+      "obstacle": true,
+      "visible": true,
+      "tooltip": {
+        "DEU_TEXT": "Species",
+        "WIS_TEXT": "Botanical name",
+        "KRONE_DM": "Crown Ø (m)",
+        "ST_UMFANG": "Trunk girth (m)",
+        "STRASSE": "Street"
+      }
+    },
+    {
+      "id": "bike_overtaking",
+      "group": "Bike measurements (atrai)",
+      "label": "Overtaking distance",
+      "url": "https://api.atrai.bike/collections/overtaking_distance_heilbronn/items?limit=0",
+      "type": "line",
+      "value": "Average Overtaking Distance cm",
+      "unit": "cm",
+      "domain": [
+        50,
+        200
+      ],
+      "ramp": [
+        "#b10026",
+        "#f03b20",
+        "#fd8d3c",
+        "#fecc5c",
+        "#a1d99b",
+        "#31a354"
+      ],
+      "tooltip": {
+        "name": "Street",
+        "Average Overtaking Distance cm": "Mean overtaking distance (cm)",
+        "Number of Points": "Overtakes"
+      }
+    },
+    {
+      "id": "bike_danger",
+      "group": "Bike measurements (atrai)",
+      "label": "Overtaking danger spots",
+      "url": "https://api.atrai.bike/collections/danger_zones_heilbronn/items?limit=0",
+      "type": "circle",
+      "value": "Risk Index Overtaking",
+      "domain": [
+        0.6,
+        1
+      ],
+      "ramp": [
+        "#fecc5c",
+        "#fd8d3c",
+        "#f03b20",
+        "#b10026"
+      ],
+      "tooltip": {
+        "Risk Index Overtaking": "Risk index (0–1)"
+      }
+    },
+    {
+      "id": "bike_bumpy",
+      "group": "Bike measurements (atrai)",
+      "label": "Road roughness",
+      "url": "https://api.atrai.bike/collections/bumpy_roads_heilbronn/items?limit=0",
+      "type": "line",
+      "value": "Normalized Roughness",
+      "domain": [
+        0,
+        60
+      ],
+      "ramp": [
+        "#31a354",
+        "#a1d99b",
+        "#fecc5c",
+        "#fd8d3c",
+        "#f03b20",
+        "#b10026"
+      ],
+      "tooltip": {
+        "name": "Street",
+        "Normalized Roughness": "Roughness (0–100)",
+        "Number of Boxes": "Sensor boxes"
+      }
+    },
+    {
+      "id": "bike_speed",
+      "group": "Bike measurements (atrai)",
+      "label": "Cycling speed",
+      "url": "https://api.atrai.bike/collections/speed_map_heilbronn/items?limit=0",
+      "type": "line",
+      "value": "avg_speed[km/h]",
+      "unit": "km/h",
+      "domain": [
+        5,
+        30
+      ],
+      "ramp": [
+        "#b10026",
+        "#f03b20",
+        "#fd8d3c",
+        "#fecc5c",
+        "#a1d99b",
+        "#31a354"
+      ],
+      "tooltip": {
+        "name": "Street",
+        "avg_speed[km/h]": "Mean speed (km/h)",
+        "points_in_segment": "Measurements"
+      }
+    },
+    {
+      "id": "bike_flow",
+      "group": "Bike measurements (atrai)",
+      "label": "Traffic flow",
+      "url": "https://api.atrai.bike/collections/traffic_flow_heilbronn/items?limit=0",
+      "type": "line",
+      "value": "avg_traffic_flow",
+      "domain": [
+        0,
+        1
+      ],
+      "ramp": [
+        "#b10026",
+        "#f03b20",
+        "#fd8d3c",
+        "#fecc5c",
+        "#a1d99b",
+        "#31a354"
+      ],
+      "tooltip": {
+        "name": "Street",
+        "avg_traffic_flow": "Flow (0 = stuck, 1 = free)",
+        "points_in_segment": "Measurements"
+      }
     }
   ]
 }
