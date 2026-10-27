@@ -24,7 +24,6 @@ index.html             loads the manifest, feeds every file into kepler.gl, appl
 data/manifest.json     which files to show, as which kepler.gl dataset
 data/*.csv|geojson     one file per dataset
 config/kepler.json     layers, filters, tooltips, viewport (kepler.gl "saved config" format)
-scripts/update_data.py regenerates data/ from the public sources (stdlib only)
 ```
 
 ### Swapping data
@@ -43,16 +42,6 @@ covering a different day or year still gets a sensible default window:
 
 Timestamps in the CSVs are local time without a zone; kepler.gl reads them as UTC, which
 makes the timeline and tooltips show local time.
-
-### Refreshing from the sources
-
-```bash
-python3 scripts/update_data.py
-```
-
-```bash
-python3 scripts/update_data.py --only heat --heat-day 2025-08-13
-```
 
 ## Datasets
 
