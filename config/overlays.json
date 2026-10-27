@@ -2,6 +2,7 @@
   "timezone": "Europe/Berlin",
   "center": [9.2185, 49.1422],
   "zoom": 16,
+  "hotspots": "data/hotspots.geojson",
   "overlays": [
     {
       "id": "heat",
@@ -14,6 +15,19 @@
       "time": "zeit",
       "unit": "°C",
       "domain": [22, 44]
+    },
+    {
+      "id": "bikes-snapshot",
+      "label": "Hitze – senseBox:bike 1.–7.9.2026",
+      "url": "data/atrai_bike.csv",
+      "format": "csv",
+      "lon": "lon",
+      "lat": "lat",
+      "value": "temperatur",
+      "time": "zeit",
+      "maxTimeGapMinutes": 60,
+      "unit": "°C",
+      "domain": [16, 34]
     },
     {
       "id": "bikes",

@@ -1,0 +1,111 @@
+{
+ "type": "FeatureCollection",
+ "meta": {
+  "quelle": "openSenseMap, grouptag heilbronn (senseBox:bike)",
+  "von": "2026-06-11",
+  "bis": "2026-10-22",
+  "methode": "Abweichung vom Fahrtmedian, 100-m-Raster, mind. 8 Fahrten von 2 Rädern"
+ },
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     9.219543,
+     49.152505
+    ]
+   },
+   "properties": {
+    "rang": 1,
+    "strasse": "Salzstraße",
+    "anomalie_K": 0.74,
+    "fehler_K": 0.29,
+    "fahrten": 8,
+    "raeder": 4,
+    "messwerte": 34,
+    "temperatur_mittel": 34.5
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     9.222519,
+     49.141559
+    ]
+   },
+   "properties": {
+    "rang": 2,
+    "strasse": "Moltkestraße",
+    "anomalie_K": 0.47,
+    "fehler_K": 0.21,
+    "fahrten": 8,
+    "raeder": 5,
+    "messwerte": 23,
+    "temperatur_mittel": 30.6
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     9.212523,
+     49.147829
+    ]
+   },
+   "properties": {
+    "rang": 3,
+    "strasse": "Mannheimer Straße",
+    "anomalie_K": 0.24,
+    "fehler_K": 0.09,
+    "fahrten": 12,
+    "raeder": 8,
+    "messwerte": 23,
+    "temperatur_mittel": 25.7
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     9.224281,
+     49.151307
+    ]
+   },
+   "properties": {
+    "rang": 4,
+    "strasse": "Burenstraße",
+    "anomalie_K": 0.32,
+    "fehler_K": 0.18,
+    "fahrten": 8,
+    "raeder": 4,
+    "messwerte": 49,
+    "temperatur_mittel": 26.6
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     9.218718,
+     49.145713
+    ]
+   },
+   "properties": {
+    "rang": 5,
+    "strasse": "Turmstraße",
+    "anomalie_K": 0.24,
+    "fehler_K": 0.11,
+    "fahrten": 14,
+    "raeder": 5,
+    "messwerte": 120,
+    "temperatur_mittel": 28.5
+   }
+  }
+ ]
+}
