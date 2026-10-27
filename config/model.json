@@ -1,0 +1,33 @@
+{
+  "_about": "Simplified, illustrative model for education, not a microclimate simulation (see ENVI-met or PALM-4U for that). Edit any value and reload.",
+  "presets": {
+    "klein": {"label": "klein – 6 m, Krone 4 m", "height_m": 6, "crown_diameter_m": 4},
+    "mittel": {"label": "mittel – 12 m, Krone 8 m", "height_m": 12, "crown_diameter_m": 8},
+    "gross": {"label": "groß – 18 m, Krone 12 m", "height_m": 18, "crown_diameter_m": 12}
+  },
+  "default_preset": "mittel",
+  "default_trees": 8,
+  "max_trees": 40,
+  "shade": {
+    "_about": "Felt temperature drop inside a crown shadow. Scaled by sun altitude; full effect from full_effect_sun_altitude_deg.",
+    "max_cooling_K": 10,
+    "full_effect_sun_altitude_deg": 50,
+    "min_sun_altitude_deg": 3,
+    "soft_edge_m": 1.5
+  },
+  "evapotranspiration": {
+    "_about": "Air cooling around each tree (Gaussian, sigma_m), saturating at max_total_K for many trees; scaled by night_factor after sunset.",
+    "per_tree_K": 0.8,
+    "sigma_m": 15,
+    "max_total_K": 2.5,
+    "night_factor": 0.5
+  },
+  "grid": {
+    "_about": "Inverse distance weighting of the overlay points. Above dense_point_threshold points, only points within idw_radius_m count.",
+    "idw_power": 2,
+    "dense_point_threshold": 300,
+    "idw_radius_m": 60
+  },
+  "street_corridor_m": 10,
+  "cost_per_tree_eur": 5000
+}

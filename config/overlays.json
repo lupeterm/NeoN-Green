@@ -1,0 +1,28 @@
+{
+  "timezone": "Europe/Berlin",
+  "center": [9.2185, 49.1422],
+  "zoom": 16,
+  "overlays": [
+    {
+      "id": "heat",
+      "label": "Hitze – Bürgersensoren 2.7.2025",
+      "url": "data/heat_sensors.csv",
+      "format": "csv",
+      "lon": "lon",
+      "lat": "lat",
+      "value": "temperatur",
+      "time": "zeit",
+      "unit": "°C",
+      "domain": [22, 44]
+    },
+    {
+      "id": "bikes",
+      "label": "Hitze – senseBox:bike (live, Ingestor)",
+      "url": "http://localhost:8000/collections/track_points/items?limit=100000",
+      "format": "geojson",
+      "value": "temperature",
+      "unit": "°C",
+      "refreshSeconds": 300
+    }
+  ]
+}

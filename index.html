@@ -3,66 +3,70 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Heilbronn – Lärm, Luft, Hitze</title>
-  <link href="https://unpkg.com/kepler.gl@3.1.9/umd/keplergl.min.css" rel="stylesheet">
-  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet">
-  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/redux@4.2.1/dist/redux.js" crossorigin></script>
-  <script src="https://unpkg.com/react-redux@8.1.2/dist/react-redux.min.js" crossorigin></script>
-  <script src="https://unpkg.com/styled-components@6.1.8/dist/styled-components.min.js" crossorigin></script>
-  <script src="https://unpkg.com/kepler.gl@3.1.9/umd/keplergl.min.js" crossorigin></script>
-  <style>body {margin: 0; overflow: hidden; background: #0e1116;}</style>
+  <title>NeoN-Green – Was wäre, wenn?</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
+  <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
+  <script src="model.js"></script>
+  <style>
+    :root { --bg: #ffffffee; --fg: #1d2329; --muted: #5f6b76; --line: #d8dee4; --accent: #2f9e44; --cool: #1c7ed6; }
+    html, body { margin: 0; height: 100%; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--fg); }
+    #map { position: absolute; inset: 0; }
+    .card { position: absolute; z-index: 2; background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+            box-shadow: 0 2px 12px #0002; padding: 12px 14px; width: 280px; max-width: calc(100vw - 52px); box-sizing: border-box; }
+    #panel { top: 10px; left: 10px; }
+    #scenario { top: 10px; right: 52px; }
+    h1, h2 { font-size: 15px; margin: 0 0 8px; }
+    label { display: block; margin: 8px 0 2px; font-weight: 600; font-size: 12px; color: var(--muted); }
+    label span { float: right; font-weight: 400; color: var(--fg); }
+    select, input[type=date] { width: 100%; box-sizing: border-box; font: inherit; padding: 3px 4px; }
+    input[type=range] { width: 100%; margin: 2px 0; accent-color: var(--accent); }
+    .muted { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+    .err { color: #c92a2a; }
+    #ramp { height: 10px; border-radius: 3px; margin-top: 10px; }
+    .ticks { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+    header { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+    #close { border: 0; background: none; font-size: 20px; line-height: 1; cursor: pointer; color: var(--muted); padding: 0; }
+    dl { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--line); }
+    dt { color: var(--muted); } dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+    dd.big { font-size: 18px; font-weight: 700; color: var(--cool); }
+    @media (max-width: 640px) { #scenario { top: auto; bottom: 30px; right: 10px; left: 10px; width: auto; max-width: none; } }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script>
-    // Everything shown comes from data/manifest.json: a list of files plus one kepler.gl config.
-    // Replace a file (same columns) and reload. Time filters marked "auto" pick their window from the data.
-    const reducer = Redux.combineReducers({
-      keplerGl: KeplerGl.keplerGlReducer.initialState({uiState: {currentModal: null}, mapStyle: {styleType: 'dark-matter'}})
-    });
-    const store = Redux.createStore(reducer, {}, Redux.applyMiddleware(...KeplerGl.enhanceReduxMiddleware([])));
-    window.keplerStore = store;
+  <div id="map"></div>
 
-    function App() {
-      const [dim, setDim] = React.useState({width: innerWidth, height: innerHeight});
-      React.useEffect(() => {
-        const onResize = () => setDim({width: innerWidth, height: innerHeight});
-        addEventListener('resize', onResize);
-        return () => removeEventListener('resize', onResize);
-      }, []);
-      return React.createElement(KeplerGl.KeplerGl, {id: 'map', width: dim.width, height: dim.height, mapboxApiAccessToken: ''});
-    }
-    ReactDOM.createRoot(document.getElementById('app')).render(
-      React.createElement(ReactRedux.Provider, {store}, React.createElement(App)));
+  <aside id="panel" class="card">
+    <h1>Was wäre, wenn …?</h1>
+    <label>Daten</label>
+    <select id="overlay"></select>
+    <p id="status" class="muted"></p>
+    <label>Datum</label>
+    <input type="date" id="date">
+    <label>Uhrzeit <span id="timeLabel"></span></label>
+    <input type="range" id="time" min="300" max="1320" step="10" value="900">
+    <p id="sun" class="muted"></p>
+    <div id="ramp"></div>
+    <div class="ticks"><span id="dmin"></span><span id="unit"></span><span id="dmax"></span></div>
+    <p class="muted">Hineinzoomen und auf eine Straße klicken, um Bäume zu pflanzen.</p>
+  </aside>
 
-    const parseTime = s => Date.parse(String(s).replace(' ', 'T') + 'Z');  // kepler treats naive timestamps as UTC
+  <aside id="scenario" class="card" hidden>
+    <header><h2 id="street"></h2><button id="close" title="Szenario entfernen">×</button></header>
+    <label>Abschnitt von <span id="secLabel"></span></label>
+    <input type="range" id="secStart" min="0" max="100" value="0">
+    <label>bis</label>
+    <input type="range" id="secEnd" min="0" max="100" value="100">
+    <label>Bäume <span id="treeLabel"></span></label>
+    <input type="range" id="trees" min="0" max="40" value="8">
+    <label>Baumgröße</label>
+    <select id="preset"></select>
+    <dl id="result"></dl>
+    <p class="muted">Vereinfachtes Lehrmodell: Kronenschatten nach Sonnenstand plus Verdunstungskühlung.
+      Werte in <code>config/model.json</code>.</p>
+  </aside>
 
-    function resolveAutoFilters(config, datasets) {
-      for (const f of config.config.visState.filters) {
-        if (!f.auto) continue;
-        const ds = datasets.find(d => d.info.id === f.dataId[0]);
-        const col = ds.data.fields.findIndex(x => x.name === f.name[0]);
-        const times = ds.data.rows.map(r => parseTime(r[col])).filter(Number.isFinite);
-        const win = (f.auto.windowMinutes || 30) * 60000, off = (f.auto.offsetMinutes || 0) * 60000;
-        const start = f.auto.anchor === 'end' ? Math.max(...times) - win : Math.min(...times) + off;
-        f.value = [start, start + win];
-        delete f.auto;
-      }
-      return config;
-    }
-
-    (async () => {
-      const manifest = await (await fetch('data/manifest.json')).json();
-      const config = await (await fetch(manifest.config)).json();
-      const datasets = await Promise.all(manifest.datasets.map(async d => {
-        const res = await fetch(d.file);
-        const data = d.format === 'geojson' ? KeplerGl.processGeojson(await res.json()) : KeplerGl.processCsvData(await res.text());
-        return {info: {id: d.id, label: d.label}, data};
-      }));
-      store.dispatch(KeplerGl.addDataToMap({datasets, config: resolveAutoFilters(config, datasets), options: {centerMap: false}}));
-    })().catch(e => { console.error(e); document.body.insertAdjacentHTML('beforeend', `<pre style="color:#f05e45;position:fixed;top:8px;left:8px">${e}</pre>`); });
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>

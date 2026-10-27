@@ -1,12 +1,12 @@
-# NeoN-Green
+# NeoN-Green: "What if we planted trees here?"
 
-Interactive map of Heilbronn's environmental data, built on [kepler.gl](https://kepler.gl).
-The goal: pick a small area (a street, a square), apply a "what if" (plant five trees,
-cut speed to 30 km/h, …) and see the effect on heat, noise or air quality. Educational,
-and a cheap way to compare urban-planning options.
+An interactive street map of Heilbronn with a heat overlay. Zoom in, click a street,
+narrow it down to a section and plant trees on it. The overlay recalculates live, and
+the panel shows how much cooler the street gets on average. Tree shadows follow the
+sun for the chosen date and time of day.
 
-This repo is the data foundation for that: one page, a handful of swappable datasets,
-no build step.
+Built for education and for cheaply comparing urban-planning options. It is not a
+microclimate simulation.
 
 ## Run
 
@@ -14,51 +14,106 @@ no build step.
 python3 -m http.server 8765
 ```
 
-Open <http://localhost:8765>. The page needs a web server (it fetches the data files);
-libraries come from unpkg, the basemap is CARTO via MapLibre, no API keys.
+Open <http://localhost:8765>. No build step and no API keys. MapLibre GL JS, Turf and
+SunCalc load from unpkg, and the basemap is CARTO Positron.
 
-## How it fits together
+## Using it
+
+1. Pick the dataset, date and time of day in the left panel. The sun position updates with them.
+2. Zoom in to street level and click a street. All loaded pieces with the same name are joined.
+3. In the right panel, choose the section, the number of trees and the tree size.
+4. Read the result: the mean value within 10 m on both sides of the section, before and after,
+   plus the strongest local cooling, the shaded area and an assumed cost.
+
+## Files
 
 ```
-index.html             loads the manifest, feeds every file into kepler.gl, applies the config
-data/manifest.json     which files to show, as which kepler.gl dataset
-data/*.csv|geojson     one file per dataset
-config/kepler.json     layers, filters, tooltips, viewport (kepler.gl "saved config" format)
+index.html          page and styles
+app.js              map, data loading, street selection, UI
+worker.js           background computation: interpolation, scenario, PNG rendering
+model.js            tree cooling model (shared by app and worker)
+config/overlays.json  datasets shown in the "Daten" dropdown
+config/model.json     all model parameters
+data/heat_sensors.csv sensor.community temperatures, Heilbronn, 2 July 2025, 10-minute means
 ```
 
-### Swapping data
+## Plugging in data
 
-Data changes; the page does not. To replace a dataset, overwrite its file with one that
-has the same columns and reload. To add one, drop the file in `data/`, list it in
-`manifest.json` and add a layer for it in `config/kepler.json` (or configure it in the UI
-and copy the result from *Share → Export Map → JSON*).
-
-Time filters in the config carry an `auto` block instead of fixed timestamps, so a file
-covering a different day or year still gets a sensible default window:
+An overlay is any set of point measurements with a numeric value. Add an entry to
+`config/overlays.json` and reload:
 
 ```json
-"auto": {"anchor": "start", "offsetMinutes": 780, "windowMinutes": 30}
+{
+  "id": "my-data",
+  "label": "Shown in the dropdown",
+  "url": "data/my-data.csv",
+  "format": "csv",
+  "lon": "lon", "lat": "lat", "value": "temperature",
+  "time": "timestamp",
+  "unit": "°C",
+  "domain": [20, 40],
+  "refreshSeconds": 300
+}
 ```
 
-Timestamps in the CSVs are local time without a zone; kepler.gl reads them as UTC, which
-makes the timeline and tooltips show local time.
+* `format` is `csv` (comma or semicolon), `json` (array of objects, or `path` to the array)
+  or `geojson`. GeoJSON takes the point coordinates, or the centroid of other geometries,
+  so `lon` and `lat` are not needed there.
+* `time` is optional. If given, the map shows, per location, the value closest to the
+  selected time of day. Timestamps without a zone are read as local time.
+* `domain` fixes the colour scale. Without it, the 2nd to 98th percentile is used.
+* `refreshSeconds` re-fetches the URL periodically, for live sources.
+* `url` can point to any HTTP endpoint that allows cross-origin requests.
 
-## Datasets
+Points are interpolated by inverse distance weighting. Sparse networks (up to 300 points)
+use all points everywhere. Dense data such as bike tracks only uses points within
+`grid.idw_radius_m` and leaves gaps elsewhere.
 
-| id | what | source | licence |
-|---|---|---|---|
-| `heat` | temperature, humidity and PM of citizen sensors on one hot day, 10-minute means per location | sensor.community archive | ODbL |
-| `air` | daily means and 1-h maxima of NO₂, PM10, PM2.5, O₃ at the two LUBW stations DEBW015 (background) and DEBW152 (traffic) | Umweltbundesamt air-data API | DL-DE BY 2.0 |
-| `noise` | EU noise mapping 2022, road traffic Lden bands (55–59 … ≥ 75 dB(A)) for the Heilbronn agglomeration; calculated, not measured | Umweltbundesamt datahub (data by Stadt Heilbronn) | © UBA, attribution |
-| `districts` | district boundaries | Stadt Heilbronn open data | DL-DE BY 2.0 |
+## The model
 
-Caveats: citizen temperature sensors are often unshaded and read several degrees above
-air temperature on hot days. The city's own climate analysis maps (Klimaanalysekarte,
-felt temperature, cold-air flows) exist only as PDFs and are not included.
+`model.js`, with parameters in `config/model.json`:
 
-## Towards "what if"
+* **Shade.** Each crown is a sphere whose shadow is projected along the sun ray: an ellipse,
+  offset away from the sun and stretched at low sun. Inside it the felt temperature drops by
+  up to `shade.max_cooling_K`, scaled by sun altitude. No effect when the sun is below the horizon.
+* **Evapotranspiration.** Each tree cools the air around it by a Gaussian bump. Several trees
+  add up but saturate at `evapotranspiration.max_total_K`, and the effect is weaker at night.
 
-kepler.gl already lets you draw a polygon on the map (pen icon, top right) that filters
-every layer to that area. The missing piece is a scenario layer: take the points inside
-the selection, apply a model (trees → shading → Δ temperature), and add the result as
-another dataset through the same manifest.
+Known simplifications: buildings neither cast shadows nor block tree shadows, trees sit on the
+street axis, and wind, surfaces and street geometry are ignored. The default values are
+plausible orders of magnitude for Central European summer days, not calibrated results. Tune
+them in `config/model.json`, or replace `model.js` with a better model behind the same
+`treeEffect()` function.
+
+## Live bike data (optional)
+
+The second overlay reads senseBox:bike measurements of the Heilbronn campaign from the
+[atrai-bikes-ingestor](https://github.com/reedu-reengineering-education/atrai-bikes-ingestor),
+included as the submodule `ingestor/`. It syncs the openSenseMap archive into PostGIS every
+6 hours and serves the points at `http://localhost:8000/collections/track_points/items`.
+
+```bash
+git submodule update --init
+```
+
+```bash
+cp .env.example .env
+```
+
+```bash
+docker compose up -d --build
+```
+
+The map is then also served at <http://localhost:8080>. While the ingestor is not running,
+choosing that overlay shows "nicht verfügbar" and the map keeps the current data.
+
+## Data and licences
+
+| Data | Source | Licence |
+|---|---|---|
+| `data/heat_sensors.csv` | [sensor.community](https://sensor.community) archive | ODbL |
+| senseBox:bike (live) | [openSenseMap](https://opensensemap.org), grouptag `heilbronn` | PDDL |
+| Basemap | © OpenStreetMap contributors, © CARTO | ODbL / CARTO terms |
+
+Citizen temperature sensors are often unshaded and read several degrees above the
+meteorological air temperature on sunny days.
