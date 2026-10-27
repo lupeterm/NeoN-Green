@@ -6,6 +6,8 @@ const BASEMAP = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 const RAMP = ['#ffffcc', '#ffeda0', '#fed976', '#feb24c', '#fd8d3c', '#fc4e2a', '#e31a1c', '#b10026'];
 const STITCH_TOLERANCE_M = 2;
 const MIN_SELECT_ZOOM = 14.5;
+const HOTSPOT_ZOOM = 17;
+const HOTSPOT_SECTION_M = 200;  // section preselected around a hotspot
 
 const $ = id => document.getElementById(id);
 const S = {
@@ -31,6 +33,7 @@ async function main() {
   setupMap();
   setupUi();
   setupDataLayers();
+  loadHotspots();
   await loadOverlay(S.cfg.overlays[0]);
 }
 
@@ -56,6 +59,14 @@ function setupMap() {
   m.addLayer({id: 'planted', type: 'circle', source: 'planted', paint: {
     'circle-color': '#2f9e44', 'circle-opacity': 0.9, 'circle-stroke-color': '#0b3d16', 'circle-stroke-width': 1.5,
     'circle-radius': metres(['get', 'r'], 4)}}, firstLabel);
+
+  const font = layers.find(l => l.layout && l.layout['text-font'])?.layout['text-font'];
+  m.addSource('hotspots', {type: 'geojson', data: fc([])});
+  m.addLayer({id: 'hotspots', type: 'circle', source: 'hotspots', paint: {
+    'circle-radius': 9, 'circle-color': '#c92a2a', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2}});
+  m.addLayer({id: 'hotspot-labels', type: 'symbol', source: 'hotspots', layout: {
+    'text-field': ['to-string', ['get', 'rang']], 'text-font': font, 'text-size': 11, 'text-allow-overlap': true},
+    paint: {'text-color': '#fff'}});
 
   S.popup = new maplibregl.Popup({closeButton: false, closeOnClick: false, offset: 10, maxWidth: '260px'});
   m.on('moveend', update);
@@ -100,12 +111,65 @@ function onClick(e) {
 // Click a street: select all of it (as far as it is loaded).
 function pickStreet(e) {
   if (S.map.getZoom() < MIN_SELECT_ZOOM) return setStatus('Zoom in further to select a street.');
-  const hits = S.map.queryRenderedFeatures(box(e.point, 10), {layers: S.roadLayers});
-  const hit = hits.find(f => f.properties.name) || hits[0];
-  if (!hit) return;
-  const click = [e.lngLat.lng, e.lngLat.lat];
-  const line = streetLines(hit).sort((a, b) => turf.pointToLineDistance(click, a) - turf.pointToLineDistance(click, b))[0];
-  if (line) selectStreet(hit, line, 0, Infinity);
+  const found = streetAt(e.point, [e.lngLat.lng, e.lngLat.lat]);
+  if (found) selectStreet(found.hit, found.line, 0, Infinity);
+}
+
+// The street under a screen point (preferring `name`, then any named street) and its joined line nearest to lngLat.
+function streetAt(point, lngLat, radius = 10, name = null) {
+  const hits = S.map.queryRenderedFeatures(box(point, radius), {layers: S.roadLayers});
+  const hit = hits.find(f => name && f.properties.name === name) || hits.find(f => f.properties.name) || hits[0];
+  if (!hit) return null;
+  const line = streetLines(hit).sort((a, b) => turf.pointToLineDistance(lngLat, a) - turf.pointToLineDistance(lngLat, b))[0];
+  return line ? {hit, line} : null;
+}
+
+// ------------------------------------------------------------------ hotspots
+
+// Warm street spots found in the bike rides by scripts/find_hotspots.py. A click flies there,
+// selects the street and preselects HOTSPOT_SECTION_M around the hotspot.
+async function loadHotspots() {
+  if (!S.cfg.hotspots) return;
+  let gj;
+  try { gj = await getJSON(S.cfg.hotspots); } catch { return; }
+  setData('hotspots', gj);
+  $('hotspots').replaceChildren(...gj.features.map(f => {
+    const p = f.properties, li = document.createElement('li'), b = document.createElement('button');
+    const name = document.createElement('span'), val = document.createElement('b');
+    name.textContent = `${p.rang}. ${p.strasse}`;
+    val.textContent = `${signed(p.anomalie_K)} K`;
+    b.title = `${p.fahrten} rides by ${p.raeder} bikes, mean ${p.temperatur_mittel} °C (± ${p.fehler_K} K)`;
+    b.append(name, val);
+    b.onclick = () => goToHotspot(f);
+    li.append(b);
+    return li;
+  }));
+  const day = s => new Date(`${s}T12:00:00Z`).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'});
+  $('hotspotNote').textContent = 'Warmer than the rest of the same ride' + (gj.meta ? `, ${day(gj.meta.von)} – ${day(gj.meta.bis)}` : '') + '.';
+  $('hotspotBox').hidden = false;
+}
+
+function goToHotspot(f) {
+  const ll = f.geometry.coordinates;
+  S.map.flyTo({center: ll, zoom: Math.max(S.map.getZoom(), HOTSPOT_ZOOM)});
+  S.map.once('idle', () => {
+    const found = streetAt(S.map.project(ll), ll, 25, f.properties.strasse);
+    if (!found) return setStatus('No street found at the hotspot, please click it directly.', true);
+    const P = NG.projection(...S.cfg.center), {x, y} = P.toXY(ll[0], ll[1]), at = locate(measure(found.line, P), x, y);
+    selectStreet(found.hit, found.line, at - HOTSPOT_SECTION_M / 2, at + HOTSPOT_SECTION_M / 2);
+  });
+}
+
+// Distance along a measured line of the point closest to (x, y).
+function locate({xy, cum}, x, y) {
+  let best = Infinity, at = 0;
+  for (let i = 1; i < xy.length; i++) {
+    const a = xy[i - 1], b = xy[i], dx = b.x - a.x, dy = b.y - a.y, l2 = dx * dx + dy * dy;
+    const t = l2 ? Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / l2)) : 0;
+    const d = Math.hypot(x - a.x - t * dx, y - a.y - t * dy);
+    if (d < best) { best = d; at = cum[i - 1] + t * Math.sqrt(l2); }
+  }
+  return at;
 }
 
 // ------------------------------------------------------------------ street selection: lasso

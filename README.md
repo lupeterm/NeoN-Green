@@ -23,7 +23,9 @@ SunCalc load from unpkg, and the basemap is CARTO Positron.
 1. Pick the heat dataset, date and time of day in the left panel. The sun position updates with them.
 2. Zoom in to street level and press **Draw a section**, then drag around the part of the street
    you mean. The street with the longest stretch inside the shape is chosen, and the section snaps
-   to exactly that stretch. Clicking a street instead selects all of it.
+   to exactly that stretch. Clicking a street instead selects all of it. Or click one of the heat
+   hotspots listed under the colour scale: the map flies there, selects the street and preselects
+   200 m around the hotspot.
 3. In the right panel, choose **evenly spaced** and set the number of trees, or **by hand** and
    click the map to plant trees and click a new tree to remove it. Switching to by hand starts
    from the current even layout.
@@ -48,6 +50,10 @@ config/overlays.json  heat datasets ("overlays") and extra map layers ("layers")
 config/model.json     model and tree placement parameters
 data/heat_sensors.csv sensor.community temperatures, Heilbronn, 2 July 2025, 10-minute means
 data/trees_hn_innenstadt_2017.geojson  tree inventory of the city centre, 2017
+data/atrai_bike.csv   senseBox:bike measurements, Heilbronn, 1–7 Sep 2026 (snapshot)
+data/hotspots.geojson five warm street spots found in the bike rides (list in the left panel)
+scripts/fetch_atrai.py    regenerates data/atrai_bike.csv for any period
+scripts/find_hotspots.py  regenerates data/hotspots.geojson
 ```
 
 ## Plugging in data
@@ -134,9 +140,25 @@ The bike layers come straight from the public atrai API at <https://api.atrai.bi
 overtaking danger spots, road roughness, cycling speed and traffic flow for Heilbronn. The
 fine-dust risk points (`danger_zones_PM_heilbronn`, 37 MB) are left out because of their size.
 
+### Snapshot overlay
+
+The heat overlay "Heat – senseBox:bike, 1–7 Sep 2026" shows a snapshot of the Heilbronn
+campaign from `data/atrai_bike.csv`. `scripts/fetch_atrai.py` pulls it straight from the
+openSenseMap archive (Python stdlib only, about 15 s per week of data):
+
+```bash
+python3 scripts/fetch_atrai.py --from 2026-09-01 --to 2026-09-07
+```
+
+One row per timestamp and bike: `zeit` (local time), `box`, `lat`, `lon`, `pm25`, `pm10`,
+`pm1` (µg/m³), `temperatur` (°C), `luftfeuchte` (%), `tempo_kmh`. Points outside the
+city's bounding box and out-of-range values are dropped. Coverage is uneven: a few
+regular riders contribute most points, so dense streets are not necessarily hotter or
+more polluted ones.
+
 ### Local ingestor (optional)
 
-The second heat overlay reads senseBox:bike measurements of the Heilbronn campaign from the
+The live heat overlay reads senseBox:bike measurements of the Heilbronn campaign from the
 [atrai-bikes-ingestor](https://github.com/reedu-reengineering-education/atrai-bikes-ingestor),
 included as the submodule `ingestor/`. It syncs the openSenseMap archive into PostGIS every
 6 hours and serves the points at `http://localhost:8000/collections/track_points/items`.
@@ -156,6 +178,26 @@ docker compose up -d --build
 The map is then also served at <http://localhost:8080>. While the ingestor is not running,
 choosing that overlay shows "is not available" and the map keeps the current data.
 
+### Hotspots
+
+`data/hotspots.geojson` lists streets where the bikes measured it warmer than elsewhere on
+the same ride. Comparing rides directly would mostly compare times of day, so every reading
+is taken relative to the median of its own ride. These anomalies are averaged in 100 m grid
+cells, first per ride and then over rides. A cell needs at least 8 rides by 2 different bikes,
+and cells are ranked by mean minus standard error. Readings below 5 km/h (sensor heats up
+while standing) and the first 3 minutes of a ride (box still adapting) are ignored. Bikes
+often use paths and tracks, so a cell only counts if Nominatim finds a street within 25 m;
+the hotspot is moved onto it. Regenerate from a longer period than the overlay snapshot,
+which is too short for stable results:
+
+```bash
+python3 scripts/fetch_atrai.py --from 2026-06-01 --to 2026-10-26 --out /tmp/atrai_jun_oct.csv
+python3 scripts/find_hotspots.py /tmp/atrai_jun_oct.csv
+```
+
+The effects are small (+0.2 to +0.7 K, standard error 0.1 to 0.3 K) and come from mobile
+low-cost sensors: treat the list as candidates to look at, not as measured heat islands.
+
 ## Data and licences
 
 | Data | Source | Licence |
@@ -164,6 +206,8 @@ choosing that overlay shows "is not available" and the map keeps the current dat
 | `data/trees_hn_innenstadt_2017.geojson` | Stadt Heilbronn tree inventory, city centre, 2017 | not stated in the file |
 | Bike layers | [atrai API](https://api.atrai.bike), senseBox:bike campaign Heilbronn | not stated on the page |
 | senseBox:bike (live) | [openSenseMap](https://opensensemap.org), grouptag `heilbronn` | PDDL |
+| `data/atrai_bike.csv` | [openSenseMap](https://opensensemap.org) archive, grouptag `heilbronn` | PDDL |
+| `data/hotspots.geojson` | derived from the above, 11 Jun – 22 Oct 2026; street names © OpenStreetMap contributors via [Nominatim](https://nominatim.org) | ODbL |
 | Basemap | © OpenStreetMap contributors, © CARTO | ODbL / CARTO terms |
 
 Citizen temperature sensors are often unshaded and read several degrees above the
