@@ -32,6 +32,11 @@ SunCalc load from unpkg, and the basemap is CARTO Positron.
    from the current even layout.
 4. Read the result: the mean value within 10 m on both sides of the section, before and after,
    plus the strongest local cooling and the shaded area.
+5. Under **Canyon air temperature**, pick one of the scenarios from the cooling notebook (calm or
+   windy day, drought, denser row, smaller trees, narrow street …) in the dropdown or by clicking its
+   row. It shows how shade, crown heat and reduced ventilation add up to the net change of the
+   canyon-average air temperature at peak hour, next to the net effect of all other scenarios
+   (see "Canyon scenarios" below).
 
 **3D street view (prototype).** With a street selected, "3D street view" in the right panel
 puts the camera at eye height (1.8 m) at the start of the section, looking along it. Buildings are extruded from the
@@ -77,6 +82,8 @@ data/climate_table.json, water_supply_table.json, city_boundary.geojson
                       environment layers from opendata.heilbronn.de (see "Environment data")
 data/atrai_bike.csv   senseBox:bike measurements, Heilbronn, 1–7 Sep 2026 (snapshot)
 data/hotspots.geojson five warm street spots found in the bike rides (list in the left panel)
+data/canyon_scenarios.json  scenario results of the canyon cooling notebook (scenario panel)
+street_tree_cooling_model.ipynb  street-canyon box model of tree cooling; writes data/canyon_scenarios.json
 scripts/fetch_atrai.py    regenerates data/atrai_bike.csv for any period
 scripts/find_hotspots.py  regenerates data/hotspots.geojson
 scripts/fetch_opendata.py    mirrors the portal's environment datasets into opendata/ (git-ignored)
@@ -198,6 +205,23 @@ values. Current references:
 * Rahman et al. (2018), [Vertical air temperature gradients under the shade of two contrasting urban tree species](https://treefund.org/wp-content/uploads/2018/04/Rahman-et-al.-2018.pdf),
   Science of the Total Environment 633: air under canopies 0.5–1.8 °C cooler (Munich), 0.1–2.8 °C in other studies.
 * [SunCalc](https://github.com/mourner/suncalc) for the sun position.
+
+### Canyon scenarios
+
+`street_tree_cooling_model.ipynb` is a second, physically based model: a street-canyon box model
+of the canyon-average **air** temperature at the hottest hour (surface energy balance, canyon
+ventilation, big-leaf crown). It splits the tree effect into shade (cooling), crown sensible heat
+(warming, reduced by transpiration) and reduced ventilation (warming). Its results are much smaller
+than the felt-temperature change of the map model above, because air mixes through the whole street.
+Section 7 of the notebook runs eight scenarios against a base case (20 m wide street, 8 m crowns every
+10 m, 1 m/s wind) and writes them to `data/canyon_scenarios.json` (path in `canyonScenarios` in
+`config/overlays.json`), which the scenario panel shows. The scenarios describe a generic street, not
+the selected one. After changing the model or the `scenarios` dictionary, re-run the notebook
+(needs `numpy`, `matplotlib` and Jupyter):
+
+```bash
+jupyter nbconvert --to notebook --execute --inplace street_tree_cooling_model.ipynb
+```
 
 ## Environment data
 
