@@ -81,6 +81,11 @@ scripts/fetch_atrai.py    regenerates data/atrai_bike.csv for any period
 scripts/find_hotspots.py  regenerates data/hotspots.geojson
 scripts/fetch_opendata.py    mirrors the portal's environment datasets into opendata/ (git-ignored)
 scripts/prepare_opendata.py  builds the environment layers and the tree file from that mirror
+street.html, street.js    street view: trees and vehicles drawn into photos of Weipertstraße
+config/street.json        photo views, their camera calibration and the redesign views
+data/street/*.jpg         the photos, 1200 x 1600
+data/street/redesign/     AI visualisations of the redesigned street
+scripts/redesign_street.py  makes them on a GPU
 ```
 
 ## Plugging in data
@@ -259,6 +264,47 @@ python3 scripts/find_hotspots.py /tmp/atrai_jun_oct.csv
 The effects are small (+0.2 to +0.7 °C, standard error 0.1 to 0.3 °C) and come from mobile
 low-cost sensors: treat the list as candidates to look at, not as measured heat islands.
 
+## Street view (Weipertstraße)
+
+`street.html` (linked from the map's left panel) shows three photos of Weipertstraße in front
+of the Open Space, taken on 28 Oct 2026. Click the pavement or the road to place a small,
+medium or large tree, a car or a bike; click a tree's trunk or a vehicle to remove it. Objects
+get the size and position the camera perspective gives at that spot, nearer objects cover
+farther ones, posts and the parked car in the photos stay in front, and tree shadows follow
+the sun for the chosen date and time. Vehicles keep to the right, so they are seen from behind,
+from the front or from the side. **Before / after** slides the original photo over the montage,
+**Save image** downloads it, and **Show trees on the map** hands the planted trees to the map,
+which selects Weipertstraße there, plants them by hand and computes the cooling.
+
+Each view in `config/street.json` is calibrated from the photo itself: `horizon_y` and
+`vanishing_x` are where the street's parallel lines (kerb, building base, lane markings) meet,
+`street_bearing_deg` is the street direction from OSM, the focal length comes from the
+phone's 26 mm-equivalent lens, and the camera is assumed 1.5 m above the ground. Open
+`street.html?debug` to see a ground grid (1 m lines along the street, 5 m across) and check it
+against the kerbs. `ground` is the area where objects can be placed and `foreground` lists photo
+parts that stay in front of them.
+
+It is a photomontage with drawn trees and vehicles, not a rendering or a simulation.
+
+### Green redesign (AI)
+
+**Green redesign** in the street view shows Weipertstraße from the centre of the road, a few
+metres up, after a redesign: tree rows on both sides, planted strips, red cycle lanes, one car
+lane per direction, people walking and cycling. `scripts/redesign_street.py` makes these images
+with the open model [Qwen-Image-Edit-2511](https://huggingface.co/Qwen/Qwen-Image-Edit-2511)
+(Apache 2.0) from the photos in `data/street/`; the brief is in the script, the views in
+`redesigns` in `config/street.json`. The buildings are recognisable, everything else is invented
+by the model: an AI visualisation, not a planned design. It needs a GPU with about 60 GB:
+
+```bash
+pip install torch torchvision diffusers transformers accelerate pillow
+python scripts/redesign_street.py                # all redesigns, about 70 s each
+python scripts/redesign_street.py north --seed 7 # another take of one
+```
+
+On a GH200 (ARM) load the model from a local disk (`--model /local/copy`): the script reads the
+weight files whole, because moving memory-mapped weights to the GPU is extremely slow there.
+
 ## Data and licences
 
 | Data | Source | Licence |
@@ -269,6 +315,8 @@ low-cost sensors: treat the list as candidates to look at, not as measured heat 
 | `data/atrai_bike.csv` | [openSenseMap](https://opensensemap.org) archive, grouptag `heilbronn` | PDDL |
 | `data/hotspots.geojson` | derived from the above, 11 Jun – 22 Oct 2026; street names © OpenStreetMap contributors via [Nominatim](https://nominatim.org) | ODbL |
 | 3D tree models (`assets/models/`) | [Kenney](https://kenney.nl): Nature Kit, Graveyard Kit, Holiday Kit | CC0 |
+| `data/street/*.jpg` | own photos of Weipertstraße, 28 Oct 2026 | the team's |
+| `data/street/redesign/*.jpg` | generated from those photos with Qwen-Image-Edit-2511 | model: Apache 2.0 |
 | Basemap | © OpenStreetMap contributors, © CARTO | ODbL / CARTO terms |
 
 Citizen temperature sensors are often unshaded and read several degrees above the

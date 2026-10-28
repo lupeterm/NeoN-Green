@@ -81,6 +81,14 @@
                        width: 100%; padding: 3px 4px; border-radius: 4px; cursor: pointer; }
     #hotspots button:hover, #hotspots button:focus-visible { background: var(--hover); }
     #hotspots b { color: var(--err); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .flag { all: unset; cursor: pointer; display: flex; align-items: flex-start; gap: 2px; filter: drop-shadow(0 1px 2px #0006); }
+    .flag span { margin-top: 3px; background: #1c7ed6; color: #fff; font: 600 11px system-ui, sans-serif; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
+    .thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+    .thumbs a { color: var(--fg); text-decoration: none; font-size: 11px; line-height: 1.2; }
+    .thumbs img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 4px; display: block; margin-bottom: 3px; }
+    .thumbs a:hover img { outline: 2px solid var(--cool); }
+    #streetViewLink { display: block; margin-top: 8px; text-align: center; padding: 5px; border: 1px solid var(--cool); border-radius: 6px; color: var(--cool); text-decoration: none; font-weight: 600; }
+    #streetViewLink[hidden] { display: none; }
     @media (max-width: 640px) { #scenario { top: auto; bottom: 30px; right: 10px; left: 10px; width: auto; max-width: none; } }
   </style>
 </head>
@@ -106,6 +114,8 @@
     </div>
     <button id="drawBtn" class="primary">Draw a section</button>
     <p class="muted">Draw around part of a street, or click a street to select all of it.</p>
+    <p class="muted">Street view of Weipertstraße: <a href="#" id="findStreetView">find on map</a> ·
+      <a href="street.html">open photos →</a></p>
     <div id="layers"></div>
   </aside>
 
@@ -113,6 +123,7 @@
     <header><h2 id="street"></h2><button id="close" title="Remove scenario">×</button></header>
     <p id="secLabel" class="muted"></p>
     <button id="view3d" class="primary">3D street view</button>
+    <a id="streetViewLink" href="street.html" hidden>Open street view (photos) →</a>
     <div class="seg">
       <label><input type="radio" name="mode" value="even" checked>evenly spaced</label>
       <label><input type="radio" name="mode" value="manual">by hand</label>

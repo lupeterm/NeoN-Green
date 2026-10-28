@@ -1,0 +1,80 @@
+{
+  "_about": "Photo views for street.html. Image coordinates are pixels of the 1200 x 1600 photos. Calibration: horizon_y and vanishing_x are where the street's parallel lines (kerbs, building base, lane markings) meet; street_bearing_deg is the street direction from OSM (way 81083900), towards the vanishing point. ground: polygon where objects can be placed. foreground: photo parts in front of anything placed (posts, parked cars). redesigns: AI visualisations from scripts/redesign_street.py, made from the listed photos.",
+  "street": "Weipertstraße",
+  "focal_35mm": 26,
+  "image_size": [1200, 1600],
+  "camera_height_m": 1.5,
+  "max_distance_m": 120,
+  "street_axis_bearing_deg": 22,
+  "default_date": "2026-07-15",
+  "default_time_min": 900,
+  "views": [
+    {
+      "id": "north",
+      "label": "Looking north, along the Open Space",
+      "image": "data/street/weipert_north.jpg",
+      "taken": "28 Oct 2026, 10:22",
+      "lat": 49.1515667,
+      "lon": 9.21577,
+      "horizon_y": 722,
+      "vanishing_x": 470,
+      "street_bearing_deg": 22,
+      "centreline_m": 9.1,
+      "ground": [[0, 1600], [0, 1028], [440, 742], [470, 724], [1200, 724], [1200, 1600]],
+      "foreground": [
+        [[1090, 0], [1200, 0], [1200, 236], [1150, 226], [1105, 170], [1090, 100]],
+        [[1180, 225], [1200, 225], [1200, 1600], [1170, 1600], [1174, 1190]]
+      ]
+    },
+    {
+      "id": "south",
+      "label": "Looking south, bus stop",
+      "image": "data/street/weipert_south.jpg",
+      "taken": "28 Oct 2026, 10:23",
+      "lat": 49.1515888,
+      "lon": 9.2157967,
+      "horizon_y": 748,
+      "vanishing_x": 912,
+      "street_bearing_deg": 202,
+      "centreline_m": 7.3,
+      "ground": [[0, 1600], [0, 805], [300, 798], [600, 776], [1000, 770], [1046, 796], [1046, 1600]],
+      "foreground": [
+        [[995, 0], [1200, 0], [1200, 95], [1100, 92], [1030, 60]],
+        [[1048, 60], [1200, 60], [1200, 1600], [1038, 1600], [1044, 1300]],
+        [[0, 765], [120, 768], [175, 790], [255, 862], [320, 900], [342, 960], [338, 1060], [300, 1078], [200, 1112], [100, 1150], [0, 1186]]
+      ]
+    },
+    {
+      "id": "across",
+      "label": "Looking across the road",
+      "image": "data/street/weipert_across.jpg",
+      "taken": "28 Oct 2026, 10:22",
+      "lat": 49.1515528,
+      "lon": 9.2157917,
+      "horizon_y": 733,
+      "vanishing_x": -458,
+      "street_bearing_deg": 22,
+      "centreline_m": 8.0,
+      "ground": [[0, 1600], [0, 726], [410, 733], [850, 742], [1140, 747], [1200, 747], [1200, 1600]],
+      "foreground": []
+    }
+  ],
+  "redesigns": [
+    {
+      "id": "north",
+      "label": "Looking north, past the Open Space",
+      "photos": ["north", "south"],
+      "looking": "towards the north, with the long red-brick factory building of the Open Space on the left",
+      "description": "Weipertstraße seen from the centre of the road after a green redesign. Made from the photos by an AI model; details are invented.",
+      "image": "data/street/redesign/weipert_north.jpg"
+    },
+    {
+      "id": "south",
+      "label": "Looking south, towards the bus stop",
+      "photos": ["south", "north"],
+      "looking": "towards the south",
+      "description": "Weipertstraße seen from the centre of the road after a green redesign. Made from the photos by an AI model; details are invented.",
+      "image": "data/street/redesign/weipert_south.jpg"
+    }
+  ]
+}
