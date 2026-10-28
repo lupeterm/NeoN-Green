@@ -1,7 +1,8 @@
 # NeoN-Green: "What if we planted trees here?"
 
 An interactive street map of Heilbronn with a heat overlay. Draw around part of a street
-and plant trees on it, evenly spaced or by hand. The overlay recalculates live, and the
+and plant trees on it, evenly spaced or by hand, or try another measure instead: grass and
+flower beds, a reflective road surface, misting poles, or a speed limit and less traffic. The overlay recalculates live, and the
 panel shows how much cooler the street gets on average. Tree shadows follow the sun for
 the chosen date and time of day. Existing trees and environment data from the city's open
 data portal can be shown as extra layers.
@@ -27,7 +28,7 @@ SunCalc load from unpkg, and the basemap is CARTO Positron.
    to exactly that stretch. Clicking a street instead selects all of it. Or click one of the heat
    hotspots listed under the colour scale: the map flies there, selects the street and preselects
    200 m around the hotspot.
-3. In the right panel, choose **evenly spaced** and set the number of trees, or **by hand** and
+3. In the right panel, pick a **measure** (see "Measures" below). For trees, choose **evenly spaced** and set the number of trees, or **by hand** and
    click the map to plant trees and click a new tree to remove it. Switching to by hand starts
    from the current even layout.
 4. Read the result: the mean value within 10 m on both sides of the section, before and after,
@@ -61,13 +62,33 @@ centre line, up to `placement.max_offset_m` but never past a building or water, 
 slides along the street until it fits. The panel says how many of the requested trees fit; a click by hand that
 does not fit says why.
 
+## Measures
+
+The scenario panel tries one measure at a time; the list is sorted by how well each fits a
+street in Heilbronn. Each changes the same heat map, and the panel adds what matters for it.
+
+| Measure | Controls | Effect in the model | Also shown |
+|---|---|---|---|
+| Street trees | number or by hand, size | crown shade (felt) and evaporation (air) | shaded area |
+| Grass & flower beds | bed width, share of the section | a little air cooling around the beds, slightly lower felt temperature on them | bed area |
+| Reflective road surface | albedo after coating | a little air cooling over the road, but reflected sun raises the felt temperature on road and pavements | both parts separately |
+| Misting poles | number of poles | strong, very local air cooling, only during operating hours | water use |
+| Speed limit & less traffic | 30 km/h, share of motor traffic | less engine heat over the road: almost nothing | engine heat in W/m², noise in dB(A) |
+
+Beds are strips behind both kerbs (they move outward past tram tracks or other roads, never into a building).
+Misting poles are spaced like trees but ignore existing trees. Traffic volumes and current
+speed limits are not known per street and are assumed from the road class. All parameters, with
+notes, are under `measures` in `config/model.json`; "Model sources" shows the studies for the
+selected measure. In the 3D street view only trees are modelled; beds, coating and mist reach
+show as flat areas on the ground.
+
 ## Files
 
 ```
 index.html          page and styles
 app.js              map, data loading, street selection, UI
 worker.js           background computation: interpolation, scenario, PNG rendering
-model.js            tree cooling model (shared by app and worker)
+model.js            cooling model for trees and the other measures (shared by app and worker)
 config/overlays.json  heat datasets ("overlays") and extra map layers ("layers")
 config/model.json     model and tree placement parameters
 data/heat_sensors.csv sensor.community temperatures, Heilbronn, 2 July 2025, 10-minute means
@@ -173,6 +194,10 @@ use all points everywhere. Dense data such as bike tracks only uses points withi
   up to `shade.max_cooling_C`, scaled by sun altitude. No effect when the sun is below the horizon.
 * **Evapotranspiration.** Each tree cools the air around it by a Gaussian bump. Several trees
   add up but saturate at `evapotranspiration.max_total_C`, and the effect is weaker at night.
+* **Other measures** (`measureEffect()` in `model.js`): beds and misting poles add Gaussian
+  bumps like trees (per m² of bed, per pole), saturating. Coating and traffic act on the roadway
+  and fade over `fade_m` beside it. The coating's reflected sun adds to the felt temperature on
+  the road and `sidewalk_m` beside it, scaled with sun height like shade.
 
 Known simplifications: buildings neither cast shadows nor block tree shadows, road widths are
 estimated from the road class, and wind and surfaces are ignored. The model adds the shade
@@ -190,6 +215,13 @@ values. Current references:
   tree shade lowers PET by 7–15 °C on hot days; green areas can cool more at night than by day.
 * Rahman et al. (2018), [Vertical air temperature gradients under the shade of two contrasting urban tree species](https://treefund.org/wp-content/uploads/2018/04/Rahman-et-al.-2018.pdf),
   Science of the Total Environment 633: air under canopies 0.5–1.8 °C cooler (Munich), 0.1–2.8 °C in other studies.
+* Armson, Stringer & Ennos (2012), [The effect of tree shade and grass on surface and globe temperatures in an urban area](https://doi.org/10.1016/j.ufug.2012.05.002):
+  grass cools the ground by up to 24 °C but hardly the felt temperature.
+* Middel et al. (2020), [Solar reflective pavements—A policy panacea to heat mitigation?](https://doi.org/10.1088/1748-9326/ab87d4):
+  coated streets 4–6 °C cooler at the surface, air 0.5 °C, but 4 °C more radiant heat on pedestrians at midday.
+* Ulpiani (2019), [Water mist spray for outdoor cooling: A systematic review](https://doi.org/10.1016/j.apenergy.2019.113340).
+* Umweltbundesamt (2016), [Lärm- und Klimaschutz durch Tempo 30](https://www.umweltbundesamt.de/sites/default/files/medien/378/publikationen/texte_30_2016_kurz_laerm-_und_klimaschutz_durch_tempo_30_0.pdf):
+  1–4 dB(A) less noise on main roads.
 * [SunCalc](https://github.com/mourner/suncalc) for the sun position.
 
 ## Environment data

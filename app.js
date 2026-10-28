@@ -12,7 +12,7 @@ const THEME_PAINT = {  // our own layers that need different colours on a dark m
   dark: {shadows: {'fill-color': '#000000', 'fill-opacity': 0.5}, section: {'line-opacity': 0.45},
          'buildings-3d': {'fill-extrusion-color': '#3d4148'}},
 };
-const OWN_SOURCES = ['heat', 'section', 'shadows', 'planted', 'lasso', 'hotspots', 'trees-3d'];
+const OWN_SOURCES = ['heat', 'section', 'measure', 'shadows', 'planted', 'lasso', 'hotspots', 'trees-3d'];
 const RAMP = ['#ffffcc', '#ffeda0', '#fed976', '#feb24c', '#fd8d3c', '#fc4e2a', '#e31a1c', '#b10026'];
 const STITCH_TOLERANCE_M = 2;
 const MIN_SELECT_ZOOM = 14.5;
@@ -24,10 +24,11 @@ const S = {
   cfg: null, model: null, map: null, popup: null,
   overlay: null, records: [], hasTime: false, extent: null, domain: null,   // heat overlay
   roadLayers: [], roadSource: null, theme: 'light', view3d: false,
-  street: null,          // {name, line, xy, cum, length, halfWidth, obstacles, a, b}
+  street: null,          // {name, kind, line, xy, cum, length, halfWidth, obstacles, a, b}
+  measure: 'trees',      // config/model.json measures: 'trees' | 'beds' | 'pavement' | 'misting' | 'traffic'
   mode: 'even',          // tree placement: 'even' | 'manual'
   manual: [],            // [{lon, lat}] trees placed by hand
-  placement: {key: null, trees: []},
+  placement: {key: null, trees: []}, layout: {key: null},  // cached tree placement, other measures' layout
   draw: {active: false, drawing: false, ring: []},
   layerData: {}, existingTrees: [], icons: {}, iconTheme: null,
   job: 0, timer: null, refresh: null, url: null,
@@ -72,11 +73,13 @@ function setupMap() {
   m.addSource('heat', {type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]]});
   m.addLayer({id: 'heat', type: 'raster', source: 'heat', paint: {'raster-opacity': 0.72, 'raster-fade-duration': 0}}, firstRoad);
 
-  for (const id of ['section', 'shadows', 'planted', 'lasso']) m.addSource(id, {type: 'geojson', data: fc([])});
+  for (const id of ['section', 'measure', 'shadows', 'planted', 'lasso']) m.addSource(id, {type: 'geojson', data: fc([])});
   m.addLayer({id: 'section', type: 'line', source: 'section', layout: {'line-cap': 'round'},
               paint: {'line-color': '#1c7ed6', ...THEME_PAINT[S.theme].section, 'line-width': ['interpolate', ['exponential', 2], ['zoom'], 14, 4, 20, 90]}}, firstLabel);
   m.addLayer({id: 'lasso', type: 'line', source: 'lasso',
               paint: {'line-color': '#1c7ed6', 'line-width': 2, 'line-dasharray': [2, 2]}}, firstLabel);
+  m.addLayer({id: 'measure', type: 'fill', source: 'measure', filter: ['==', ['geometry-type'], 'Polygon'],
+              paint: {'fill-color': ['get', 'color'], 'fill-opacity': ['get', 'opacity'], 'fill-outline-color': ['get', 'outline']}}, firstLabel);
   m.addLayer({id: 'shadows', type: 'fill', source: 'shadows', paint: {...THEME_PAINT[S.theme].shadows}}, firstLabel);
   m.addLayer(S.icons.planted
     ? iconLayer('planted', 'planted', ['*', 2, ['get', 'r']], 22, 1)
@@ -91,15 +94,18 @@ function setupMap() {
   m.addLayer({id: 'hotspot-labels', type: 'symbol', source: 'hotspots', layout: {
     'text-field': ['to-string', ['get', 'rang']], 'text-font': font, 'text-size': 11, 'text-allow-overlap': true},
     paint: {'text-color': '#fff'}});
+  m.addLayer({id: 'measure-labels', type: 'symbol', source: 'measure', filter: ['==', ['geometry-type'], 'Point'], layout: {
+    'text-field': ['get', 'label'], 'text-font': font, 'text-size': 15, 'text-allow-overlap': true, 'text-offset': [0, -1.6]},
+    paint: {'text-color': '#c92a2a', 'text-halo-color': '#fff', 'text-halo-width': 2}}, 'hotspots');
 
   S.popup = new maplibregl.Popup({closeButton: false, closeOnClick: false, offset: 10, maxWidth: '260px'});
   m.on('moveend', update);
   m.on('click', onClick);
   m.on('mousemove', e => {
     if (S.draw.active) return;
-    const layers = S.street && S.mode === 'manual' ? ['planted'] : S.roadLayers;
+    const layers = manualTrees() ? ['planted'] : S.roadLayers;
     const hit = m.getZoom() >= MIN_SELECT_ZOOM && m.queryRenderedFeatures(box(e.point, 10), {layers}).length;
-    m.getCanvas().style.cursor = hit ? 'pointer' : S.street && S.mode === 'manual' ? 'copy' : '';
+    m.getCanvas().style.cursor = hit ? 'pointer' : manualTrees() ? 'copy' : '';
   });
   for (const [down, move, up] of [['mousedown', 'mousemove', 'mouseup'], ['touchstart', 'touchmove', 'touchend']]) {
     m.on(down, lassoStart);
@@ -116,21 +122,30 @@ function setupUi() {
   $('trees').max = S.model.max_trees;
   $('trees').value = S.model.default_trees;
   $('date').value = new Date().toISOString().slice(0, 10);
-  for (const id of ['date', 'time', 'trees', 'preset']) $(id).oninput = update;
+  const ms = S.model.measures;
+  for (const k of ms.order) $('measure').add(new Option(ms[k].label, k));
+  $('measure').onchange = e => setMeasure(e.target.value);
+  const range = (id, [value, min, max]) => Object.assign($(id), {min, max, value});
+  range('bedWidth', ms.beds.width_m);
+  range('albedo', ms.pavement.albedo);
+  range('poles', [ms.misting.poles[0], 0, ms.misting.poles[1]]);
+  for (const id of ['date', 'time', 'trees', 'preset', 'bedWidth', 'bedShare', 'albedo', 'poles', 'speed', 'volume']) $(id).oninput = update;
+  setMeasure(S.measure);
   for (const r of document.querySelectorAll('input[name=mode]')) r.onchange = () => setMode(r.value);
   $('clearTrees').onclick = () => { S.manual = []; update(); };
   $('drawBtn').onclick = () => setDrawMode(!S.draw.active);
   $('close').onclick = closeScenario;
   $('view3d').onclick = () => set3D(!S.view3d);
-  renderSources();
   addEventListener('keydown', e => { if (e.key === 'Escape') setDrawMode(false); });
 }
 
 function onClick(e) {
   if (S.draw.active) return;
-  if (S.street && S.mode === 'manual') return toggleManualTree(e);
+  if (manualTrees()) return toggleManualTree(e);
   pickStreet(e);
 }
+
+const manualTrees = () => S.street && S.measure === 'trees' && S.mode === 'manual';
 
 // ------------------------------------------------------------------ light / dark theme
 
@@ -337,10 +352,11 @@ function streetLines(hit) {
 
 function selectStreet(hit, line, a, b) {
   const P = NG.projection(...S.cfg.center), g = measure(line, P);
-  S.street = {...g, name: hit.properties.name || 'Unnamed way', line, halfWidth: roadHalfWidth(hit.properties),
+  S.street = {...g, name: hit.properties.name || 'Unnamed way', line, kind: hit.properties.kind_detail ?? hit.properties.kind,
+              halfWidth: roadHalfWidth(hit.properties),
               a: Math.max(0, a), b: Math.min(g.length, b), obstacles: collectObstacles(turf.bbox(line), P)};
   S.manual = [];
-  S.placement.key = null;
+  S.placement.key = S.layout.key = null;
   $('street').textContent = S.street.name;
   $('scenario').hidden = false;
   setStatus('');
@@ -357,7 +373,7 @@ function renderSources() {
   if (!src) return ($('sources').hidden = true);
   const param = path => path.split('.').reduce((o, k) => o?.[k], S.model) ?? `{${path}}`;
   const fill = text => esc(text).replace(/\{([\w.]+)\}/g, (_, path) => esc(String(param(path))));
-  $('sourceList').innerHTML = src.parts.map(p => `<h3>${esc(p.part)}</h3>
+  $('sourceList').innerHTML = src.parts.filter(p => !p.measure || p.measure === S.measure).map(p => `<h3>${esc(p.part)}</h3>
     <p><b>Model:</b> ${fill(p.model)}</p>${p.observed ? `<p><b>Studies:</b> ${esc(p.observed)}</p>` : ''}
     <ol>${p.refs.map(r => `<li><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a></li>`).join('')}</ol>`).join('') +
     (src.note ? `<p>${esc(src.note)}</p>` : '');
@@ -454,11 +470,14 @@ function currentTrees(P) {
 // An existing tree claims its side of the street for the stretch around it: a slot whose side
 // already has a tree within half a spacing goes to the other side, and is skipped when both
 // sides have one (placement.existing_trees_claim_side).
-function placeEvenly(n, r, P) {
+//
+// avoidTrees = false (e.g. misting poles): existing trees neither block a spot nor claim a side.
+function placeEvenly(n, r, P, avoidTrees = true) {
   const st = S.street, pl = S.model.placement, placed = [];
   const start = (st.halfWidth || pl.path_offset_m) + pl.clearance_m + 0.5;
   const spacing = (st.b - st.a) / Math.max(n, 1), reach = Math.max(2, spacing / 2);
-  const existing = pl.existing_trees_claim_side ? existingAlongStreet(st, pl.max_offset_m) : [];
+  const existing = avoidTrees && pl.existing_trees_claim_side ? existingAlongStreet(st, pl.max_offset_m) : [];
+  const obstacles = avoidTrees ? st.obstacles : {roads: st.obstacles.roads, buildings: st.obstacles.buildings, trees: []};
   let alreadyTreed = 0;
   for (let i = 0; i < n; i++) {
     const d0 = st.a + (i + 0.5) * spacing;
@@ -473,7 +492,7 @@ function placeEvenly(n, r, P) {
           if (claimed(side, d)) continue;  // sliding along must not walk into an existing tree's stretch
           for (let off = start; off <= Math.max(start, pl.max_offset_m); off += 0.5) {
             const p = {x: q.x - q.ty * side * off, y: q.y + q.tx * side * off};
-            const why = blocked(p, r, placed, st.obstacles);
+            const why = blocked(p, r, placed, obstacles);
             if (!why) {
               const where = relate(st, p.x, p.y);  // on bends the point can project onto another stretch or side
               if (claimed(where.side, where.at)) break;
@@ -487,6 +506,106 @@ function placeEvenly(n, r, P) {
     }
   }
   return {trees: placed.map(p => { const [lon, lat] = P.toLL(p.x, p.y); return {lon, lat}; }), alreadyTreed};
+}
+
+// ------------------------------------------------------------------ measures
+// One measure at a time (config/model.json "measures"). buildMeasure() turns the controls into
+// what the worker needs (in local metres), what the map shows and extra rows for the result.
+
+function setMeasure(kind) {
+  S.measure = kind;
+  $('measure').value = kind;
+  $('measureNote').textContent = S.model.measures[kind].note || '';
+  for (const el of document.querySelectorAll('[data-measure]')) el.hidden = el.dataset.measure !== kind;
+  hint('');
+  renderSources();
+  update();
+}
+
+function buildMeasure(P, trees) {
+  const st = S.street, kind = S.measure, q = S.model.measures[kind];
+  const section = sectionLine(P).geometry.coordinates.map(([lon, lat]) => P.toXY(lon, lat));
+  const len = st.b - st.a, poly = (pts, props) => turf.polygon([[...pts, pts[0]].map(p => P.toLL(p.x, p.y))], props);
+  const disc = (c, r, props) => poly(Array.from({length: 24}, (_, i) => ({x: c.x + r * Math.cos(i / 24 * 2 * Math.PI), y: c.y + r * Math.sin(i / 24 * 2 * Math.PI)})), props);
+  const roadway = props => ({...turf.buffer(sectionLine(P), Math.max(1, st.halfWidth), {units: 'meters'}), properties: props});
+  const centre = alongXY(st, (st.a + st.b) / 2), mid = P.toLL(centre.x, centre.y);
+
+  if (kind === 'trees') return {measure: {kind, trees: trees.map(t => ({...t, ...P.toXY(t.lon, t.lat)}))}, features: [], rows: []};
+
+  if (kind === 'beds') {
+    const w = +$('bedWidth').value, share = +$('bedShare').value / 100;
+    const key = [st.a, st.b, w, share].join('|');
+    if (S.layout.key !== key) S.layout = {key, cells: placeBeds(w, share)};
+    const cells = S.layout.cells, area = cells.reduce((sum, c) => sum + c.len * c.w, 0);
+    const wanted = 2 * len * share * w;
+    $('bedWidthLabel').textContent = `${w} m`;
+    $('bedShareLabel').textContent = `${Math.round(share * 100)} %`;
+    const corners = c => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => ({
+      x: c.x + u * c.tx * c.len / 2 - v * c.ty * c.w / 2, y: c.y + u * c.ty * c.len / 2 + v * c.tx * c.w / 2}));
+    return {measure: {kind, cells}, features: cells.map(c => poly(corners(c), {color: '#51cf66', outline: '#2b8a3e', opacity: 0.75})),
+            rows: [['Beds', `${Math.round(area).toLocaleString('en')} m²`],
+                   ...(area < wanted * 0.95 ? [[`Room for beds on ${Math.round((100 * area) / wanted)} % of the strip only.`, null, 'note']] : [])]};
+  }
+
+  if (kind === 'pavement') {
+    const albedo = +$('albedo').value, dAlbedo = Math.max(0, albedo - q.albedo_before);
+    $('albedoLabel').textContent = `${albedo.toFixed(2)} (today ~${q.albedo_before})`;
+    return {measure: {kind, line: section, halfWidth: st.halfWidth, dAlbedo},
+            features: [roadway({color: '#f1f3f5', outline: '#868e96', opacity: 0.85})],
+            rows: [['Coated roadway', `${Math.round(len * 2 * st.halfWidth).toLocaleString('en')} m²`],
+                   ['Air in full sun', `${signed(-q.air_C_per_0_1_albedo * dAlbedo / 0.1)} °C`],
+                   ['Reflected sun (felt)', `${signed(q.reflected_felt_C_per_0_1_albedo * dAlbedo / 0.1)} °C`]]};
+  }
+
+  if (kind === 'misting') {
+    const n = +$('poles').value, key = [st.a, st.b, n].join('|');
+    if (S.layout.key !== key) S.layout = {key, poles: placeEvenly(n, 0.5, P, false).trees.map(t => P.toXY(t.lon, t.lat))};
+    const poles = S.layout.poles, [from, to] = q.operating_hours, h = +$('time').value / 60;
+    $('polesLabel').textContent = poles.length === n ? String(n) : `${poles.length} of ${n} fit`;
+    return {measure: {kind, poles}, features: poles.flatMap(c => [disc(c, 2 * q.sigma_m, {color: '#4dabf7', outline: '#4dabf7', opacity: 0.25}),
+                                                                   disc(c, 0.6, {color: '#1c7ed6', outline: '#1864ab', opacity: 0.95})]),
+            rows: [['Water', `~${(poles.length * q.water_l_per_h_per_pole).toLocaleString('en')} l per hour`],
+                   ...(h < from || h >= to ? [[`Switched off now, runs ${from}–${to} h.`, null, 'note']] : [])]};
+  }
+
+  // traffic: engine heat over the roadway, from assumed vehicles per day and road class
+  const limit = q.current_limit_kmh[st.kind] ?? q.current_limit_kmh.default;
+  const vehicles = q.vehicles_per_day[st.kind] ?? q.vehicles_per_day.default;
+  const to30 = $('speed').value === '30' && limit > 30, volume = +$('volume').value / 100;
+  const flux = (vehicles * q.heat_MJ_per_vehicle_km * 1e6) / 86400 / 1000 / Math.max(2, 2 * st.halfWidth);  // W/m² of roadway
+  const after = flux * volume * (to30 ? q.fuel_factor_30 : 1);
+  const noise = volume ? 10 * Math.log10(volume) + (to30 ? q.noise_30_dB : 0) : null;
+  $('volumeLabel').textContent = volume === 1 ? 'unchanged' : volume ? `−${Math.round((1 - volume) * 100)} %` : 'car-free';
+  const label = [to30 && volume && '30 km/h', volume < 1 && $('volumeLabel').textContent + (volume ? ' cars' : '')].filter(Boolean).join(' · ');
+  return {measure: {kind, line: section, halfWidth: st.halfWidth, dFlux: flux - after},
+          features: [roadway({color: '#fab005', outline: '#e67700', opacity: 0.3}), ...(label ? [turf.point(mid, {label})] : [])],
+          rows: [['Engine heat', `${flux.toFixed(1)} → ${after.toFixed(1)} W/m²`],
+                 ['Noise', noise == null ? 'none' : `${signed(noise)} dB(A)`],
+                 [`Assumed today: ${limit} km/h, ${vehicles.toLocaleString('en')} vehicles a day (from the road class).` +
+                  ($('speed').value === '30' && !to30 ? ' The limit is probably 30 km/h or less already.' : ''), null, 'note']]};
+}
+
+// Strips of grass and flowers behind both kerbs, cells of sample_m along the section. Like trees,
+// a cell blocked by another road (e.g. tram tracks) moves away from the centre line, up to
+// placement.max_offset_m but never into a building or water. share < 1 spreads the beds evenly.
+function placeBeds(w, share) {
+  const st = S.street, pl = S.model.placement, step = S.model.measures.beds.sample_m, cells = [];
+  const start = (st.halfWidth || pl.path_offset_m) + pl.clearance_m + 0.1;  // inner edge, just behind the kerb
+  const obstacles = {roads: st.obstacles.roads, buildings: st.obstacles.buildings, trees: []};
+  const n = Math.max(1, Math.floor((st.b - st.a) / step));
+  for (let k = 0; k < n; k++) {
+    if (Math.floor((k + 1) * share) === Math.floor(k * share)) continue;
+    const q = alongXY(st, st.a + (k + 0.5) * ((st.b - st.a) / n));
+    const at = (side, off) => ({x: q.x - q.ty * side * off, y: q.y + q.tx * side * off});
+    for (const side of [1, -1]) {
+      for (let off = start; off + w <= Math.max(start + w, pl.max_offset_m); off += 0.5) {
+        const why = [at(side, off), at(side, off + w / 2), at(side, off + w)].map(c => blocked(c, 0, [], obstacles)).find(Boolean);
+        if (!why) { cells.push({...at(side, off + w / 2), tx: q.tx, ty: q.ty, len: (st.b - st.a) / n, w}); break; }
+        if (why === 'building' || why === 'water') break;
+      }
+    }
+  }
+  return cells;
 }
 
 // Existing trees beside the selected street: distance along it and side (+1 left, -1 right),
@@ -796,12 +915,15 @@ function run() {
 
   let scenario = null;
   if (S.street) {
-    const P = NG.projection(...S.cfg.center), section = sectionLine(P), trees = currentTrees(P);
+    const P = NG.projection(...S.cfg.center), section = sectionLine(P);
+    const trees = S.measure === 'trees' ? currentTrees(P) : [], built = buildMeasure(P, trees);
     const shadows = trees.map(t => NG.shadowEllipse({...t, ...P.toXY(t.lon, t.lat)}, sun, S.model)).filter(Boolean)
       .map(e => { const ring = NG.ellipseRing(e).map(([x, y]) => P.toLL(x, y)); return turf.polygon([[...ring, ring[0]]]); });
     setData('section', fc([section]));
     setData('planted', fc(trees.map((t, i) => turf.point([t.lon, t.lat], {r: t.crown_diameter_m / 2, i}))));
     setData('shadows', fc(shadows));
+    setData('measure', fc(built.features));
+    S.resultRows = built.rows;
     if (S.view3d) {
       const models = S.deck && iconThemes()[S.iconTheme]?.models3d;
       setData('trees-3d', fc(models ? [] : trees3D(trees, P)));  // block trees only as fallback
@@ -814,9 +936,9 @@ function run() {
       : trees.length === n ? `${n} · every ${Math.round(len / n)} m`
       : `${trees.length} of ${n}` + (treed ? ` · ${treed} spot${treed > 1 ? 's' : ''} already treed` : ' fit');
     $('manualCount').textContent = `${S.manual.length} ${S.manual.length === 1 ? 'tree' : 'trees'} placed`;
-    scenario = {trees, section: section.geometry.coordinates, sun};
+    scenario = {measure: built.measure, section: section.geometry.coordinates, sun, minute};
   } else {
-    for (const id of ['section', 'planted', 'shadows']) setData(id, fc([]));
+    for (const id of ['section', 'measure', 'planted', 'shadows']) setData(id, fc([]));
   }
 
   const points = currentPoints();
@@ -846,15 +968,19 @@ worker.onmessage = ({data}) => {
 };
 
 function showResult(st) {
-  const unit = S.overlay.unit || '';
+  if (!S.street) return;
+  const unit = S.overlay.unit || '', trees = S.measure === 'trees';
   const rows = !st ? [['No values along the street', '']] : [
     ['Mean before', `${st.before.toFixed(1)} ${unit}`],
-    ['Mean with trees', `${st.after.toFixed(1)} ${unit}`],
+    [`Mean with ${trees ? 'trees' : 'measure'}`, `${st.after.toFixed(1)} ${unit}`],
     ['Change', `${signed(st.after - st.before)} °C`, 'big'],
     ['Strongest cooling', `${signed(st.maxCooling)} °C`],
-    ['Shaded', `${Math.round(st.shadedArea).toLocaleString('en')} of ${Math.round(st.area).toLocaleString('en')} m²`],
+    ...(st.maxWarming > 0.05 ? [['Strongest warming', `${signed(st.maxWarming)} °C`]] : []),
+    ...(trees ? [['Shaded', `${Math.round(st.shadedArea).toLocaleString('en')} of ${Math.round(st.area).toLocaleString('en')} m²`]] : []),
   ];
-  $('result').innerHTML = rows.map(([k, v, cls]) => `<dt>${k}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
+  rows.push(...(S.resultRows || []));
+  $('result').innerHTML = rows.map(([k, v, cls]) => cls === 'note' ? `<dt class="muted" style="grid-column:1/-1">${k}</dt>`
+                                                    : `<dt>${k}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
     `<dt class="muted" style="grid-column:1/-1">Mean within ${S.model.street_corridor_m} m on both sides of the section</dt>`;
 }
 
@@ -1146,7 +1272,7 @@ function metres(expr, minPx = 0) {
 
 const num = x => (x == null || x === '' ? NaN : typeof x === 'number' ? x : parseFloat(String(x).replace(',', '.')));
 const quantile = (sorted, q) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))];
-const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v).toFixed(1);
+const signed = v => { const r = +v.toFixed(1); return (r > 0 ? '+' : r < 0 ? '−' : '±') + Math.abs(r).toFixed(1); };
 const compass = deg => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(deg / 45) % 8];
 const fc = features => ({type: 'FeatureCollection', features});
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));

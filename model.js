@@ -74,6 +74,73 @@
     return {dT: -(p.shade.max_cooling_C * f.shade * shade + etCooling), shade: shade * (f.shade > 0 ? 1 : 0)};
   }
 
+  // ---- other measures, selectable instead of trees (config/model.json "measures").
+  // m is the measure in local metres as built by app.js; returns effect(x, y) -> {dT, shade}, or null for none.
+  //
+  //   beds      −per_m2_C · Σ area_i·g_i, saturating (air) − felt_on_bed_C · sunFactor on the bed itself
+  //   misting   −per_pole_C · Σ g_i, saturating, only during operating_hours
+  //   pavement  −air_C · Δalbedo/0.1 over the road (fading beside it) + reflected_felt_C · Δalbedo/0.1 · sunFactor
+  //             on road and pavements: brighter roads cool the air a little but reflect sun onto pedestrians
+  //   traffic   −C_per_W_m2 · (traffic heat saved) over the road, fading beside it
+  function measureEffect(m, sun, minute, p) {
+    if (m.kind === 'trees') {
+      if (!m.trees.length) return null;
+      const shadows = m.trees.map(t => shadowEllipse(t, sun, p));
+      return (x, y) => treeEffect(x, y, m.trees, shadows, sun, p);
+    }
+    const q = p.measures[m.kind], f = sunFactors(sun, p), day = sun.altitude > 0;
+    const sat = (v, max) => max * (1 - Math.exp(-v / max));
+    if (m.kind === 'beds') {
+      if (!m.cells.length) return null;
+      const two = 2 * q.sigma_m * q.sigma_m, air = day ? 1 : q.night_factor;
+      return bounded(m.cells, 3 * q.sigma_m, (x, y) => {
+        let g = 0, on = false;
+        for (const c of m.cells) {
+          const dx = x - c.x, dy = y - c.y, d2 = dx * dx + dy * dy;
+          if (d2 < 9 * two) g += Math.exp(-d2 / two) * c.len * c.w;
+          if (!on && Math.abs(dx * c.tx + dy * c.ty) <= c.len / 2 && Math.abs(-dx * c.ty + dy * c.tx) <= c.w / 2) on = true;
+        }
+        return {dT: -(sat(g * q.per_m2_C, q.max_total_C) * air + (on ? q.felt_on_bed_C * f.shade : 0)), shade: 0};
+      });
+    }
+    if (m.kind === 'misting') {
+      const h = minute / 60;
+      if (!m.poles.length || h < q.operating_hours[0] || h >= q.operating_hours[1]) return null;
+      const two = 2 * q.sigma_m * q.sigma_m;
+      return bounded(m.poles, 3 * q.sigma_m, (x, y) => {
+        let g = 0;
+        for (const c of m.poles) {
+          const d2 = (x - c.x) ** 2 + (y - c.y) ** 2;
+          if (d2 < 9 * two) g += Math.exp(-d2 / two);
+        }
+        return {dT: -sat(g * q.per_pole_C, q.max_total_C), shade: 0};
+      });
+    }
+    if (m.kind === 'pavement' || m.kind === 'traffic') {
+      const air = m.kind === 'pavement'
+        ? q.air_C_per_0_1_albedo * (m.dAlbedo / 0.1) * Math.max(f.shade, q.night_factor)
+        : q.C_per_W_m2 * m.dFlux;
+      const felt = m.kind === 'pavement' ? q.reflected_felt_C_per_0_1_albedo * (m.dAlbedo / 0.1) * f.shade : 0;
+      if (!air && !felt) return null;
+      const reach = m.halfWidth + Math.max(q.fade_m, q.sidewalk_m || 0);
+      return bounded(m.line, reach, (x, y) => {
+        const d = distToPolyline(x, y, m.line) - m.halfWidth;
+        const a = d <= 0 ? 1 : Math.max(0, 1 - d / q.fade_m);
+        return {dT: -air * a + (d <= (q.sidewalk_m || 0) ? felt : 0), shade: 0};
+      });
+    }
+    return null;
+  }
+
+  // Skip the work far from the measure: outside the points' bounding box plus margin there is no effect.
+  function bounded(pts, margin, fn) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const q of pts) { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); }
+    x0 -= margin; y0 -= margin; x1 += margin; y1 += margin;
+    const none = {dT: 0, shade: 0};
+    return (x, y) => (x < x0 || x > x1 || y < y0 || y > y1 ? none : fn(x, y));
+  }
+
   // ---- small geometry helpers (local metres), shared by app.js and worker.js
 
   function distToPolyline(x, y, pts) {
@@ -98,5 +165,5 @@
     return inside;
   }
 
-  root.NG = {DEG, projection, sunFactors, shadowEllipse, ellipseRing, treeEffect, distToPolyline, inPolygon};
+  root.NG = {DEG, projection, sunFactors, shadowEllipse, ellipseRing, treeEffect, measureEffect, distToPolyline, inPolygon};
 })(self);

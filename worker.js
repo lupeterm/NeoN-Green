@@ -1,5 +1,5 @@
 // Background computation: interpolates the overlay points to a raster for the
-// current view, applies the tree scenario and returns a PNG plus street statistics.
+// current view, applies the selected measure (trees, beds, ...) and returns a PNG plus street statistics.
 importScripts('model.js');
 
 onmessage = async ({data: job}) => {
@@ -11,13 +11,12 @@ onmessage = async ({data: job}) => {
   const lo = P.toXY(extent[0], extent[1]), hi = P.toXY(extent[2], extent[3]);
   const inExtent = (x, y) => x >= lo.x && x <= hi.x && y >= lo.y && y <= hi.y;
 
+  // scenario.measure is in local metres around the same origin (built by app.js)
   let effect = null, stats = null;
-  if (scenario && scenario.trees.length) {
-    const trees = scenario.trees.map(t => ({...t, ...P.toXY(t.lon, t.lat)}));
-    const shadows = trees.map(t => NG.shadowEllipse(t, scenario.sun, params));
-    effect = (x, y) => NG.treeEffect(x, y, trees, shadows, scenario.sun, params);
+  if (scenario) {
+    effect = NG.measureEffect(scenario.measure, scenario.sun, scenario.minute, params);
     const section = scenario.section.map(([lon, lat]) => P.toXY(lon, lat));
-    stats = corridorStats(section, params.street_corridor_m, base, effect, inExtent);
+    stats = corridorStats(section, params.street_corridor_m, base, effect || (() => ({dT: 0, shade: 0})), inExtent);
   }
 
   const value = (x, y) => {
@@ -67,7 +66,7 @@ function corridorStats(section, corridor, base, effect, inExtent) {
   const x0 = Math.min(...xs) - corridor, x1 = Math.max(...xs) + corridor;
   const y0 = Math.min(...ys) - corridor, y1 = Math.max(...ys) + corridor;
   const cell = Math.max(1, Math.sqrt(((x1 - x0) * (y1 - y0)) / 150000));
-  let n = 0, before = 0, after = 0, maxCooling = 0, shaded = 0;
+  let n = 0, before = 0, after = 0, maxCooling = 0, maxWarming = 0, shaded = 0;
   for (let y = y0 + cell / 2; y < y1; y += cell) {
     for (let x = x0 + cell / 2; x < x1; x += cell) {
       if (!inExtent(x, y) || NG.distToPolyline(x, y, section) > corridor) continue;
@@ -76,10 +75,11 @@ function corridorStats(section, corridor, base, effect, inExtent) {
       const e = effect(x, y);
       n++; before += b; after += b + e.dT;
       maxCooling = Math.min(maxCooling, e.dT);
+      maxWarming = Math.max(maxWarming, e.dT);
       if (e.shade > 0.5) shaded += cell * cell;
     }
   }
-  return n ? {before: before / n, after: after / n, maxCooling, shadedArea: shaded, area: n * cell * cell} : null;
+  return n ? {before: before / n, after: after / n, maxCooling, maxWarming, shadedArea: shaded, area: n * cell * cell} : null;
 }
 
 async function render([w, s, e, n], [W, H], P, value, [d0, d1], colors) {

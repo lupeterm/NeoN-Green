@@ -72,8 +72,113 @@
       "rail": 2.5
     }
   },
+  "measures": {
+    "_about": "Measures selectable in the scenario panel, one at a time, listed in 'order' (by how well they fit a street in Heilbronn). 'note' is shown under the selector.",
+    "order": [
+      "trees",
+      "beds",
+      "pavement",
+      "misting",
+      "traffic"
+    ],
+    "trees": {
+      "label": "Street trees",
+      "note": "Strongest and best-studied cooling: shade plus evaporation. Needs room for roots and a decade to grow."
+    },
+    "beds": {
+      "label": "Grass & flower beds",
+      "note": "Unseal a strip along the kerb (parking or wide pavement). Cools the ground a lot and the air a little; no shade.",
+      "_width": "Bed width in metres: default, min, max. Beds go on both sides, behind the kerb, where there is no building or other road.",
+      "width_m": [
+        2,
+        1,
+        4
+      ],
+      "sample_m": 3,
+      "_air": "Air cooling from each m² of bed: Gaussian (sigma_m), saturating at max_total_C; × night_factor after sunset.",
+      "per_m2_C": 0.01,
+      "sigma_m": 8,
+      "max_total_C": 0.6,
+      "night_factor": 1.0,
+      "_felt_on_bed_C": "Felt temperature drop standing on the bed in full sun (cooler ground radiates less), scaled like shade.",
+      "felt_on_bed_C": 0.5
+    },
+    "pavement": {
+      "label": "Reflective road surface",
+      "note": "A light coating on the roadway. Cools the road surface, barely the air, and reflects sun onto people walking by.",
+      "albedo_before": 0.1,
+      "_albedo": "Albedo after coating: default, min, max.",
+      "albedo": [
+        0.3,
+        0.15,
+        0.5
+      ],
+      "_air": "Air cooling per +0.1 albedo over the road, in full sun; × night_factor after sunset. Fades to 0 over fade_m beside the road.",
+      "air_C_per_0_1_albedo": 0.25,
+      "night_factor": 0.2,
+      "fade_m": 6,
+      "_reflected": "Felt temperature rise per +0.1 albedo from reflected sun, on the road and sidewalk_m beside it, scaled like shade.",
+      "reflected_felt_C_per_0_1_albedo": 1.0,
+      "sidewalk_m": 4
+    },
+    "misting": {
+      "label": "Misting poles",
+      "note": "Fine water spray, as on Spanish terraces. Strong but very local, needs water and hygiene checks, weaker in humid weather.",
+      "_poles": "Number of poles: default, max. Placed evenly on alternating sides like trees.",
+      "poles": [
+        4,
+        20
+      ],
+      "per_pole_C": 2.0,
+      "sigma_m": 4,
+      "max_total_C": 3.0,
+      "_operating_hours": "Switched on from / to (local hour).",
+      "operating_hours": [
+        11,
+        20
+      ],
+      "water_l_per_h_per_pole": 50
+    },
+    "traffic": {
+      "label": "Speed limit & less traffic",
+      "note": "Tempo 30 or fewer cars mostly cut noise and pollution. Engine heat is small, so the cooling is close to zero.",
+      "_current_limit_kmh": "Assumed current limit by road class.",
+      "current_limit_kmh": {
+        "motorway": 100,
+        "trunk": 70,
+        "primary": 50,
+        "secondary": 50,
+        "tertiary": 50,
+        "major_road": 50,
+        "residential": 30,
+        "living_street": 7,
+        "default": 50
+      },
+      "_vehicles_per_day": "Assumed motor vehicles per day by road class (no counts per street).",
+      "vehicles_per_day": {
+        "motorway": 60000,
+        "trunk": 30000,
+        "primary": 15000,
+        "secondary": 10000,
+        "tertiary": 5000,
+        "major_road": 10000,
+        "residential": 1000,
+        "unclassified": 1000,
+        "living_street": 200,
+        "service": 300,
+        "default": 1000
+      },
+      "_heat": "Waste heat per vehicle and km (a car using 6 l/100 km), spread over the roadway around the clock.",
+      "heat_MJ_per_vehicle_km": 2.0,
+      "_fuel_factor_30": "Fuel use at 30 instead of 50 km/h; studies find anything from a little less to a little more, depending on traffic flow.",
+      "fuel_factor_30": 0.95,
+      "noise_30_dB": -2.5,
+      "C_per_W_m2": 0.015,
+      "fade_m": 6
+    }
+  },
   "sources": {
-    "_about": "Shown under 'Model sources' in the scenario panel. {a.b} is replaced by that parameter's value.",
+    "_about": "Shown under 'Model sources' in the scenario panel. {a.b} is replaced by that parameter's value. 'measure' shows a part only for that measure.",
     "note": "The parameters are rough estimates, checked against these studies, not fitted to measurements.",
     "parts": [
       {
@@ -85,7 +190,8 @@
             "title": "Rahman & Ennos (2016): What we know and don't know about the cooling benefits of urban trees. Trees & Design Action Group",
             "url": "https://www.tdag.org.uk/uploads/4/2/8/0/4280686/what_is_known_and_not_know_cooling_benefits_of_urban_trees.pdf"
           }
-        ]
+        ],
+        "measure": "trees"
       },
       {
         "part": "Air cooling (evapotranspiration)",
@@ -99,6 +205,63 @@
           {
             "title": "Rahman & Ennos (2016): What we know and don't know about the cooling benefits of urban trees. Trees & Design Action Group",
             "url": "https://www.tdag.org.uk/uploads/4/2/8/0/4280686/what_is_known_and_not_know_cooling_benefits_of_urban_trees.pdf"
+          }
+        ],
+        "measure": "trees"
+      },
+      {
+        "measure": "beds",
+        "part": "Grass & flower beds",
+        "model": "−{measures.beds.per_m2_C} °C per m² of bed nearby, at most −{measures.beds.max_total_C} °C air cooling; −{measures.beds.felt_on_bed_C} °C felt on the bed in full sun",
+        "observed": "In Manchester, grass lowered the ground temperature by up to 24 °C but hardly changed globe (felt) or air temperature; tree shade lowered globe temperature by 5–7 °C.",
+        "refs": [
+          {
+            "title": "Armson, Stringer & Ennos (2012): The effect of tree shade and grass on surface and globe temperatures in an urban area. Urban Forestry & Urban Greening 11, 245–255",
+            "url": "https://doi.org/10.1016/j.ufug.2012.05.002"
+          }
+        ]
+      },
+      {
+        "measure": "pavement",
+        "part": "Reflective road surface",
+        "model": "−{measures.pavement.air_C_per_0_1_albedo} °C air per +0.1 albedo in full sun (× {measures.pavement.night_factor} at night), +{measures.pavement.reflected_felt_C_per_0_1_albedo} °C felt per +0.1 albedo on road and pavement",
+        "observed": "Coated streets in Los Angeles were 4–6 °C cooler at the surface, the air only 0.5 °C cooler in the afternoon and about 0.1 °C at night, while the radiant heat on pedestrians was 4 °C higher at midday.",
+        "refs": [
+          {
+            "title": "Middel, Turner, Schneider, Hu & Stiller (2020): Solar reflective pavements—A policy panacea to heat mitigation? Environmental Research Letters 15, 064016",
+            "url": "https://doi.org/10.1088/1748-9326/ab87d4"
+          }
+        ]
+      },
+      {
+        "measure": "misting",
+        "part": "Misting poles",
+        "model": "−{measures.misting.per_pole_C} °C per pole, at most −{measures.misting.max_total_C} °C, fading over about {measures.misting.sigma_m} m, switched on {measures.misting.operating_hours.0}–{measures.misting.operating_hours.1} h",
+        "observed": "Field studies measured roughly 2–5 °C cooler air near misting systems, more in dry heat and still air, less in humid or windy weather; humidity rises.",
+        "refs": [
+          {
+            "title": "Ulpiani (2019): Water mist spray for outdoor cooling: A systematic review of technologies, methods and impacts. Applied Energy 254, 113340",
+            "url": "https://doi.org/10.1016/j.apenergy.2019.113340"
+          },
+          {
+            "title": "Ulpiani, Di Giuseppe, Di Perna, D'Orazio & Zinzi (2019): Thermal comfort improvement in urban spaces with water spray systems: Field measurements and survey. Building and Environment 156, 46–61",
+            "url": "https://iris.univpm.it/bitstream/11566/265086/2/Postprint%20BAE.pdf"
+          }
+        ]
+      },
+      {
+        "measure": "traffic",
+        "part": "Speed limit & less traffic",
+        "model": "engine heat {measures.traffic.heat_MJ_per_vehicle_km} MJ per vehicle-km over the roadway, {measures.traffic.C_per_W_m2} °C per W/m²; Tempo 30: fuel × {measures.traffic.fuel_factor_30}, noise {measures.traffic.noise_30_dB} dB(A)",
+        "observed": "Tempo 30 on main roads lowered noise by 1–4 dB(A) in follow-up measurements. Vehicle heat warms street air mostly at night and by a few tenths of a degree at most.",
+        "refs": [
+          {
+            "title": "Umweltbundesamt (2016): Lärm- und Klimaschutz durch Tempo 30 (Texte 30/2016, summary)",
+            "url": "https://www.umweltbundesamt.de/sites/default/files/medien/378/publikationen/texte_30_2016_kurz_laerm-_und_klimaschutz_durch_tempo_30_0.pdf"
+          },
+          {
+            "title": "Spatiotemporal impact of vehicle heat on urban thermal environment: A case study in Hong Kong (PolyU)",
+            "url": "https://research.polyu.edu.hk/en/publications/spatiotemporal-impact-of-vehicle-heat-on-urban-thermal-environmen-2/"
           }
         ]
       },
