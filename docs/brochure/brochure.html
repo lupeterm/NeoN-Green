@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>UrbanFlow Twin – brochure</title>
+<!-- Rendered to brochure.png by scripts/render_brochure.py. Screenshots in img/ are taken from the app. -->
+<style>
+  :root { --ink: #16232e; --muted: #56656f; --green: #2f9e44; --dark: #0f3d2e; --blue: #1c7ed6; --red: #c92a2a; --card: #ffffff; --bg: #eef4f0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { width: 1024px; height: 1536px; font: 14px/1.4 "DejaVu Sans", system-ui, sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; }
+  h1, h2, h3 { margin: 0; }
+  .muted { color: var(--muted); }
+
+  header { position: relative; height: 292px; color: #fff; overflow: hidden; }
+  header .photo { position: absolute; inset: 0; background: url(img/street-after.jpg) center 60% / cover; }
+  header .shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(10, 40, 30, .93) 0%, rgba(10, 40, 30, .82) 48%, rgba(10, 40, 30, .1) 80%); }
+  header .text { position: absolute; left: 40px; top: 28px; width: 560px; }
+  header .kicker { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: #a9e3b8; font-weight: 700; }
+  header h1 { font-size: 52px; line-height: 1.05; margin: 6px 0 8px; letter-spacing: -.01em; }
+  header h1 span { color: #8ce99a; }
+  header .sub { font-size: 17px; line-height: 1.35; color: #e6f4ea; }
+  header .tags { display: flex; gap: 10px; margin-top: 16px; }
+  header .tag { background: rgba(255, 255, 255, .14); border: 1px solid rgba(255, 255, 255, .3); border-radius: 18px; padding: 5px 13px; font-size: 13px; }
+
+  main { padding: 16px 30px 0; }
+  .lead { font-size: 14px; margin: 0 0 12px; }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card { background: var(--card); border-radius: 10px; box-shadow: 0 2px 10px rgba(20, 50, 40, .12); overflow: hidden; }
+  .step .img { height: 162px; background: #ddd center / cover; border-bottom: 1px solid #e3e8e5; }
+  .step .body { padding: 9px 12px 11px; }
+  .step h3 { font-size: 15.5px; display: flex; align-items: center; gap: 8px; }
+  .num { display: inline-flex; width: 24px; height: 24px; border-radius: 50%; background: var(--green); color: #fff; font-size: 13px; align-items: center; justify-content: center; flex: none; }
+  .step p { margin: 5px 0 0; font-size: 12px; color: var(--muted); }
+
+  .street { display: grid; grid-template-columns: 1fr 1fr 236px; gap: 12px; margin-top: 12px; align-items: stretch; }
+  .shot { position: relative; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(20, 50, 40, .14); height: 252px; background: center / cover; }
+  .shot .label { position: absolute; left: 10px; top: 10px; background: rgba(20, 30, 36, .78); color: #fff; font-weight: 700; font-size: 12.5px; padding: 4px 10px; border-radius: 5px; }
+  .shot .label.after { background: var(--green); }
+  .shot .note { position: absolute; left: 10px; bottom: 8px; color: #fff; font-size: 11px; text-shadow: 0 1px 2px #000; }
+  .effect { padding: 11px 14px; display: flex; flex-direction: column; gap: 5px; }
+  .effect h3 { font-size: 14px; }
+  .big { font-size: 28px; font-weight: 800; line-height: 1.05; }
+  .big.cool { color: var(--blue); } .big.warm { color: var(--red); }
+  .effect .k { font-size: 11.5px; color: var(--muted); }
+  .effect hr { border: 0; border-top: 1px solid #e3e8e5; width: 100%; margin: 2px 0; }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
+  .box { padding: 11px 15px; }
+  .box h2 { font-size: 16px; margin-bottom: 6px; }
+  .box ul { margin: 0; padding-left: 18px; font-size: 12px; }
+  .box li { margin: 2px 0; }
+  .data { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12px; align-items: baseline; }
+  .data b { color: var(--dark); font-size: 15px; white-space: nowrap; }
+
+  .future { margin-top: 12px; display: grid; grid-template-columns: 400px 1fr; background: linear-gradient(135deg, #0f2f4a, #134e6f); color: #fff; border-radius: 12px; overflow: hidden; }
+  .future .fig { background: #0c2537; padding: 10px; }
+  .future .fig .cap { font-size: 10.5px; color: #9fc3dc; text-align: center; margin-top: 2px; }
+  .future .txt { padding: 13px 18px 13px 8px; }
+  .future .kicker { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #74c0fc; font-weight: 700; }
+  .future h2 { font-size: 19px; margin: 3px 0 6px; }
+  .future p { margin: 0 0 6px; font-size: 12.5px; color: #d0e6f5; }
+  .future ul { margin: 0; padding-left: 18px; font-size: 12px; color: #e7f3fb; }
+  .future li { margin: 3px 0; }
+  .future li b { color: #fff; }
+
+  footer { position: absolute; left: 0; right: 0; bottom: 0; height: 58px; background: var(--dark); color: #d3eadb; display: flex; align-items: center; justify-content: space-between; padding: 0 34px; font-size: 12px; }
+  footer .claim { font-size: 16px; color: #fff; font-weight: 700; white-space: nowrap; }
+  footer .claim span { color: #8ce99a; }
+  footer .right { text-align: right; line-height: 1.45; font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="photo"></div><div class="shade"></div>
+  <div class="text">
+    <div class="kicker">NeoN-Green · Green City Hackathon Heilbronn 2026</div>
+    <h1>UrbanFlow <span>Twin</span></h1>
+    <div class="sub">What if we planted trees on our street? Find the hot spots, plant trees on the map, see the street – and how much cooler it gets.</div>
+    <div class="tags"><span class="tag">Real Heilbronn data</span><span class="tag">Interactive map</span><span class="tag">Street view</span><span class="tag">Open source</span></div>
+  </div>
+</header>
+
+<main>
+  <p class="lead">An interactive what-if tool for Heilbronn: it combines measurements from bike sensors, citizen weather stations and the city's
+    tree inventory with a simple, explainable model of tree shade and cooling, and shows the result where people live – in the street.</p>
+
+  <div class="steps">
+    <div class="card step"><div class="img" style="background-image:url(img/map-hotspots.jpg)"></div><div class="body">
+      <h3><span class="num">1</span>Find the hot spots</h3>
+      <p>384 senseBox:bike rides (Jun–Oct 2026) reveal streets that are warmer than the rest of the ride – up to +0.7 °C.</p></div></div>
+    <div class="card step"><div class="img" style="background-image:url(img/map-street.jpg); background-position: 45% 50%"></div><div class="body">
+      <h3><span class="num">2</span>Plant trees on the map</h3>
+      <p>Draw a stretch of street and plant trees. Shadows follow the sun; the panel shows the cooling, e.g. −3.7 °C on Weipertstraße.</p></div></div>
+    <div class="card step"><div class="img" style="background-image:url(img/street-tool.jpg); background-position: 70% 20%"></div><div class="body">
+      <h3><span class="num">3</span>See it in the street</h3>
+      <p>Look along Weipertstraße from the road centre, place trees and cars, and read the effect.</p></div></div>
+  </div>
+
+  <div class="street">
+    <div class="shot" style="background-image:url(img/street-before.jpg)"><span class="label">Today</span><span class="note">Weipertstraße, looking north past the Open Space</span></div>
+    <div class="shot" style="background-image:url(img/street-after.jpg)"><span class="label after">With 7 trees and 3 cars</span><span class="note">Same view: trees and cars placed in the app</span></div>
+    <div class="card effect">
+      <h3>Effect on the street</h3>
+      <div><div class="big cool">−2.6 °C</div><div class="k">mean felt temperature, 15:00 in July</div></div>
+      <div><div class="big cool" style="font-size:22px">−12.0 °C</div><div class="k">in the shade of a crown · 406 m² shaded</div></div>
+      <hr>
+      <div><div class="big warm" style="font-size:22px">+2.1 µg/m³ NO₂</div><div class="k">from 3 cars, background 22 µg/m³</div></div>
+      <div class="k" style="margin-top:auto">Mean within 10 m of the centre line, 3–60 m both ways. Illustrative estimates from a teaching model.</div>
+    </div>
+  </div>
+
+  <div class="row2">
+    <div class="card box">
+      <h2>Real data from Heilbronn</h2>
+      <div class="data">
+        <b>384</b><span>senseBox:bike rides of the Heilbronn campaign (openSenseMap)</span>
+        <b>43,031</b><span>street trees in the city's 2026 inventory (opendata.heilbronn.de)</span>
+        <b>5</b><span>heat hotspots on named streets, from ride-relative temperatures</span>
+        <b>1 hot day</b><span>of citizen temperature sensors (sensor.community, 2 Jul 2025) as the city-wide heat map</span>
+      </div>
+    </div>
+    <div class="card box">
+      <h2>How it works – honestly</h2>
+      <ul>
+        <li><b>Shade</b> from each crown, projected with the real sun position for date and time.</li>
+        <li><b>Evaporative cooling</b> around trees, saturating for many trees.</li>
+        <li><b>Pollution</b>: background plus a plume per car; crowns remove a little.</li>
+        <li>Street views and cut-outs are <b>AI images</b> from our photos (open model, Apache 2.0).</li>
+        <li>A transparent teaching model – every number is editable – <b>not a simulation</b>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <section class="future">
+    <div class="fig">
+      <svg viewBox="0 0 410 250" width="380" height="232" role="img" aria-label="Concept sketch: wind over a street canyon with trees and traffic">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 10 5 0 10z" fill="#74c0fc"/></marker>
+          <marker id="ahw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 10 5 0 10z" fill="#ffd43b"/></marker>
+          <linearGradient id="plume" x1="0" x2="0" y1="1" y2="0"><stop offset="0" stop-color="#ff8787" stop-opacity=".75"/><stop offset="1" stop-color="#ff8787" stop-opacity="0"/></linearGradient>
+        </defs>
+        <!-- wind above the roofs -->
+        <path d="M10 28 C 120 22, 290 22, 400 30" stroke="#74c0fc" stroke-width="2.5" fill="none" marker-end="url(#ah)"/>
+        <path d="M10 48 C 110 44, 300 44, 400 52" stroke="#74c0fc" stroke-width="2" fill="none" marker-end="url(#ah)" opacity=".8"/>
+        <!-- buildings -->
+        <rect x="18" y="72" width="92" height="150" fill="#3b5568"/><rect x="300" y="88" width="92" height="134" fill="#3b5568"/>
+        <g fill="#5b7a90"><rect x="30" y="86" width="14" height="16"/><rect x="56" y="86" width="14" height="16"/><rect x="82" y="86" width="14" height="16"/>
+          <rect x="30" y="118" width="14" height="16"/><rect x="56" y="118" width="14" height="16"/><rect x="82" y="118" width="14" height="16"/>
+          <rect x="312" y="102" width="14" height="16"/><rect x="338" y="102" width="14" height="16"/><rect x="364" y="102" width="14" height="16"/>
+          <rect x="312" y="134" width="14" height="16"/><rect x="338" y="134" width="14" height="16"/><rect x="364" y="134" width="14" height="16"/></g>
+        <!-- recirculating vortex in the canyon -->
+        <path d="M150 80 C 250 70, 280 120, 255 170 C 230 210, 160 205, 150 165 C 140 128, 175 105, 215 125" stroke="#74c0fc" stroke-width="2" fill="none" marker-end="url(#ah)" stroke-dasharray="6 4"/>
+        <!-- road and footpaths -->
+        <rect x="0" y="222" width="410" height="28" fill="#22313d"/><rect x="110" y="218" width="36" height="6" fill="#55687a"/><rect x="264" y="218" width="36" height="6" fill="#55687a"/>
+        <!-- trees -->
+        <g><rect x="125" y="170" width="6" height="50" fill="#7a5c3e"/><ellipse cx="128" cy="160" rx="24" ry="22" fill="#40c057" opacity=".92"/>
+           <rect x="279" y="170" width="6" height="50" fill="#7a5c3e"/><ellipse cx="282" cy="160" rx="24" ry="22" fill="#40c057" opacity=".92"/></g>
+        <!-- car with plume -->
+        <rect x="186" y="204" width="40" height="15" rx="4" fill="#ced4da"/><circle cx="194" cy="220" r="4" fill="#111"/><circle cx="218" cy="220" r="4" fill="#111"/>
+        <ellipse cx="200" cy="170" rx="30" ry="42" fill="url(#plume)"/>
+        <!-- heat from the asphalt -->
+        <path d="M330 236 q 5 -8 0 -16 q -5 -8 0 -16" stroke="#ffd43b" stroke-width="2" fill="none" marker-end="url(#ahw)"/>
+        <path d="M80 236 q 5 -8 0 -16 q -5 -8 0 -16" stroke="#ffd43b" stroke-width="2" fill="none" marker-end="url(#ahw)"/>
+        <g font-size="10.5" fill="#d0e6f5" font-family="DejaVu Sans, sans-serif">
+          <text x="150" y="16">wind</text><text x="160" y="100">vortex in the canyon</text>
+          <text x="150" y="246" fill="#ffc9c9">traffic emissions ↑</text><text x="340" y="212">heat</text></g>
+      </svg>
+      <div class="cap">Concept sketch, not a simulation result</div>
+    </div>
+    <div class="txt">
+      <div class="kicker">Future work</div>
+      <h2>From what-if estimates to CFD predictions</h2>
+      <p>Today's numbers come from a simple model. In a street canyon, wind, buildings and trees decide where heat and pollutants
+        go – that needs computational fluid dynamics.</p>
+      <ul>
+        <li><b>CFD with OpenFOAM / NeoFOAM</b> on GPU systems: resolve airflow around buildings, trees as porous drag, and heat and pollutant transport.</li>
+        <li><b>Same scenarios:</b> export the trees and cars placed in the app as CFD cases for the street.</li>
+        <li><b>Validate</b> against senseBox:bike and station measurements, then replace the estimates with physics-based predictions.</li>
+      </ul>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="claim">Real data. Real streets. <span>A cooler Heilbronn.</span></div>
+  <div class="right">Open source · github.com/lupeterm/NeoN-Green<br>Data: openSenseMap (PDDL), sensor.community (ODbL), Stadt Heilbronn, © OpenStreetMap contributors</div>
+</footer>
+</body>
+</html>
