@@ -216,7 +216,7 @@ function render(opts = {}) {
   $('timeLabel').textContent = `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
   const alt = sun.altitude / DEG, from = ((sun.azimuth / DEG + 180) % 360 + 360) % 360;
   $('sun').textContent = alt > 0 ? `Sun ${alt.toFixed(0)}° high, from the ${compass(from)} (${from.toFixed(0)}°): tree shadows fall to the ${compass((from + 180) % 360)}.`
-                                 : 'The sun is below the horizon: no shadows.';
+    : alt > -8 ? 'Dusk: the sun is just below the horizon, no shadows.' : 'Night: the sun is below the horizon, no shadows.';
 
   const objs = viewObjects().filter(o => o.z > 1).map(o => ({...o, depth: Math.hypot(o.x, o.z)}));
   if (S.hover && !opts.clean) {
@@ -233,11 +233,13 @@ function render(opts = {}) {
   ctx.restore();
 
   S.rects = [];
+  S.lights = [];
   for (const o of objs.sort((a, b) => b.depth - a.depth)) {
     const r = drawObject(o);
     if (r && !o.ghost) S.rects.push({...r, depth: o.depth, item: o.item});
   }
   for (const fg of S.foreground) { ctx.save(); ctx.clip(fg); ctx.drawImage(img, 0, 0); ctx.restore(); }
+  daylight(sun, W, H);
 
   if (S.hover && !opts.clean) {
     const p = cam.project(S.hover.x, 0, S.hover.z);
@@ -317,10 +319,71 @@ function drawObject(o) {
   }
   ctx.drawImage(sp.img, x0, y0, w, h);
   ctx.restore();
+  if (o.kind === 'car' && !o.ghost) carLights(o, p);
   if (o.kind !== 'tree') return {x0, y0, x1: x0 + w, y1: y0 + h};
   // a tree is picked by its trunk, so you can still plant behind a crown
   const half = Math.max(0.5 * p.scale, 8);
   return {x0: p.u - half, x1: p.u + half, y0: p.v - 2.5 * p.scale, y1: p.v + 0.4 * p.scale};
+}
+
+// ------------------------------------------------------------------ day and night
+// The views are daytime images; the light of the chosen date and time is laid over them:
+// warm low sun around sunrise and sunset, blue dusk, night once the sun is 8° below the horizon.
+
+function nightLevel(sun) {
+  const alt = sun.altitude / DEG, t = Math.min(1, Math.max(0, (4 - alt) / 12));  // 0 above 4°, 1 below −8°
+  return t * t * (3 - 2 * t);
+}
+
+function daylight(sun, W, H) {
+  const n = nightLevel(sun), alt = sun.altitude / DEG, {ctx} = S;
+  const warm = Math.max(0, 1 - Math.abs(alt - 2) / 10) * (1 - n);  // golden hour around the horizon
+  if (n < 0.01 && warm < 0.01) return;
+  // multiply: white leaves the image as it is, the tint darkens and colours it
+  const mix = (a, b, t) => a + (b - a) * t;
+  const night = [36, 46, 84], gold = [255, 196, 140];
+  const c = [0, 1, 2].map(i => Math.round(mix(mix(255, gold[i], warm), night[i], n)));
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = `rgb(${c})`;
+  ctx.fillRect(0, 0, W, H);
+  if (n > 0.3) {  // a darker sky than ground: deepen the upper part a little
+    const g = ctx.createLinearGradient(0, 0, 0, S.view.horizon_y + 60);
+    g.addColorStop(0, `rgba(10, 14, 34, ${0.55 * n})`);
+    g.addColorStop(1, 'rgba(10, 14, 34, 0)');
+    ctx.fillStyle = g;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillRect(0, 0, W, S.view.horizon_y + 60);
+  }
+  ctx.restore();
+  // car lights shine on top of the darkness
+  if (n < 0.15) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const l of S.lights) {
+    // a small bright lamp with a soft halo
+    const halo = l.r * 3, g = ctx.createRadialGradient(l.u, l.v, 0, l.u, l.v, halo);
+    g.addColorStop(0, `rgba(${l.colour}, ${0.9 * n})`);
+    g.addColorStop(0.12, `rgba(${l.colour}, ${0.7 * n})`);
+    g.addColorStop(0.35, `rgba(${l.colour}, ${0.18 * n})`);
+    g.addColorStop(1, `rgba(${l.colour}, 0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(l.u, l.v, halo, 0, 2 * Math.PI); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// Lamp positions of a car on screen: headlights from the front, tail lights from behind or the side.
+function carLights(o, p) {
+  const s = p.scale, side = o.pose.side, y = p.v - 0.68 * s;
+  const front = '255, 244, 214', tail = '255, 40, 30', r = Math.max(2, 0.14 * s);
+  if (side === 'front') for (const d of [-0.62, 0.62]) S.lights.push({u: p.u + d * s, v: y, colour: front, r});
+  else if (side === 'rear') for (const d of [-0.68, 0.68]) S.lights.push({u: p.u + d * s, v: y + 0.05 * s, colour: tail, r: r * 0.8});
+  else {
+    const dir = o.pose.flip ? -1 : 1;
+    S.lights.push({u: p.u + dir * 2.1 * s, v: y + 0.05 * s, colour: front, r});
+    S.lights.push({u: p.u - dir * 2.15 * s, v: y + 0.1 * s, colour: tail, r: r * 0.7});
+  }
 }
 
 // Vehicles drive on the right: east of the centre line towards the street axis bearing, west of it the other way.

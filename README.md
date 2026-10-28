@@ -277,7 +277,9 @@ kerbs, and neither too close to its own kind: crowns may overlap by at most
 0.5 m beside. Objects get the size and position the perspective gives at that spot and
 nearer objects cover farther ones; cars keep to the right, so they are seen from behind, from
 the front or from the side. Tree shadows follow the sun for the chosen date and time (the panel
-says where the sun stands and where shadows fall). **Save
+says where the sun stands and where shadows fall), and so does the light: warm low sun around
+sunrise and sunset, blue dusk, and night with car head- and tail lights once the sun is 8° below
+the horizon (the time slider covers the whole day). **Save
 image** downloads the view, **Show trees on the map** hands the planted trees to the map, which
 selects Weipertstraße there, plants them by hand and computes the cooling.
 
