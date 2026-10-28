@@ -162,10 +162,22 @@ use all points everywhere. Dense data such as bike tracks only uses points withi
   add up but saturate at `evapotranspiration.max_total_C`, and the effect is weaker at night.
 
 Known simplifications: buildings neither cast shadows nor block tree shadows, road widths are
-estimated from the road class, and wind and surfaces are ignored. The default values are
-plausible orders of magnitude for Central European summer days, not calibrated results. Tune
+estimated from the road class, and wind and surfaces are ignored. The model adds the shade
+effect on felt temperature to measured air temperature, so its results are not air
+temperatures. The default values are rough estimates, not fitted to measurements. Tune
 them in `config/model.json`, or replace `model.js` with a better model behind the same
 `treeEffect()` function.
+
+"Model sources" in the scenario panel lists, for each part of the model, the values it uses
+next to what studies measured, with links to the studies. The list is `sources` in
+`config/model.json`; `{shade.max_cooling_C}` and similar placeholders show current parameter
+values. Current references:
+
+* Rahman & Ennos (2016), [What we know and don't know about the cooling benefits of urban trees](https://www.tdag.org.uk/uploads/4/2/8/0/4280686/what_is_known_and_not_know_cooling_benefits_of_urban_trees.pdf):
+  tree shade lowers PET by 7–15 °C on hot days; green areas can cool more at night than by day.
+* Rahman et al. (2018), [Vertical air temperature gradients under the shade of two contrasting urban tree species](https://treefund.org/wp-content/uploads/2018/04/Rahman-et-al.-2018.pdf),
+  Science of the Total Environment 633: air under canopies 0.5–1.8 °C cooler (Munich), 0.1–2.8 °C in other studies.
+* [SunCalc](https://github.com/mourner/suncalc) for the sun position.
 
 ## Environment data
 

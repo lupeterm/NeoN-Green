@@ -64,6 +64,12 @@
     .data-table th { color: var(--muted); font-weight: 600; }
     .maplibregl-popup-content dl { margin: 6px 0 0; padding: 0; border: 0; font-size: 12px; }
     #hint { color: var(--err); min-height: 0; }
+    .sources { margin-top: 8px; font-size: 12px; }
+    .sources summary { cursor: pointer; color: var(--cool); font-weight: 600; }
+    .sources h3 { font-size: 12px; margin: 8px 0 2px; }
+    .sources p { margin: 2px 0; color: var(--muted); }
+    .sources ol { margin: 2px 0 0; padding-left: 18px; }
+    .sources a { color: var(--cool); }
     .ticks { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
     header { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
     #close { border: 0; background: none; font-size: 20px; line-height: 1; cursor: pointer; color: var(--muted); padding: 0; }
@@ -125,6 +131,10 @@
     <dl id="result"></dl>
     <p class="muted">Simplified teaching model: crown shadows from the sun position plus evaporative cooling.
       Parameters in <code>config/model.json</code>.</p>
+    <details id="sources" class="sources">
+      <summary>Model sources</summary>
+      <div id="sourceList"></div>
+    </details>
   </aside>
 
   <script src="app.js"></script>

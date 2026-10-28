@@ -71,5 +71,48 @@
       "tram": 1.5,
       "rail": 2.5
     }
+  },
+  "sources": {
+    "_about": "Shown under 'Model sources' in the scenario panel. {a.b} is replaced by that parameter's value.",
+    "note": "The parameters are rough estimates, checked against these studies, not fitted to measurements.",
+    "parts": [
+      {
+        "part": "Crown shade (felt temperature)",
+        "model": "up to −{shade.max_cooling_C} °C in full shade, full effect from a sun height of {shade.full_effect_sun_altitude_deg}°",
+        "observed": "Tree shade lowers the felt temperature (PET) by 7–15 °C on hot days.",
+        "refs": [
+          {
+            "title": "Rahman & Ennos (2016): What we know and don't know about the cooling benefits of urban trees. Trees & Design Action Group",
+            "url": "https://www.tdag.org.uk/uploads/4/2/8/0/4280686/what_is_known_and_not_know_cooling_benefits_of_urban_trees.pdf"
+          }
+        ]
+      },
+      {
+        "part": "Air cooling (evapotranspiration)",
+        "model": "−{evapotranspiration.per_tree_C} °C per tree, at most −{evapotranspiration.max_total_C} °C, fading over about {evapotranspiration.sigma_m} m, × {evapotranspiration.night_factor} at night",
+        "observed": "Air under a canopy measured 0.5–1.8 °C cooler than outside in Munich; other cities 0.1–2.8 °C. At night, green areas can cool more than by day.",
+        "refs": [
+          {
+            "title": "Rahman, Moser, Gold, Rötzer & Pauleit (2018): Vertical air temperature gradients under the shade of two contrasting urban tree species during different types of summer days. Science of the Total Environment 633, 100–111",
+            "url": "https://treefund.org/wp-content/uploads/2018/04/Rahman-et-al.-2018.pdf"
+          },
+          {
+            "title": "Rahman & Ennos (2016): What we know and don't know about the cooling benefits of urban trees. Trees & Design Action Group",
+            "url": "https://www.tdag.org.uk/uploads/4/2/8/0/4280686/what_is_known_and_not_know_cooling_benefits_of_urban_trees.pdf"
+          }
+        ]
+      },
+      {
+        "part": "Sun position and shadows",
+        "model": "computed for the chosen date, time and the city's location",
+        "observed": "",
+        "refs": [
+          {
+            "title": "SunCalc, a JavaScript library for sun positions (V. Agafonkin)",
+            "url": "https://github.com/mourner/suncalc"
+          }
+        ]
+      }
+    ]
   }
 }

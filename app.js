@@ -119,6 +119,7 @@ function setupUi() {
   $('clearTrees').onclick = () => { S.manual = []; update(); };
   $('drawBtn').onclick = () => setDrawMode(!S.draw.active);
   $('close').onclick = closeScenario;
+  renderSources();
   addEventListener('keydown', e => { if (e.key === 'Escape') setDrawMode(false); });
 }
 
@@ -343,6 +344,18 @@ function selectStreet(hit, line, a, b) {
     S.map.fitBounds(turf.bbox(sec), {padding: {top: 80, bottom: 80, left: 320, right: 360}, maxZoom: Math.max(S.map.getZoom(), 17), duration: 600});
   }
   update();
+}
+
+// "Model sources" in the scenario panel: what the model assumes next to what studies measured.
+function renderSources() {
+  const src = S.model.sources;
+  if (!src) return ($('sources').hidden = true);
+  const param = path => path.split('.').reduce((o, k) => o?.[k], S.model) ?? `{${path}}`;
+  const fill = text => esc(text).replace(/\{([\w.]+)\}/g, (_, path) => esc(String(param(path))));
+  $('sourceList').innerHTML = src.parts.map(p => `<h3>${esc(p.part)}</h3>
+    <p><b>Model:</b> ${fill(p.model)}</p>${p.observed ? `<p><b>Studies:</b> ${esc(p.observed)}</p>` : ''}
+    <ol>${p.refs.map(r => `<li><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a></li>`).join('')}</ol>`).join('') +
+    (src.note ? `<p>${esc(src.note)}</p>` : '');
 }
 
 function closeScenario() {
@@ -964,6 +977,7 @@ const quantile = (sorted, q) => sorted[Math.min(sorted.length - 1, Math.floor(q 
 const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v).toFixed(1);
 const compass = deg => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(deg / 45) % 8];
 const fc = features => ({type: 'FeatureCollection', features});
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const box = (p, r) => [[p.x - r, p.y - r], [p.x + r, p.y + r]];
 const setData = (id, data) => S.map.getSource(id).setData(data);
 const getJSON = async url => (await fetch(url, {cache: 'no-store'})).json();
