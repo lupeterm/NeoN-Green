@@ -802,7 +802,11 @@ function run() {
     setData('section', fc([section]));
     setData('planted', fc(trees.map((t, i) => turf.point([t.lon, t.lat], {r: t.crown_diameter_m / 2, i}))));
     setData('shadows', fc(shadows));
-    if (S.view3d) setData('trees-3d', fc(trees3D(trees, P)));
+    if (S.view3d) {
+      const models = S.deck && iconThemes()[S.iconTheme]?.models3d;
+      setData('trees-3d', fc(models ? [] : trees3D(trees, P)));  // block trees only as fallback
+      if (models) S.deck.setProps({layers: treeModelLayers(trees, P, models)});
+    }
     const len = Math.round(S.street.b - S.street.a), n = +$('trees').value;
     $('secLabel').textContent = `Section: ${len} m` + (S.street.b - S.street.a < S.street.length - 1 ? ` of ${Math.round(S.street.length)} m` : '');
     const treed = S.mode === 'even' ? S.placement.alreadyTreed || 0 : 0;
@@ -876,12 +880,14 @@ function set3D(on) {
     S.hiddenFor3D.forEach(id => S.map.setLayoutProperty(id, 'visibility', 'none'));
     S.map.setMaxPitch(85);
     add3DLayers();
+    ensureDeck().then(ok => { if (ok && S.view3d) update(); });
     const st = S.street, P = NG.projection(...S.cfg.center), q = alongXY(st, (st.a + st.b) / 2);
     S.map.easeTo({center: P.toLL(q.x, q.y), zoom: VIEW3D.zoom, pitch: VIEW3D.pitch,
                   bearing: Math.atan2(q.tx, q.ty) / NG.DEG, duration: 1600});
   } else {
     (S.hiddenFor3D || []).forEach(id => S.map.getLayer(id) && S.map.setLayoutProperty(id, 'visibility', 'visible'));
     for (const id of ['buildings-3d', 'trees-3d-existing', 'trees-3d-planted']) if (S.map.getLayer(id)) S.map.removeLayer(id);
+    S.deck?.setProps({layers: []});
     S.map.easeTo({pitch: 0, bearing: 0, zoom: Math.min(S.map.getZoom(), 17.5), duration: 1200});
     S.map.once('moveend', () => { if (!S.view3d) S.map.setMaxPitch(60); });
   }
@@ -903,6 +909,60 @@ function add3DLayers() {
                 paint: {'fill-extrusion-color': ['get', 'color'], 'fill-extrusion-opacity': opacity,
                         'fill-extrusion-base': ['get', 'base'], 'fill-extrusion-height': ['get', 'top']}}, firstLabel);
   }
+}
+
+// 3D models (glTF) via deck.gl, loaded on first use. Each tree style lists its models in
+// config/overlays.json (iconThemes.<style>.models3d); without them the block trees stay.
+const DECK_JS = ['https://unpkg.com/deck.gl@9.3.11/dist.min.js', 'https://unpkg.com/@loaders.gl/gltf@4.4.5/dist/dist.min.js'];
+
+function loadScript(src) {
+  return new Promise((ok, fail) => {
+    const el = document.createElement('script');
+    el.src = src; el.onload = ok; el.onerror = () => fail(new Error(`could not load ${src}`));
+    document.head.append(el);
+  });
+}
+
+async function ensureDeck() {
+  if (S.deck) return true;
+  try {
+    S.deckLoading ??= DECK_JS.reduce((p, src) => p.then(() => loadScript(src)), Promise.resolve());
+    await S.deckLoading;
+    S.deck = new deck.MapboxOverlay({interleaved: true, layers: []});  // shares the depth buffer: buildings hide trees
+    S.map.addControl(S.deck);
+    return true;
+  } catch (e) {
+    console.warn('3D models unavailable, using block trees', e);
+    setStatus('3D models could not be loaded, showing simple trees.', true);
+    return false;
+  }
+}
+
+function treeModelLayers(planted, P, models) {
+  const st = S.street, mid = alongXY(st, (st.a + st.b) / 2), reach = VIEW3D.radius_m;
+  const yaw = (lon, lat) => ((Math.sin(lon * 12.9898 + lat * 78.233) * 43758.5453) % 1 + 1) % 1 * 360;  // stable per tree
+  const place = (m, lon, lat, height, crown) => ({position: [lon, lat, 0], yaw: yaw(lon, lat),
+    scale: [crown / Math.max(m.size[0], m.size[2]), height / m.size[1], crown / Math.max(m.size[0], m.size[2])]});
+  const existing = [];
+  for (const t of S.existingTrees) {
+    const {x, y} = P.toXY(t.lon, t.lat);
+    if (Math.abs(x - mid.x) > reach || Math.abs(y - mid.y) > reach) continue;
+    const crown = 2 * t.r;
+    existing.push(place(models.existing || models.planted, t.lon, t.lat, Math.min(25, Math.max(4, crown * 1.4 + 2)), crown));
+  }
+  const sets = [['planted', models.planted, planted.map(t => place(models.planted, t.lon, t.lat, t.height_m, t.crown_diameter_m))],
+                ['existing', models.existing || models.planted, existing]];
+  if (models.decoration) {  // e.g. a pumpkin at the foot of every new tree
+    const d = models.decoration, k = d.height_m / d.size[1];
+    sets.push(['decoration', d, planted.map(t => {
+      const {x, y} = P.toXY(t.lon, t.lat), [lon, lat] = P.toLL(x + d.offset_m, y);
+      return {position: [lon, lat, 0], yaw: yaw(lat, lon), scale: [k, k, k]};
+    })]);
+  }
+  return sets.filter(([, m]) => m).map(([kind, m, data]) => new deck.ScenegraphLayer({
+    id: `model-${kind}`, data, scenegraph: m.url, loaders: [loaders.GLTFLoader],
+    getPosition: d => d.position, getOrientation: d => [0, d.yaw, 90], getScale: d => d.scale,
+    sizeScale: 1, _lighting: 'pbr', updateTriggers: {getScale: data.length}}));
 }
 
 // Trunk and crown of every planted tree and of existing trees near the street, as extrusions.
@@ -1010,7 +1070,7 @@ async function setIconTheme(name) {
   S.iconTheme = name;
   try { localStorage.setItem('iconTheme', name); } catch {}
   S.seasonControl?.update();
-  await Promise.all(Object.entries(theme).filter(([k]) => k !== 'label' && k !== 'symbol').map(async ([key, url]) => {
+  await Promise.all(Object.entries(theme).filter(([k, v]) => k !== 'label' && k !== 'symbol' && typeof v === 'string').map(async ([key, url]) => {
     const id = key === 'planted' ? 'planted' : `lyr-${key}`;
     try {
       const img = new Image(ICON_PX, ICON_PX);
