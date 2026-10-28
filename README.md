@@ -3,8 +3,8 @@
 An interactive street map of Heilbronn with a heat overlay. Draw around part of a street
 and plant trees on it, evenly spaced or by hand. The overlay recalculates live, and the
 panel shows how much cooler the street gets on average. Tree shadows follow the sun for
-the chosen date and time of day. Existing trees and the bike measurements of the
-Heilbronn senseBox:bike campaign can be shown as extra layers.
+the chosen date and time of day. Existing trees and environment data from the city's open
+data portal can be shown as extra layers.
 
 Built for education and for cheaply comparing urban-planning options. It is not a
 microclimate simulation.
@@ -31,7 +31,7 @@ SunCalc load from unpkg, and the basemap is CARTO Positron.
    click the map to plant trees and click a new tree to remove it. Switching to by hand starts
    from the current even layout.
 4. Read the result: the mean value within 10 m on both sides of the section, before and after,
-   plus the strongest local cooling, the shaded area and an assumed cost.
+   plus the strongest local cooling and the shaded area.
 
 The sun/moon button under the zoom controls switches between a light and a dark map, and the
 three buttons below it switch the tree icons between normal, Halloween and Christmas. It starts
@@ -107,14 +107,14 @@ Entries in `layers` are drawn as they are, without interpolation. Each is a GeoJ
 
 ```json
 {
-  "id": "bike_speed",
-  "group": "Bike measurements (atrai)",
-  "label": "Cycling speed",
-  "url": "https://api.atrai.bike/collections/speed_map_heilbronn/items?limit=0",
+  "id": "water_hardness",
+  "group": "Environment data (opendata.heilbronn.de)",
+  "label": "Water hardness & quality by street",
+  "url": "data/water_hardness.geojson",
   "type": "line",
-  "value": "avg_speed[km/h]", "unit": "km/h", "domain": [5, 30],
-  "ramp": ["#b10026", "#fd8d3c", "#fecc5c", "#31a354"],
-  "tooltip": {"name": "Street", "avg_speed[km/h]": "Mean speed (km/h)"}
+  "value": "dH_value", "unit": "°dH", "domain": [8, 18],
+  "ramp": ["#4dabf7", "#a5d8ff", "#ffe066", "#ff922b", "#e8590c"],
+  "tooltip": {"name": "Street", "dH": "Hardness (°dH)"}
 }
 ```
 
@@ -196,12 +196,7 @@ python3 scripts/fetch_opendata.py
 python3 scripts/prepare_opendata.py
 ```
 
-## Bike data
-
-The bike layers come straight from the public atrai API at <https://api.atrai.bike>
-(documented at <https://hackathon.greencity.hn/resources/bike-data>): overtaking distance,
-overtaking danger spots, road roughness, cycling speed and traffic flow for Heilbronn. The
-fine-dust risk points (`danger_zones_PM_heilbronn`, 37 MB) are left out because of their size.
+## senseBox:bike data
 
 ### Snapshot overlay
 
@@ -218,28 +213,6 @@ One row per timestamp and bike: `zeit` (local time), `box`, `lat`, `lon`, `pm25`
 city's bounding box and out-of-range values are dropped. Coverage is uneven: a few
 regular riders contribute most points, so dense streets are not necessarily hotter or
 more polluted ones.
-
-### Local ingestor (optional)
-
-The live heat overlay reads senseBox:bike measurements of the Heilbronn campaign from the
-[atrai-bikes-ingestor](https://github.com/reedu-reengineering-education/atrai-bikes-ingestor),
-included as the submodule `ingestor/`. It syncs the openSenseMap archive into PostGIS every
-6 hours and serves the points at `http://localhost:8000/collections/track_points/items`.
-
-```bash
-git submodule update --init
-```
-
-```bash
-cp .env.example .env
-```
-
-```bash
-docker compose up -d --build
-```
-
-The map is then also served at <http://localhost:8080>. While the ingestor is not running,
-choosing that overlay shows "is not available" and the map keeps the current data.
 
 ### Hotspots
 
@@ -268,8 +241,6 @@ low-cost sensors: treat the list as candidates to look at, not as measured heat 
 | `data/heat_sensors.csv` | [sensor.community](https://sensor.community) archive | ODbL |
 | `data/trees_hn_2026.geojson` | [Stadt Heilbronn, Baumkataster](https://opendata.heilbronn.de/dataset/baumkataster), 1 Jan 2026 | DL-DE BY 2.0 |
 | Environment layers | [opendata.heilbronn.de](https://opendata.heilbronn.de) (biomass plants: LUBW); street geometry and locations © OpenStreetMap contributors | CC BY 4.0 / DL-DE BY 2.0; geometry ODbL |
-| Bike layers | [atrai API](https://api.atrai.bike), senseBox:bike campaign Heilbronn | not stated on the page |
-| senseBox:bike (live) | [openSenseMap](https://opensensemap.org), grouptag `heilbronn` | PDDL |
 | `data/atrai_bike.csv` | [openSenseMap](https://opensensemap.org) archive, grouptag `heilbronn` | PDDL |
 | `data/hotspots.geojson` | derived from the above, 11 Jun – 22 Oct 2026; street names © OpenStreetMap contributors via [Nominatim](https://nominatim.org) | ODbL |
 | Basemap | © OpenStreetMap contributors, © CARTO | ODbL / CARTO terms |

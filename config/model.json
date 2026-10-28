@@ -41,7 +41,6 @@
     "idw_radius_m": 60
   },
   "street_corridor_m": 10,
-  "cost_per_tree_eur": 5000,
   "placement": {
     "_about": "Where trees may go. Road half widths (m) by OSM class; footways and pedestrian zones are not obstacles.",
     "clearance_m": 1.0,

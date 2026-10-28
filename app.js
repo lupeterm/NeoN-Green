@@ -803,7 +803,6 @@ function run() {
   const H = Math.max(1, Math.round((W * canvas.clientHeight) / canvas.clientWidth));
   worker.postMessage({id: ++S.job, points, origin: S.cfg.center, extent: S.extent, view, size: [W, H],
                       domain: S.domain, ramp: RAMP, params: S.model, scenario});
-  S.lastTrees = scenario ? scenario.trees.length : 0;
 }
 
 worker.onmessage = ({data}) => {
@@ -819,14 +818,13 @@ worker.onmessage = ({data}) => {
 };
 
 function showResult(st) {
-  const unit = S.overlay.unit || '', n = S.lastTrees;
+  const unit = S.overlay.unit || '';
   const rows = !st ? [['No values along the street', '']] : [
     ['Mean before', `${st.before.toFixed(1)} ${unit}`],
     ['Mean with trees', `${st.after.toFixed(1)} ${unit}`],
     ['Change', `${signed(st.after - st.before)} °C`, 'big'],
     ['Strongest cooling', `${signed(st.maxCooling)} °C`],
     ['Shaded', `${Math.round(st.shadedArea).toLocaleString('en')} of ${Math.round(st.area).toLocaleString('en')} m²`],
-    ['Cost (assumed)', `€${(n * S.model.cost_per_tree_eur).toLocaleString('en')}`],
   ];
   $('result').innerHTML = rows.map(([k, v, cls]) => `<dt>${k}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
     `<dt class="muted" style="grid-column:1/-1">Mean within ${S.model.street_corridor_m} m on both sides of the section</dt>`;
