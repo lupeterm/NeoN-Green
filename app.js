@@ -44,7 +44,7 @@ async function main() {
   S.map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'top-right');
   S.map.addControl(new ThemeControl(), 'top-right');
   if (Object.keys(iconThemes()).length) S.map.addControl(new SeasonControl(), 'top-right');
-  S.map.addControl(new maplibregl.GeolocateControl({positionOptions: {enableHighAccuracy: true}}), 'top-right');
+  setupGeolocate();
   S.map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
   await S.map.once('style.load');  // don't wait for every basemap tile
   await loadIcons();
@@ -222,6 +222,27 @@ class ThemeControl {
     return div;
   }
   onRemove() {}
+}
+
+// ------------------------------------------------------------------ your location
+// Browsers only allow it on https or localhost and after permission; say why when it fails,
+// instead of the control's silent grey button. Wi-Fi positioning is enough and much faster on laptops.
+
+function setupGeolocate() {
+  const ctl = new maplibregl.GeolocateControl({positionOptions: {enableHighAccuracy: false, timeout: 15000, maximumAge: 60000},
+                                              fitBoundsOptions: {maxZoom: 17}});
+  S.map.addControl(ctl, 'top-right');
+  ctl.on('geolocate', e => setStatus(`Your location: ±${Math.round(e.coords.accuracy)} m.`));
+  ctl.on('error', e => setStatus(
+    !isSecureContext ? 'Your location needs the page on https or localhost (e.g. http://localhost:8765), not a network address.'
+      : e.code === 1 ? 'Location access is blocked: allow it for this page in the browser (and for the browser in the system settings).'
+      : e.code === 3 ? 'Your location took too long to find. Try again.'
+      : 'Your location is not available on this device right now.', true));
+  ctl.on('outofmaxbounds', () => setStatus('Your location is outside the map area.', true));
+  if (!isSecureContext) {
+    const b = document.querySelector('.maplibregl-ctrl-geolocate');
+    if (b) b.title = 'Your location needs the page on https or localhost';
+  }
 }
 
 // ------------------------------------------------------------------ street view (street.html)
