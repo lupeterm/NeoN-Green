@@ -7,25 +7,89 @@
   "zoom": 16,
   "cityBoundary": "data/city_boundary.geojson",
   "iconThemes": {
-    "_about": "Tree icon styles for the switch under the dark mode button. Keys: 'planted' for new trees, otherwise a layer id. 'auto' picks halloween in October, christmas in December.",
+    "_about": "Tree icon styles for the switch under the dark mode button. Keys: 'planted' for new trees, otherwise a layer id. 'auto' picks halloween in October, christmas in December. 'models3d' are the glTF models for the 3D street view: size = model extent x/y/z (y up), scaled to each tree's crown and height.",
     "default": "auto",
     "normal": {
       "label": "Normal",
       "symbol": "🌳",
       "planted": "assets/tree-planted.svg",
-      "trees": "assets/tree-existing.svg"
+      "trees": "assets/tree-existing.svg",
+      "models3d": {
+        "planted": {
+          "url": "assets/models/normal-planted.glb",
+          "size": [
+            0.641,
+            1.226,
+            0.74
+          ]
+        },
+        "existing": {
+          "url": "assets/models/normal-existing.glb",
+          "size": [
+            0.755,
+            1.708,
+            0.654
+          ]
+        }
+      }
     },
     "halloween": {
       "label": "Halloween",
       "symbol": "🎃",
       "planted": "assets/halloween-tree-planted.svg",
-      "trees": "assets/halloween-tree-existing.svg"
+      "trees": "assets/halloween-tree-existing.svg",
+      "models3d": {
+        "planted": {
+          "url": "assets/models/halloween-planted.glb",
+          "size": [
+            1.178,
+            2.108,
+            1.335
+          ]
+        },
+        "existing": {
+          "url": "assets/models/halloween-existing.glb",
+          "size": [
+            1.178,
+            2.108,
+            1.335
+          ]
+        },
+        "decoration": {
+          "url": "assets/models/halloween-pumpkin.glb",
+          "size": [
+            0.377,
+            0.321,
+            0.377
+          ],
+          "height_m": 0.7,
+          "offset_m": 1.3
+        }
+      }
     },
     "christmas": {
       "label": "Christmas",
       "symbol": "🎄",
       "planted": "assets/christmas-tree-planted.svg",
-      "trees": "assets/christmas-tree-existing.svg"
+      "trees": "assets/christmas-tree-existing.svg",
+      "models3d": {
+        "planted": {
+          "url": "assets/models/christmas-planted.glb",
+          "size": [
+            1.19,
+            2.29,
+            1.19
+          ]
+        },
+        "existing": {
+          "url": "assets/models/christmas-existing.glb",
+          "size": [
+            1.19,
+            1.92,
+            1.19
+          ]
+        }
+      }
     }
   },
   "hotspots": "data/hotspots.geojson",

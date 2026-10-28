@@ -33,6 +33,19 @@ SunCalc load from unpkg, and the basemap is CARTO Positron.
 4. Read the result: the mean value within 10 m on both sides of the section, before and after,
    plus the strongest local cooling and the shaded area.
 
+**3D street view (prototype).** With a street selected, "3D street view" in the right panel
+puts the camera at eye height (1.8 m) at the start of the section, looking along it. Buildings are extruded from the
+basemap (real height where known, otherwise 10 m), and planted and nearby existing trees appear
+as 3D models scaled to their real crown and height: leafy trees, crooked pines (with a pumpkin
+at each new tree for Halloween) or decorated and snowy firs, following the tree style. Heights of
+existing trees are estimated from their crown, as the inventory has none. The models are drawn
+with deck.gl, which loads only when 3D is first opened; if it cannot load, simple trunk-and-crown
+blocks are shown instead. Models are set per style in `iconThemes.<style>.models3d` in
+`config/overlays.json` (`size` = the model's extent in model units, y up). Drag with the right
+mouse button to look around; zooming moves the camera up or down. "Back to top-down map" returns
+to the plan view. Buildings without a height in the basemap (most of them) are drawn 10 m high,
+so trees behind taller real buildings can still show over the roofs.
+
 The sun/moon button under the zoom controls switches between a light and a dark map, and the
 three buttons below it switch the tree icons between normal, Halloween and Christmas. It starts
 with the system setting and remembers the choice in the browser. Switching keeps the selected
@@ -255,6 +268,7 @@ low-cost sensors: treat the list as candidates to look at, not as measured heat 
 | Environment layers | [opendata.heilbronn.de](https://opendata.heilbronn.de) (biomass plants: LUBW); street geometry and locations © OpenStreetMap contributors | CC BY 4.0 / DL-DE BY 2.0; geometry ODbL |
 | `data/atrai_bike.csv` | [openSenseMap](https://opensensemap.org) archive, grouptag `heilbronn` | PDDL |
 | `data/hotspots.geojson` | derived from the above, 11 Jun – 22 Oct 2026; street names © OpenStreetMap contributors via [Nominatim](https://nominatim.org) | ODbL |
+| 3D tree models (`assets/models/`) | [Kenney](https://kenney.nl): Nature Kit, Graveyard Kit, Holiday Kit | CC0 |
 | Basemap | © OpenStreetMap contributors, © CARTO | ODbL / CARTO terms |
 
 Citizen temperature sensors are often unshaded and read several degrees above the
