@@ -27,7 +27,7 @@ const S = {
   manual: [],            // [{lon, lat}] trees placed by hand
   placement: {key: null, trees: []},
   draw: {active: false, drawing: false, ring: []},
-  layerData: {}, existingTrees: [], icons: {},
+  layerData: {}, existingTrees: [], icons: {}, iconTheme: null,
   job: 0, timer: null, refresh: null, url: null,
 };
 const worker = new Worker('worker.js');
@@ -39,6 +39,7 @@ async function main() {
   S.map = new maplibregl.Map({container: 'map', style: BASEMAPS[S.theme], center: S.cfg.center, zoom: S.cfg.zoom, hash: true});
   S.map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'top-right');
   S.map.addControl(new ThemeControl(), 'top-right');
+  if (Object.keys(iconThemes()).length) S.map.addControl(new SeasonControl(), 'top-right');
   S.map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
   await S.map.once('style.load');  // don't wait for every basemap tile
   await loadIcons();
@@ -804,28 +805,74 @@ function parseCsv(text) {
 }
 
 // ------------------------------------------------------------------ tree icons
-// config/overlays.json "icons": {"planted": url} and per layer "icon": url. The disc in an icon
-// spans ICON_DISC_PX of its ICON_PX and is drawn at the crown's real diameter on the map.
+// config/overlays.json "iconThemes": named sets of tree icons ('planted' for new trees, otherwise a
+// layer id). An icon is ICON_PX square; its central disc of ICON_DISC_PX is drawn at crown size.
+// Switching a set swaps the images in place, so layers, data and selection stay as they are.
 
 const ICON_PX = 128, ICON_DISC_PX = 120, ICON_RATIO = 2;
 
-async function loadIcons() {
-  S.icons = {};
-  const wanted = {...(S.cfg.icons || {})};
-  for (const l of S.cfg.layers || []) if (l.icon) wanted[`lyr-${l.id}`] = l.icon;
-  await Promise.all(Object.entries(wanted).map(async ([id, url]) => {
+function iconThemes() {
+  const t = S.cfg.iconThemes || {};
+  return Object.fromEntries(Object.entries(t).filter(([k, v]) => !k.startsWith('_') && typeof v === 'object'));
+}
+
+function initialIconTheme() {
+  const themes = iconThemes();
+  try { const saved = localStorage.getItem('iconTheme'); if (themes[saved]) return saved; } catch {}
+  const def = S.cfg.iconThemes?.default;
+  if (def && def !== 'auto' && themes[def]) return def;
+  const month = new Date().getMonth();  // 9 = October, 11 = December
+  const seasonal = month === 9 ? 'halloween' : month === 11 ? 'christmas' : 'normal';
+  return themes[seasonal] ? seasonal : Object.keys(themes)[0];
+}
+
+async function setIconTheme(name) {
+  const theme = iconThemes()[name];
+  if (!theme) return;
+  S.iconTheme = name;
+  try { localStorage.setItem('iconTheme', name); } catch {}
+  S.seasonControl?.update();
+  await Promise.all(Object.entries(theme).filter(([k]) => k !== 'label' && k !== 'symbol').map(async ([key, url]) => {
+    const id = key === 'planted' ? 'planted' : `lyr-${key}`;
     try {
       const img = new Image(ICON_PX, ICON_PX);
       img.src = url;
       await img.decode();
       S.icons[id] = img;
-      S.map.addImage(id, img, {pixelRatio: ICON_RATIO});
+      if (S.map.hasImage(id)) S.map.updateImage(id, img);
+      else S.map.addImage(id, img, {pixelRatio: ICON_RATIO});
     } catch (e) {
-      console.warn(`icon ${url} not loaded, falling back to circles`, e);
+      console.warn(`icon ${url} not loaded`, e);
     }
   }));
+  S.map.triggerRepaint();  // updated images only reach the icon atlas on the next frame
+}
+
+async function loadIcons() {
   // a basemap swap (dark mode) drops all images; put ours back when a layer asks for them
   S.map.on('styleimagemissing', e => { if (S.icons[e.id] && !S.map.hasImage(e.id)) S.map.addImage(e.id, S.icons[e.id], {pixelRatio: ICON_RATIO}); });
+  if (Object.keys(iconThemes()).length) await setIconTheme(initialIconTheme());
+}
+
+class SeasonControl {
+  onAdd() {
+    const div = document.createElement('div');
+    div.className = 'maplibregl-ctrl maplibregl-ctrl-group season-switch';
+    const buttons = Object.entries(iconThemes()).map(([name, t]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = t.symbol || t.label[0];
+      b.title = b.ariaLabel = `${t.label} trees`;
+      b.onclick = () => setIconTheme(name);
+      div.append(b);
+      return [name, b];
+    });
+    this.update = () => buttons.forEach(([name, b]) => b.classList.toggle('active', name === S.iconTheme));
+    this.update();
+    S.seasonControl = this;
+    return div;
+  }
+  onRemove() {}
 }
 
 // Symbol layer showing `image` (default: id) at the crown diameter given in metres, never below minPx.

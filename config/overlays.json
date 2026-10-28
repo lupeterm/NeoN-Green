@@ -5,8 +5,27 @@
     49.1422
   ],
   "zoom": 16,
-  "icons": {
-    "planted": "assets/spooky-tree-planted.svg"
+  "iconThemes": {
+    "_about": "Tree icon styles for the switch under the dark mode button. Keys: 'planted' for new trees, otherwise a layer id. 'auto' picks halloween in October, christmas in December.",
+    "default": "auto",
+    "normal": {
+      "label": "Normal",
+      "symbol": "🌳",
+      "planted": "assets/tree-planted.svg",
+      "trees": "assets/tree-existing.svg"
+    },
+    "halloween": {
+      "label": "Halloween",
+      "symbol": "🎃",
+      "planted": "assets/halloween-tree-planted.svg",
+      "trees": "assets/halloween-tree-existing.svg"
+    },
+    "christmas": {
+      "label": "Christmas",
+      "symbol": "🎄",
+      "planted": "assets/christmas-tree-planted.svg",
+      "trees": "assets/christmas-tree-existing.svg"
+    }
   },
   "hotspots": "data/hotspots.geojson",
   "overlays": [
@@ -67,8 +86,7 @@
         "KRONE_DM": "Crown Ø (m)",
         "ST_UMFANG": "Trunk girth (m)",
         "STRASSE": "Street"
-      },
-      "icon": "assets/spooky-tree-existing.svg"
+      }
     },
     {
       "id": "bike_overtaking",

@@ -33,7 +33,8 @@ SunCalc load from unpkg, and the basemap is CARTO Positron.
 4. Read the result: the mean value within 10 m on both sides of the section, before and after,
    plus the strongest local cooling, the shaded area and an assumed cost.
 
-The sun/moon button under the zoom controls switches between a light and a dark map. It starts
+The sun/moon button under the zoom controls switches between a light and a dark map, and the
+three buttons below it switch the tree icons between normal, Halloween and Christmas. It starts
 with the system setting and remembers the choice in the browser. Switching keeps the selected
 street, the trees and all layers.
 
@@ -118,10 +119,19 @@ Entries in `layers` are drawn as they are, without interpolation. Each is a GeoJ
 
 ### Tree icons
 
-Trees are drawn as icons from `assets/`: `icons.planted` in `config/overlays.json` for new
-trees and `icon` on a layer for existing ones. An icon is a 128 × 128 px image whose central
-disc of 120 px is scaled to the crown diameter on the map. The current icons are a Halloween
-theme, a bare tree against the full moon. Remove both entries to get plain circles back.
+Trees are drawn as icons from `assets/`, in three styles you can switch with the 🌳 🎃 🎄 buttons
+under the dark mode button: normal, Halloween and Christmas. By default the style follows the date
+(Halloween in October, Christmas in December, normal otherwise); a choice is remembered in the
+browser. The styles are defined in `iconThemes` in `config/overlays.json`:
+
+```json
+"christmas": {"label": "Christmas", "symbol": "🎄",
+              "planted": "assets/christmas-tree-planted.svg", "trees": "assets/christmas-tree-existing.svg"}
+```
+
+`planted` is the icon for new trees, any other key is the id of a layer with `crownDiameterField`.
+An icon is a 128 × 128 px image whose central disc of 120 px is scaled to the crown diameter on
+the map. Without `iconThemes` the map draws plain circles.
 
 ### Interpolation
 

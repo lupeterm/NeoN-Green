@@ -22,6 +22,10 @@
     .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--bg); }
     .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--bg); }
     .theme-toggle { display: flex !important; align-items: center; justify-content: center; color: #333; }
+    .season-switch button { font-size: 16px; line-height: 29px; opacity: 0.55; filter: grayscale(0.6); }
+    .season-switch button:hover { opacity: 0.9; filter: none; }
+    .season-switch button.active { opacity: 1; filter: none; background: #e9f7ec; box-shadow: inset 3px 0 0 var(--accent); }
+    :root[data-theme="dark"] .season-switch button.active { background: #24392b; }
     :root[data-theme="dark"] .maplibregl-ctrl-group { background: #262b32; }
     :root[data-theme="dark"] .maplibregl-ctrl-group button + button { border-top-color: #3a414b; }
     :root[data-theme="dark"] .maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1); }

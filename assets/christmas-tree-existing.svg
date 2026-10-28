@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Christmas tree: a decorated fir. The disc (diameter 120 of 128 px) is the crown size. -->
+  <circle cx="64" cy="64" r="60" fill="#e7f5ff" fill-opacity="0.75" stroke="#a5d8ff" stroke-width="4"/>
+  <rect x="57" y="96" width="14" height="16" rx="2" fill="#6b3f1d"/>
+  <g fill="#1f7a3a" stroke="#0f4d22" stroke-width="2" stroke-linejoin="round">
+    <path d="M64 28 L88 62 L76 62 L96 88 L80 88 L102 104 L26 104 L48 88 L32 88 L52 62 L40 62 Z"/>
+  </g>
+  <g fill="none" stroke="#ffd43b" stroke-width="2.5" stroke-linecap="round">
+    <path d="M47 66 Q64 74 81 64"/><path d="M40 90 Q64 100 88 88"/>
+  </g>
+  <g>
+    <circle cx="56" cy="56" r="4.5" fill="#e03131"/><circle cx="72" cy="58" r="4.5" fill="#1c7ed6"/>
+    <circle cx="50" cy="80" r="4.5" fill="#f08c00"/><circle cx="66" cy="82" r="4.5" fill="#e03131"/>
+    <circle cx="82" cy="78" r="4.5" fill="#ffd43b"/><circle cx="58" cy="96" r="4" fill="#1c7ed6"/>
+    <circle cx="78" cy="97" r="4" fill="#e03131"/>
+  </g>
+  <path fill="#ffd43b" stroke="#f08c00" stroke-width="1.5" stroke-linejoin="round"
+        d="M64 10 L68 21 L80 21 L70 28 L74 39 L64 32 L54 39 L58 28 L48 21 L60 21 Z"/>
+</svg>
