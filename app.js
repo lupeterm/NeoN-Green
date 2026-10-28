@@ -2,7 +2,15 @@
 // Map, data loading, street selection, tree placement and UI.
 // Physics: model.js. Rasterising: worker.js. Everything configurable: config/*.json.
 
-const BASEMAP = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+const BASEMAPS = {  // same tiles and layer schema, only the colours differ
+  light: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+  dark: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+};
+const THEME_PAINT = {  // our own layers that need different colours on a dark map
+  light: {shadows: {'fill-color': '#102030', 'fill-opacity': 0.3}, section: {'line-opacity': 0.3}},
+  dark: {shadows: {'fill-color': '#000000', 'fill-opacity': 0.5}, section: {'line-opacity': 0.45}},
+};
+const OWN_SOURCES = ['heat', 'section', 'shadows', 'planted', 'lasso', 'hotspots'];
 const RAMP = ['#ffffcc', '#ffeda0', '#fed976', '#feb24c', '#fd8d3c', '#fc4e2a', '#e31a1c', '#b10026'];
 const STITCH_TOLERANCE_M = 2;
 const MIN_SELECT_ZOOM = 14.5;
@@ -13,7 +21,7 @@ const $ = id => document.getElementById(id);
 const S = {
   cfg: null, model: null, map: null, popup: null,
   overlay: null, records: [], hasTime: false, extent: null, domain: null,   // heat overlay
-  roadLayers: [], roadSource: null,
+  roadLayers: [], roadSource: null, theme: 'light',
   street: null,          // {name, line, xy, cum, length, halfWidth, obstacles, a, b}
   mode: 'even',          // tree placement: 'even' | 'manual'
   manual: [],            // [{lon, lat}] trees placed by hand
@@ -26,8 +34,11 @@ const worker = new Worker('worker.js');
 
 async function main() {
   [S.cfg, S.model] = await Promise.all([getJSON('config/overlays.json'), getJSON('config/model.json')]);
-  S.map = new maplibregl.Map({container: 'map', style: BASEMAP, center: S.cfg.center, zoom: S.cfg.zoom, hash: true});
+  S.theme = initialTheme();
+  document.documentElement.dataset.theme = S.theme;
+  S.map = new maplibregl.Map({container: 'map', style: BASEMAPS[S.theme], center: S.cfg.center, zoom: S.cfg.zoom, hash: true});
   S.map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'top-right');
+  S.map.addControl(new ThemeControl(), 'top-right');
   S.map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
   await S.map.once('style.load');  // don't wait for every basemap tile
   setupMap();
@@ -39,23 +50,30 @@ async function main() {
 
 // ------------------------------------------------------------------ map setup
 
-function setupMap() {
-  const m = S.map, layers = m.getStyle().layers;
+// Where our layers go in a basemap style: the heat raster below the roads, the scenario
+// above roads and buildings but below the labels.
+function anchors(layers) {
   const roads = layers.filter(l => l['source-layer'] === 'roads' && l.type === 'line' && !/rail|aeroway/.test(l.id));
-  S.roadLayers = roads.map(l => l.id);
-  S.roadSource = roads[0].source;
   const firstRoad = roads[0].id;
   const firstLabel = layers.slice(layers.findIndex(l => l.id === firstRoad)).find(l => l.type === 'symbol').id;
+  return {roads, firstRoad, firstLabel};
+}
+
+function setupMap() {
+  const m = S.map, layers = m.getStyle().layers;
+  const {roads, firstRoad, firstLabel} = anchors(layers);
+  S.roadLayers = roads.map(l => l.id);
+  S.roadSource = roads[0].source;
 
   m.addSource('heat', {type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]]});
   m.addLayer({id: 'heat', type: 'raster', source: 'heat', paint: {'raster-opacity': 0.72, 'raster-fade-duration': 0}}, firstRoad);
 
   for (const id of ['section', 'shadows', 'planted', 'lasso']) m.addSource(id, {type: 'geojson', data: fc([])});
   m.addLayer({id: 'section', type: 'line', source: 'section', layout: {'line-cap': 'round'},
-              paint: {'line-color': '#1c7ed6', 'line-opacity': 0.3, 'line-width': ['interpolate', ['exponential', 2], ['zoom'], 14, 4, 20, 90]}}, firstLabel);
+              paint: {'line-color': '#1c7ed6', ...THEME_PAINT[S.theme].section, 'line-width': ['interpolate', ['exponential', 2], ['zoom'], 14, 4, 20, 90]}}, firstLabel);
   m.addLayer({id: 'lasso', type: 'line', source: 'lasso',
               paint: {'line-color': '#1c7ed6', 'line-width': 2, 'line-dasharray': [2, 2]}}, firstLabel);
-  m.addLayer({id: 'shadows', type: 'fill', source: 'shadows', paint: {'fill-color': '#102030', 'fill-opacity': 0.3}}, firstLabel);
+  m.addLayer({id: 'shadows', type: 'fill', source: 'shadows', paint: {...THEME_PAINT[S.theme].shadows}}, firstLabel);
   m.addLayer({id: 'planted', type: 'circle', source: 'planted', paint: {
     'circle-color': '#2f9e44', 'circle-opacity': 0.9, 'circle-stroke-color': '#0b3d16', 'circle-stroke-width': 1.5,
     'circle-radius': metres(['get', 'r'], 4)}}, firstLabel);
@@ -104,6 +122,67 @@ function onClick(e) {
   if (S.draw.active) return;
   if (S.street && S.mode === 'manual') return toggleManualTree(e);
   pickStreet(e);
+}
+
+// ------------------------------------------------------------------ light / dark theme
+
+function initialTheme() {
+  try { const saved = localStorage.getItem('theme'); if (saved === 'light' || saved === 'dark') return saved; } catch {}
+  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+// Swap the basemap and carry all our sources and layers over at the same positions,
+// so data, selection, trees and the heat image survive without reloading anything.
+function setTheme(theme) {
+  if (theme === S.theme) return;
+  S.theme = theme;
+  document.documentElement.dataset.theme = theme;
+  try { localStorage.setItem('theme', theme); } catch {}
+  S.themeButton?.update();
+  S.map.setStyle(BASEMAPS[theme], {transformStyle: (prev, next) => {
+    if (!prev) return next;
+    const own = id => OWN_SOURCES.includes(id) || id.startsWith('lyr-');
+    const sources = {...next.sources};
+    for (const [id, src] of Object.entries(prev.sources)) if (own(id)) sources[id] = src;
+    const mine = prev.layers.filter(l => own(l.source || ''));
+    const restyle = l => ({...l, paint: {...l.paint, ...(THEME_PAINT[theme][l.id] || {})}});
+    const below = mine.filter(l => l.id === 'heat');
+    const top = mine.filter(l => l.source === 'hotspots');
+    const middle = mine.filter(l => !below.includes(l) && !top.includes(l)).map(restyle);
+    const layers = [...next.layers];
+    const {firstRoad} = anchors(layers);
+    layers.splice(layers.findIndex(l => l.id === firstRoad), 0, ...below);
+    const {firstLabel} = anchors(layers);
+    layers.splice(layers.findIndex(l => l.id === firstLabel), 0, ...middle);
+    return {...next, sources, layers: [...layers, ...top]};
+  }});
+  S.map.once('style.load', () => {
+    const {roads} = anchors(S.map.getStyle().layers);
+    S.roadLayers = roads.map(l => l.id);
+    S.roadSource = roads[0].source;
+  });
+}
+
+class ThemeControl {
+  onAdd() {
+    const div = document.createElement('div'), btn = document.createElement('button');
+    div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+    btn.type = 'button';
+    btn.className = 'theme-toggle';
+    btn.onclick = () => setTheme(S.theme === 'dark' ? 'light' : 'dark');
+    this.update = () => {
+      const dark = S.theme === 'dark';
+      btn.title = btn.ariaLabel = dark ? 'Switch to light map' : 'Switch to dark map';
+      btn.innerHTML = dark  // icon shows what you get: sun in dark mode, moon in light mode
+        ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
+        : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+    };
+    this.update();
+    S.themeButton = this;
+    div.append(btn);
+    return div;
+  }
+  onRemove() {}
 }
 
 // ------------------------------------------------------------------ street selection: click

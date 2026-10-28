@@ -32,6 +32,10 @@ SunCalc load from unpkg, and the basemap is CARTO Positron.
 4. Read the result: the mean value within 10 m on both sides of the section, before and after,
    plus the strongest local cooling, the shaded area and an assumed cost.
 
+The sun/moon button under the zoom controls switches between a light and a dark map. It starts
+with the system setting and remembers the choice in the browser. Switching keeps the selected
+street, the trees and all layers.
+
 Trees are only planted where there is room: not on a roadway (width estimated from the road
 class), not inside a building or water, and not under the crown of an existing or another
 new tree. Evenly spaced trees alternate sides. A blocked spot first moves away from the
