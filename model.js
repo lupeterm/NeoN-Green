@@ -1,8 +1,8 @@
 // Tree cooling model, shared by app.js (shadow outlines) and worker.js (grid).
 // Deliberately simple and explainable; every number comes from config/model.json.
 //
-//   ΔT(x, y) = − shade(x, y) · max_cooling_K · sunFactor              (crown shadow, felt temperature)
-//              − max_total_K · (1 − e^(−Σ per_tree_K·g_i / max_total_K)) · dayFactor   (evapotranspiration)
+//   ΔT(x, y) = − shade(x, y) · max_cooling_C · sunFactor              (crown shadow, felt temperature)
+//              − max_total_C · (1 − e^(−Σ per_tree_C·g_i / max_total_C)) · dayFactor   (evapotranspiration)
 //
 // g_i is a Gaussian around tree i. The shadow is the crown (a sphere) projected
 // along the sun ray: an ellipse, offset away from the sun and stretched by 1/sin(altitude).
@@ -70,8 +70,8 @@
       const d2 = (x - t.x) ** 2 + (y - t.y) ** 2;
       if (d2 < 9 * two) g += Math.exp(-d2 / two);
     }
-    const etCooling = et.max_total_K * (1 - Math.exp(-g * et.per_tree_K / et.max_total_K)) * f.et;
-    return {dT: -(p.shade.max_cooling_K * f.shade * shade + etCooling), shade: shade * (f.shade > 0 ? 1 : 0)};
+    const etCooling = et.max_total_C * (1 - Math.exp(-g * et.per_tree_C / et.max_total_C)) * f.et;
+    return {dT: -(p.shade.max_cooling_C * f.shade * shade + etCooling), shade: shade * (f.shade > 0 ? 1 : 0)};
   }
 
   // ---- small geometry helpers (local metres), shared by app.js and worker.js

@@ -5,6 +5,29 @@
     49.1422
   ],
   "zoom": 16,
+  "cityBoundary": "data/city_boundary.geojson",
+  "iconThemes": {
+    "_about": "Tree icon styles for the switch under the dark mode button. Keys: 'planted' for new trees, otherwise a layer id. 'auto' picks halloween in October, christmas in December.",
+    "default": "auto",
+    "normal": {
+      "label": "Normal",
+      "symbol": "🌳",
+      "planted": "assets/tree-planted.svg",
+      "trees": "assets/tree-existing.svg"
+    },
+    "halloween": {
+      "label": "Halloween",
+      "symbol": "🎃",
+      "planted": "assets/halloween-tree-planted.svg",
+      "trees": "assets/halloween-tree-existing.svg"
+    },
+    "christmas": {
+      "label": "Christmas",
+      "symbol": "🎄",
+      "planted": "assets/christmas-tree-planted.svg",
+      "trees": "assets/christmas-tree-existing.svg"
+    }
+  },
   "hotspots": "data/hotspots.geojson",
   "overlays": [
     {
@@ -37,22 +60,13 @@
         16,
         34
       ]
-    },
-    {
-      "id": "bikes",
-      "label": "Heat – senseBox:bike (live, ingestor)",
-      "url": "http://localhost:8000/collections/track_points/items?limit=100000",
-      "format": "geojson",
-      "value": "temperature",
-      "unit": "°C",
-      "refreshSeconds": 300
     }
   ],
   "layers": [
     {
       "id": "trees",
-      "label": "Existing trees, city centre (2017)",
-      "url": "data/trees_hn_innenstadt_2017.geojson",
+      "label": "Existing trees (2026)",
+      "url": "data/trees_hn_2026.geojson",
       "type": "circle",
       "color": "#2b8a3e",
       "crownDiameterField": "KRONE_DM",
@@ -64,130 +78,140 @@
         "KRONE_DM": "Crown Ø (m)",
         "ST_UMFANG": "Trunk girth (m)",
         "STRASSE": "Street"
-      }
+      },
+      "minzoom": 14
     },
     {
-      "id": "bike_overtaking",
-      "group": "Bike measurements (atrai)",
-      "label": "Overtaking distance",
-      "url": "https://api.atrai.bike/collections/overtaking_distance_heilbronn/items?limit=0",
+      "id": "water_hardness",
+      "group": "Environment data (opendata.heilbronn.de)",
+      "label": "Water hardness & quality by street",
+      "url": "data/water_hardness.geojson",
       "type": "line",
-      "value": "Average Overtaking Distance cm",
-      "unit": "cm",
+      "value": "dH_value",
+      "unit": "°dH",
       "domain": [
-        50,
-        200
+        8,
+        18
       ],
       "ramp": [
-        "#b10026",
-        "#f03b20",
-        "#fd8d3c",
-        "#fecc5c",
-        "#a1d99b",
-        "#31a354"
+        "#4dabf7",
+        "#a5d8ff",
+        "#ffe066",
+        "#ff922b",
+        "#e8590c"
       ],
       "tooltip": {
         "name": "Street",
-        "Average Overtaking Distance cm": "Mean overtaking distance (cm)",
-        "Number of Points": "Overtakes"
+        "dH": "Hardness (°dH)",
+        "class": "Hardness range",
+        "year": "Analysis year",
+        "nitrate": "Nitrate",
+        "ph": "pH",
+        "conductivity": "Conductivity",
+        "calcium": "Calcium",
+        "magnesium": "Magnesium",
+        "chloride": "Chloride",
+        "sulphate": "Sulphate"
       }
     },
     {
-      "id": "bike_danger",
-      "group": "Bike measurements (atrai)",
-      "label": "Overtaking danger spots",
-      "url": "https://api.atrai.bike/collections/danger_zones_heilbronn/items?limit=0",
+      "id": "traffic_counter",
+      "group": "Environment data (opendata.heilbronn.de)",
+      "label": "Traffic counting station",
+      "url": "data/traffic_counter.geojson",
       "type": "circle",
-      "value": "Risk Index Overtaking",
+      "value": "vehicles_per_day",
+      "unit": "vehicles/day",
       "domain": [
-        0.6,
-        1
+        2000,
+        6000
+      ],
+      "radius": [
+        8,
+        16
       ],
       "ramp": [
-        "#fecc5c",
-        "#fd8d3c",
-        "#f03b20",
-        "#b10026"
+        "#ffe066",
+        "#ff922b",
+        "#e03131"
       ],
       "tooltip": {
-        "Risk Index Overtaking": "Risk index (0–1)"
+        "name": "Junction",
+        "detectors": "Detectors (summed)",
+        "vehicles_per_day_2018": "Vehicles/day 2018",
+        "vehicles_per_day_2019": "2019",
+        "vehicles_per_day_2020": "2020",
+        "vehicles_per_day_2021": "2021",
+        "vehicles_per_day_2022": "2022",
+        "vehicles_per_day_2023": "2023"
       }
     },
     {
-      "id": "bike_bumpy",
-      "group": "Bike measurements (atrai)",
-      "label": "Road roughness",
-      "url": "https://api.atrai.bike/collections/bumpy_roads_heilbronn/items?limit=0",
-      "type": "line",
-      "value": "Normalized Roughness",
+      "id": "landfills",
+      "group": "Environment data (opendata.heilbronn.de)",
+      "label": "Landfills",
+      "url": "data/landfills.geojson",
+      "type": "circle",
+      "color": "#8d6e63",
+      "radius": [
+        8,
+        14
+      ],
+      "tooltip": {
+        "name": "Site",
+        "class": "Class",
+        "status": "Status",
+        "authority": "Authority",
+        "located_as": "Located at (approx.)"
+      }
+    },
+    {
+      "id": "biomass",
+      "group": "Environment data (opendata.heilbronn.de)",
+      "label": "Biomass heating plants (region)",
+      "url": "data/biomass_plants.geojson",
+      "type": "circle",
+      "value": "kw",
+      "unit": "kW installed",
       "domain": [
         0,
-        60
+        100000
       ],
       "ramp": [
-        "#31a354",
-        "#a1d99b",
-        "#fecc5c",
-        "#fd8d3c",
-        "#f03b20",
-        "#b10026"
+        "#ffd8a8",
+        "#ff922b",
+        "#d9480f"
       ],
+      "radius": [
+        6,
+        14
+      ],
+      "fitOnShow": true,
       "tooltip": {
-        "name": "Street",
-        "Normalized Roughness": "Roughness (0–100)",
-        "Number of Boxes": "Sensor boxes"
+        "operator": "Operator",
+        "address": "Address",
+        "sector": "Sector",
+        "units": "Plants",
+        "kw": "Installed (kW)",
+        "mwh_per_year": "Heat (MWh/year)",
+        "wood_t_per_year": "Wood (t/year)",
+        "co2_avoided_t_per_year": "CO₂ avoided (t/year)",
+        "source": "Source"
       }
     },
     {
-      "id": "bike_speed",
-      "group": "Bike measurements (atrai)",
-      "label": "Cycling speed",
-      "url": "https://api.atrai.bike/collections/speed_map_heilbronn/items?limit=0",
-      "type": "line",
-      "value": "avg_speed[km/h]",
-      "unit": "km/h",
-      "domain": [
-        5,
-        30
-      ],
-      "ramp": [
-        "#b10026",
-        "#f03b20",
-        "#fd8d3c",
-        "#fecc5c",
-        "#a1d99b",
-        "#31a354"
-      ],
-      "tooltip": {
-        "name": "Street",
-        "avg_speed[km/h]": "Mean speed (km/h)",
-        "points_in_segment": "Measurements"
-      }
+      "id": "climate_table",
+      "group": "Environment data (opendata.heilbronn.de)",
+      "label": "Climate 1961–2025 (city-wide)",
+      "url": "data/climate_table.json",
+      "type": "table"
     },
     {
-      "id": "bike_flow",
-      "group": "Bike measurements (atrai)",
-      "label": "Traffic flow",
-      "url": "https://api.atrai.bike/collections/traffic_flow_heilbronn/items?limit=0",
-      "type": "line",
-      "value": "avg_traffic_flow",
-      "domain": [
-        0,
-        1
-      ],
-      "ramp": [
-        "#b10026",
-        "#f03b20",
-        "#fd8d3c",
-        "#fecc5c",
-        "#a1d99b",
-        "#31a354"
-      ],
-      "tooltip": {
-        "name": "Street",
-        "avg_traffic_flow": "Flow (0 = stuck, 1 = free)",
-        "points_in_segment": "Measurements"
-      }
+      "id": "water_supply_table",
+      "group": "Environment data (opendata.heilbronn.de)",
+      "label": "Water supply 2004–2016 (city-wide)",
+      "url": "data/water_supply_table.json",
+      "type": "table"
     }
   ]
 }

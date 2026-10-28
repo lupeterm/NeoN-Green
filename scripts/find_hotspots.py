@@ -6,7 +6,7 @@
 
 Air temperature changes over the day and between days, so absolute values of
 different rides cannot be compared. Each reading is therefore taken relative to
-the median of its own ride: +1.5 K means "1.5 K warmer than the rest of that
+the median of its own ride: +1.5 °C means "1.5 °C warmer than the rest of that
 ride". These anomalies are averaged in grid cells, first per ride and then over
 rides, so a frequent rider counts once per ride, not once per reading. Cells
 are ranked by mean minus standard error, so a cell crossed by a few rides with
@@ -158,7 +158,7 @@ def main():
             continue
         h["name"], h["lat"], h["lon"] = street
         picked.append(h)
-        print(f"  {len(picked)}. {h['name']:<28} {h['anomaly']:+.2f} ± {h['se']:.2f} K  "
+        print(f"  {len(picked)}. {h['name']:<28} {h['anomaly']:+.2f} ± {h['se']:.2f} °C  "
               f"{h['rides']} rides, {h['boxes']} bikes, Ø {h['temp']:.1f} °C")
 
     feats = [{"type": "Feature", "geometry": {"type": "Point", "coordinates": [round(h["lon"], 6), round(h["lat"], 6)]},

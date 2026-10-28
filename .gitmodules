@@ -1,3 +1,0 @@
-[submodule "ingestor"]
-	path = ingestor
-	url = https://github.com/reedu-reengineering-education/atrai-bikes-ingestor.git

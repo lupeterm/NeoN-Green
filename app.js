@@ -2,7 +2,15 @@
 // Map, data loading, street selection, tree placement and UI.
 // Physics: model.js. Rasterising: worker.js. Everything configurable: config/*.json.
 
-const BASEMAP = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+const BASEMAPS = {  // same tiles and layer schema, only the colours differ
+  light: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+  dark: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+};
+const THEME_PAINT = {  // our own layers that need different colours on a dark map
+  light: {shadows: {'fill-color': '#102030', 'fill-opacity': 0.3}, section: {'line-opacity': 0.3}},
+  dark: {shadows: {'fill-color': '#000000', 'fill-opacity': 0.5}, section: {'line-opacity': 0.45}},
+};
+const OWN_SOURCES = ['heat', 'section', 'shadows', 'planted', 'lasso', 'hotspots'];
 const RAMP = ['#ffffcc', '#ffeda0', '#fed976', '#feb24c', '#fd8d3c', '#fc4e2a', '#e31a1c', '#b10026'];
 const STITCH_TOLERANCE_M = 2;
 const MIN_SELECT_ZOOM = 14.5;
@@ -13,23 +21,28 @@ const $ = id => document.getElementById(id);
 const S = {
   cfg: null, model: null, map: null, popup: null,
   overlay: null, records: [], hasTime: false, extent: null, domain: null,   // heat overlay
-  roadLayers: [], roadSource: null,
+  roadLayers: [], roadSource: null, theme: 'light',
   street: null,          // {name, line, xy, cum, length, halfWidth, obstacles, a, b}
   mode: 'even',          // tree placement: 'even' | 'manual'
   manual: [],            // [{lon, lat}] trees placed by hand
   placement: {key: null, trees: []},
   draw: {active: false, drawing: false, ring: []},
-  layerData: {}, existingTrees: [],
+  layerData: {}, existingTrees: [], icons: {}, iconTheme: null,
   job: 0, timer: null, refresh: null, url: null,
 };
 const worker = new Worker('worker.js');
 
 async function main() {
   [S.cfg, S.model] = await Promise.all([getJSON('config/overlays.json'), getJSON('config/model.json')]);
-  S.map = new maplibregl.Map({container: 'map', style: BASEMAP, center: S.cfg.center, zoom: S.cfg.zoom, hash: true});
+  S.theme = initialTheme();
+  document.documentElement.dataset.theme = S.theme;
+  S.map = new maplibregl.Map({container: 'map', style: BASEMAPS[S.theme], center: S.cfg.center, zoom: S.cfg.zoom, hash: true});
   S.map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'top-right');
+  S.map.addControl(new ThemeControl(), 'top-right');
+  if (Object.keys(iconThemes()).length) S.map.addControl(new SeasonControl(), 'top-right');
   S.map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
   await S.map.once('style.load');  // don't wait for every basemap tile
+  await loadIcons();
   setupMap();
   setupUi();
   setupDataLayers();
@@ -39,26 +52,35 @@ async function main() {
 
 // ------------------------------------------------------------------ map setup
 
-function setupMap() {
-  const m = S.map, layers = m.getStyle().layers;
+// Where our layers go in a basemap style: the heat raster below the roads, the scenario
+// above roads and buildings but below the labels.
+function anchors(layers) {
   const roads = layers.filter(l => l['source-layer'] === 'roads' && l.type === 'line' && !/rail|aeroway/.test(l.id));
-  S.roadLayers = roads.map(l => l.id);
-  S.roadSource = roads[0].source;
   const firstRoad = roads[0].id;
   const firstLabel = layers.slice(layers.findIndex(l => l.id === firstRoad)).find(l => l.type === 'symbol').id;
+  return {roads, firstRoad, firstLabel};
+}
+
+function setupMap() {
+  const m = S.map, layers = m.getStyle().layers;
+  const {roads, firstRoad, firstLabel} = anchors(layers);
+  S.roadLayers = roads.map(l => l.id);
+  S.roadSource = roads[0].source;
 
   m.addSource('heat', {type: 'image', url: blankPng(), coordinates: [[0, 1], [1, 1], [1, 0], [0, 0]]});
   m.addLayer({id: 'heat', type: 'raster', source: 'heat', paint: {'raster-opacity': 0.72, 'raster-fade-duration': 0}}, firstRoad);
 
   for (const id of ['section', 'shadows', 'planted', 'lasso']) m.addSource(id, {type: 'geojson', data: fc([])});
   m.addLayer({id: 'section', type: 'line', source: 'section', layout: {'line-cap': 'round'},
-              paint: {'line-color': '#1c7ed6', 'line-opacity': 0.3, 'line-width': ['interpolate', ['exponential', 2], ['zoom'], 14, 4, 20, 90]}}, firstLabel);
+              paint: {'line-color': '#1c7ed6', ...THEME_PAINT[S.theme].section, 'line-width': ['interpolate', ['exponential', 2], ['zoom'], 14, 4, 20, 90]}}, firstLabel);
   m.addLayer({id: 'lasso', type: 'line', source: 'lasso',
               paint: {'line-color': '#1c7ed6', 'line-width': 2, 'line-dasharray': [2, 2]}}, firstLabel);
-  m.addLayer({id: 'shadows', type: 'fill', source: 'shadows', paint: {'fill-color': '#102030', 'fill-opacity': 0.3}}, firstLabel);
-  m.addLayer({id: 'planted', type: 'circle', source: 'planted', paint: {
-    'circle-color': '#2f9e44', 'circle-opacity': 0.9, 'circle-stroke-color': '#0b3d16', 'circle-stroke-width': 1.5,
-    'circle-radius': metres(['get', 'r'], 4)}}, firstLabel);
+  m.addLayer({id: 'shadows', type: 'fill', source: 'shadows', paint: {...THEME_PAINT[S.theme].shadows}}, firstLabel);
+  m.addLayer(S.icons.planted
+    ? iconLayer('planted', 'planted', ['*', 2, ['get', 'r']], 22, 1)
+    : {id: 'planted', type: 'circle', source: 'planted', paint: {
+        'circle-color': '#2f9e44', 'circle-opacity': 0.9, 'circle-stroke-color': '#0b3d16', 'circle-stroke-width': 1.5,
+        'circle-radius': metres(['get', 'r'], 4)}}, firstLabel);
 
   const font = layers.find(l => l.layout && l.layout['text-font'])?.layout['text-font'];
   m.addSource('hotspots', {type: 'geojson', data: fc([])});
@@ -97,6 +119,7 @@ function setupUi() {
   $('clearTrees').onclick = () => { S.manual = []; update(); };
   $('drawBtn').onclick = () => setDrawMode(!S.draw.active);
   $('close').onclick = closeScenario;
+  renderSources();
   addEventListener('keydown', e => { if (e.key === 'Escape') setDrawMode(false); });
 }
 
@@ -104,6 +127,67 @@ function onClick(e) {
   if (S.draw.active) return;
   if (S.street && S.mode === 'manual') return toggleManualTree(e);
   pickStreet(e);
+}
+
+// ------------------------------------------------------------------ light / dark theme
+
+function initialTheme() {
+  try { const saved = localStorage.getItem('theme'); if (saved === 'light' || saved === 'dark') return saved; } catch {}
+  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+// Swap the basemap and carry all our sources and layers over at the same positions,
+// so data, selection, trees and the heat image survive without reloading anything.
+function setTheme(theme) {
+  if (theme === S.theme) return;
+  S.theme = theme;
+  document.documentElement.dataset.theme = theme;
+  try { localStorage.setItem('theme', theme); } catch {}
+  S.themeButton?.update();
+  S.map.setStyle(BASEMAPS[theme], {transformStyle: (prev, next) => {
+    if (!prev) return next;
+    const own = id => OWN_SOURCES.includes(id) || id.startsWith('lyr-');
+    const sources = {...next.sources};
+    for (const [id, src] of Object.entries(prev.sources)) if (own(id)) sources[id] = src;
+    const mine = prev.layers.filter(l => own(l.source || ''));
+    const restyle = l => ({...l, paint: {...l.paint, ...(THEME_PAINT[theme][l.id] || {})}});
+    const below = mine.filter(l => l.id === 'heat');
+    const top = mine.filter(l => l.source === 'hotspots');
+    const middle = mine.filter(l => !below.includes(l) && !top.includes(l)).map(restyle);
+    const layers = [...next.layers];
+    const {firstRoad} = anchors(layers);
+    layers.splice(layers.findIndex(l => l.id === firstRoad), 0, ...below);
+    const {firstLabel} = anchors(layers);
+    layers.splice(layers.findIndex(l => l.id === firstLabel), 0, ...middle);
+    return {...next, sources, layers: [...layers, ...top]};
+  }});
+  S.map.once('style.load', () => {
+    const {roads} = anchors(S.map.getStyle().layers);
+    S.roadLayers = roads.map(l => l.id);
+    S.roadSource = roads[0].source;
+  });
+}
+
+class ThemeControl {
+  onAdd() {
+    const div = document.createElement('div'), btn = document.createElement('button');
+    div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+    btn.type = 'button';
+    btn.className = 'theme-toggle';
+    btn.onclick = () => setTheme(S.theme === 'dark' ? 'light' : 'dark');
+    this.update = () => {
+      const dark = S.theme === 'dark';
+      btn.title = btn.ariaLabel = dark ? 'Switch to light map' : 'Switch to dark map';
+      btn.innerHTML = dark  // icon shows what you get: sun in dark mode, moon in light mode
+        ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
+        : '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+    };
+    this.update();
+    S.themeButton = this;
+    div.append(btn);
+    return div;
+  }
+  onRemove() {}
 }
 
 // ------------------------------------------------------------------ street selection: click
@@ -137,8 +221,8 @@ async function loadHotspots() {
     const p = f.properties, li = document.createElement('li'), b = document.createElement('button');
     const name = document.createElement('span'), val = document.createElement('b');
     name.textContent = `${p.rang}. ${p.strasse}`;
-    val.textContent = `${signed(p.anomalie_K)} K`;
-    b.title = `${p.fahrten} rides by ${p.raeder} bikes, mean ${p.temperatur_mittel} °C (± ${p.fehler_K} K)`;
+    val.textContent = `${signed(p.anomalie_K)} °C`;
+    b.title = `${p.fahrten} rides by ${p.raeder} bikes, mean ${p.temperatur_mittel} °C (± ${p.fehler_K} °C)`;
     b.append(name, val);
     b.onclick = () => goToHotspot(f);
     li.append(b);
@@ -262,6 +346,18 @@ function selectStreet(hit, line, a, b) {
   update();
 }
 
+// "Model sources" in the scenario panel: what the model assumes next to what studies measured.
+function renderSources() {
+  const src = S.model.sources;
+  if (!src) return ($('sources').hidden = true);
+  const param = path => path.split('.').reduce((o, k) => o?.[k], S.model) ?? `{${path}}`;
+  const fill = text => esc(text).replace(/\{([\w.]+)\}/g, (_, path) => esc(String(param(path))));
+  $('sourceList').innerHTML = src.parts.map(p => `<h3>${esc(p.part)}</h3>
+    <p><b>Model:</b> ${fill(p.model)}</p>${p.observed ? `<p><b>Studies:</b> ${esc(p.observed)}</p>` : ''}
+    <ol>${p.refs.map(r => `<li><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a></li>`).join('')}</ol>`).join('') +
+    (src.note ? `<p>${esc(src.note)}</p>` : '');
+}
+
 function closeScenario() {
   S.street = null;
   S.manual = [];
@@ -338,35 +434,70 @@ function currentTrees(P) {
   const withSize = t => ({lon: t.lon, lat: t.lat, height_m: size.height_m, crown_diameter_m: size.crown_diameter_m});
   if (S.mode === 'manual') return S.manual.map(withSize);
   const n = +$('trees').value, key = [S.street.a, S.street.b, n, $('preset').value, S.existingTrees.length].join('|');
-  if (S.placement.key !== key) S.placement = {key, trees: placeEvenly(n, size.crown_diameter_m / 2, P).map(withSize)};
+  if (S.placement.key !== key) {
+    const {trees, alreadyTreed} = placeEvenly(n, size.crown_diameter_m / 2, P);
+    S.placement = {key, trees: trees.map(withSize), alreadyTreed};
+  }
   return S.placement.trees;
 }
 
 // Evenly spaced on alternating sides. A blocked spot first moves away from the centre line
 // (real streets are often wider than their class suggests, e.g. tram tracks in a pedestrian
 // zone) but never past a building or water, then slides along the street until one fits.
+//
+// An existing tree claims its side of the street for the stretch around it: a slot whose side
+// already has a tree within half a spacing goes to the other side, and is skipped when both
+// sides have one (placement.existing_trees_claim_side).
 function placeEvenly(n, r, P) {
   const st = S.street, pl = S.model.placement, placed = [];
   const start = (st.halfWidth || pl.path_offset_m) + pl.clearance_m + 0.5;
   const spacing = (st.b - st.a) / Math.max(n, 1), reach = Math.max(2, spacing / 2);
+  const existing = pl.existing_trees_claim_side ? existingAlongStreet(st, pl.max_offset_m) : [];
+  let alreadyTreed = 0;
   for (let i = 0; i < n; i++) {
-    const d0 = st.a + (i + 0.5) * spacing, sides = i % 2 ? [-1, 1] : [1, -1];
+    const d0 = st.a + (i + 0.5) * spacing;
+    const claimed = (side, d) => existing.some(e => e.side === side && Math.abs(e.at - d) <= spacing / 2);
+    const sides = (i % 2 ? [-1, 1] : [1, -1]).filter(side => !claimed(side, d0));
+    if (!sides.length) { alreadyTreed++; continue; }
     search: for (let k = 0; k <= reach; k++) {
       for (const d of k ? [d0 + k, d0 - k] : [d0]) {
         if (d < st.a || d > st.b) continue;
         const q = alongXY(st, d);
         for (const side of sides) {
+          if (claimed(side, d)) continue;  // sliding along must not walk into an existing tree's stretch
           for (let off = start; off <= Math.max(start, pl.max_offset_m); off += 0.5) {
             const p = {x: q.x - q.ty * side * off, y: q.y + q.tx * side * off};
             const why = blocked(p, r, placed, st.obstacles);
-            if (!why) { placed.push(p); break search; }
+            if (!why) {
+              const where = relate(st, p.x, p.y);  // on bends the point can project onto another stretch or side
+              if (claimed(where.side, where.at)) break;
+              placed.push(p);
+              break search;
+            }
             if (why === 'building' || why === 'water') break;
           }
         }
       }
     }
   }
-  return placed.map(p => { const [lon, lat] = P.toLL(p.x, p.y); return {lon, lat}; });
+  return {trees: placed.map(p => { const [lon, lat] = P.toLL(p.x, p.y); return {lon, lat}; }), alreadyTreed};
+}
+
+// Existing trees beside the selected street: distance along it and side (+1 left, -1 right),
+// for trees up to maxOffset (plus their crown) from the centre line.
+function existingAlongStreet(st, maxOffset) {
+  const out = [];
+  for (const t of st.obstacles.trees) {
+    const w = relate(st, t.x, t.y);
+    if (Math.abs(w.lateral) <= maxOffset + t.r) out.push(w);
+  }
+  return out;
+}
+
+// Position of (x, y) relative to a measured street: distance along it, signed lateral offset, side.
+function relate(st, x, y) {
+  const at = locate(st, x, y), q = alongXY(st, at), lateral = (x - q.x) * -q.ty + (y - q.y) * q.tx;
+  return {at, lateral, side: Math.sign(lateral) || 1};
 }
 
 function toggleManualTree(e) {
@@ -392,7 +523,7 @@ function blocked(p, r, placed, o) {
   for (const b of o.buildings) {
     if (p.x >= b.box[0] && p.x <= b.box[2] && p.y >= b.box[1] && p.y <= b.box[3] && NG.inPolygon(p.x, p.y, b.rings)) return b.kind === 'water' ? 'water' : 'building';
   }
-  for (const t of o.trees) if (Math.hypot(p.x - t.x, p.y - t.y) < (t.r + r) * pl.crown_overlap) return 'existing tree';
+  for (const t of o.trees) if (Math.hypot(p.x - t.x, p.y - t.y) < (t.r + r) * pl.existing_tree_spacing) return 'existing tree';
   for (const q of placed) if (Math.hypot(p.x - q.x, p.y - q.y) < 2 * r * pl.crown_overlap) return 'too close to another new tree';
   return '';
 }
@@ -470,6 +601,7 @@ function setupDataLayers() {
 }
 
 async function showLayer(l, on) {
+  if (l.type === 'table') return showTable(l, on);
   const id = `lyr-${l.id}`;
   $(`legend-${l.id}`).hidden = !on || !l.value;
   if (!on) { if (S.map.getLayer(id)) S.map.setLayoutProperty(id, 'visibility', 'none'); return; }
@@ -484,11 +616,39 @@ async function showLayer(l, on) {
     }
     if (S.map.getLayer(id)) return;  // toggled twice while loading
     S.map.addSource(id, {type: 'geojson', data});
-    S.map.addLayer(layerStyle(l, id), 'section');
+    S.map.addLayer({...layerStyle(l, id), ...(l.minzoom ? {minzoom: l.minzoom} : {})}, 'section');
     S.map.on('mousemove', id, e => tooltip(l, e));
     S.map.on('mouseleave', id, () => S.popup.remove());
   }
   S.map.setLayoutProperty(id, 'visibility', 'visible');
+  if (l.fitOnShow) {  // data far outside the current view, e.g. regional sites
+    S.map.fitBounds(turf.bbox(await layerData(l)), {padding: {top: 80, bottom: 80, left: 330, right: 80}, maxZoom: 14, duration: 800});
+  }
+}
+
+// City-wide figures without locations: outline the city and show the table in the panel.
+async function showTable(l, on) {
+  const box = $(`legend-${l.id}`);
+  box.hidden = !on;
+  if (!S.map.getSource('city-outline') && S.cfg.cityBoundary) {
+    S.map.addSource('city-outline', {type: 'geojson', data: S.cfg.cityBoundary});
+    S.map.addLayer({id: 'city-outline', type: 'line', source: 'city-outline',
+                    paint: {'line-color': '#1c7ed6', 'line-width': 2.5, 'line-dasharray': [3, 2]}}, 'section');
+  }
+  const anyTable = (S.cfg.layers || []).some(x => x.type === 'table' && !$(`legend-${x.id}`).hidden);
+  if (S.map.getLayer('city-outline')) S.map.setLayoutProperty('city-outline', 'visibility', anyTable ? 'visible' : 'none');
+  if (!on || box.dataset.loaded) return;
+  try {
+    const t = await layerData(l);
+    const cell = v => `<td>${typeof v === 'number' ? v.toLocaleString('en') : v ?? ''}</td>`;
+    box.innerHTML = `<p class="muted"><strong>${t.title}</strong></p><div class="table-wrap"><table class="data-table">
+      <thead><tr>${t.columns.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+      <tbody>${t.rows.map(r => `<tr>${r.map(cell).join('')}</tr>`).join('')}</tbody></table></div>
+      ${t.note ? `<p class="muted">${t.note}</p>` : ''}`;
+    box.dataset.loaded = '1';
+  } catch (e) {
+    setStatus(`“${l.label}” is not available: ${e.message}`, true);
+  }
 }
 
 function layerData(l) {
@@ -506,9 +666,13 @@ function layerStyle(l, id) {
             paint: {'line-color': color, 'line-opacity': 0.9, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1.5, 18, 6]}};
   }
   const crown = !!l.crownDiameterField;
+  if (crown && S.icons[`lyr-${l.id}`]) {
+    const diameter = ['to-number', ['get', l.crownDiameterField], S.model.placement.default_existing_crown_m];
+    return iconLayer(id, id, diameter, 10, 0.85, `lyr-${l.id}`);
+  }
   const radius = crown
     ? metres(['/', ['to-number', ['get', l.crownDiameterField], S.model.placement.default_existing_crown_m], 2], 1.5)
-    : ['interpolate', ['linear'], ['zoom'], 12, 2, 18, 7];
+    : ['interpolate', ['linear'], ['zoom'], 12, (l.radius || [2, 7])[0], 18, (l.radius || [2, 7])[1]];
   return {id, type: 'circle', source: id, paint: {'circle-color': color, 'circle-radius': radius,
           'circle-opacity': crown ? 0.45 : 0.85, 'circle-stroke-color': crown ? '#1b5e20' : '#fff', 'circle-stroke-width': crown ? 0.6 : 0.8}};
 }
@@ -534,7 +698,8 @@ function tooltip(l, e) {
 function pretty(v) {
   if (typeof v === 'number' || /^\s*-?\d+(\.\d+)?\s*$/.test(v)) {
     const n = +v;
-    return (Math.abs(n) >= 100 ? Math.round(n) : +n.toFixed(2)).toLocaleString('en');
+    if (Math.abs(n) < 10000) return String(Math.abs(n) >= 100 ? Math.round(n) : +n.toFixed(2));  // years, small counts: no separator
+    return Math.round(n).toLocaleString('en');
   }
   return String(v).replace(/^\[|\]$/g, '').replace(/'/g, '');  // "['A', 'B']" -> "A, B"
 }
@@ -633,7 +798,10 @@ function run() {
     setData('shadows', fc(shadows));
     const len = Math.round(S.street.b - S.street.a), n = +$('trees').value;
     $('secLabel').textContent = `Section: ${len} m` + (S.street.b - S.street.a < S.street.length - 1 ? ` of ${Math.round(S.street.length)} m` : '');
-    $('treeLabel').textContent = !n ? 'none' : trees.length === n ? `${n} · every ${Math.round(len / n)} m` : `${trees.length} of ${n} fit`;
+    const treed = S.mode === 'even' ? S.placement.alreadyTreed || 0 : 0;
+    $('treeLabel').textContent = !n ? 'none'
+      : trees.length === n ? `${n} · every ${Math.round(len / n)} m`
+      : `${trees.length} of ${n}` + (treed ? ` · ${treed} spot${treed > 1 ? 's' : ''} already treed` : ' fit');
     $('manualCount').textContent = `${S.manual.length} ${S.manual.length === 1 ? 'tree' : 'trees'} placed`;
     scenario = {trees, section: section.geometry.coordinates, sun};
   } else {
@@ -648,7 +816,6 @@ function run() {
   const H = Math.max(1, Math.round((W * canvas.clientHeight) / canvas.clientWidth));
   worker.postMessage({id: ++S.job, points, origin: S.cfg.center, extent: S.extent, view, size: [W, H],
                       domain: S.domain, ramp: RAMP, params: S.model, scenario});
-  S.lastTrees = scenario ? scenario.trees.length : 0;
 }
 
 worker.onmessage = ({data}) => {
@@ -664,14 +831,13 @@ worker.onmessage = ({data}) => {
 };
 
 function showResult(st) {
-  const unit = S.overlay.unit || '', n = S.lastTrees;
+  const unit = S.overlay.unit || '';
   const rows = !st ? [['No values along the street', '']] : [
     ['Mean before', `${st.before.toFixed(1)} ${unit}`],
     ['Mean with trees', `${st.after.toFixed(1)} ${unit}`],
-    ['Change', `${signed(st.after - st.before)} K`, 'big'],
-    ['Strongest cooling', `${signed(st.maxCooling)} K`],
+    ['Change', `${signed(st.after - st.before)} °C`, 'big'],
+    ['Strongest cooling', `${signed(st.maxCooling)} °C`],
     ['Shaded', `${Math.round(st.shadedArea).toLocaleString('en')} of ${Math.round(st.area).toLocaleString('en')} m²`],
-    ['Cost (assumed)', `€${(n * S.model.cost_per_tree_eur).toLocaleString('en')}`],
   ];
   $('result').innerHTML = rows.map(([k, v, cls]) => `<dt>${k}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
     `<dt class="muted" style="grid-column:1/-1">Mean within ${S.model.street_corridor_m} m on both sides of the section</dt>`;
@@ -717,6 +883,89 @@ function parseCsv(text) {
   return lines.slice(1).map(l => Object.fromEntries(split(l).map((c, i) => [head[i], c])));
 }
 
+// ------------------------------------------------------------------ tree icons
+// config/overlays.json "iconThemes": named sets of tree icons ('planted' for new trees, otherwise a
+// layer id). An icon is ICON_PX square; its central disc of ICON_DISC_PX is drawn at crown size.
+// Switching a set swaps the images in place, so layers, data and selection stay as they are.
+
+const ICON_PX = 128, ICON_DISC_PX = 120, ICON_RATIO = 2;
+
+function iconThemes() {
+  const t = S.cfg.iconThemes || {};
+  return Object.fromEntries(Object.entries(t).filter(([k, v]) => !k.startsWith('_') && typeof v === 'object'));
+}
+
+function initialIconTheme() {
+  const themes = iconThemes();
+  try { const saved = localStorage.getItem('iconTheme'); if (themes[saved]) return saved; } catch {}
+  const def = S.cfg.iconThemes?.default;
+  if (def && def !== 'auto' && themes[def]) return def;
+  const month = new Date().getMonth();  // 9 = October, 11 = December
+  const seasonal = month === 9 ? 'halloween' : month === 11 ? 'christmas' : 'normal';
+  return themes[seasonal] ? seasonal : Object.keys(themes)[0];
+}
+
+async function setIconTheme(name) {
+  const theme = iconThemes()[name];
+  if (!theme) return;
+  S.iconTheme = name;
+  try { localStorage.setItem('iconTheme', name); } catch {}
+  S.seasonControl?.update();
+  await Promise.all(Object.entries(theme).filter(([k]) => k !== 'label' && k !== 'symbol').map(async ([key, url]) => {
+    const id = key === 'planted' ? 'planted' : `lyr-${key}`;
+    try {
+      const img = new Image(ICON_PX, ICON_PX);
+      img.src = url;
+      await img.decode();
+      S.icons[id] = img;
+      if (S.map.hasImage(id)) S.map.updateImage(id, img);
+      else S.map.addImage(id, img, {pixelRatio: ICON_RATIO});
+    } catch (e) {
+      console.warn(`icon ${url} not loaded`, e);
+    }
+  }));
+  S.map.triggerRepaint();  // updated images only reach the icon atlas on the next frame
+}
+
+async function loadIcons() {
+  // a basemap swap (dark mode) drops all images; put ours back when a layer asks for them
+  S.map.on('styleimagemissing', e => { if (S.icons[e.id] && !S.map.hasImage(e.id)) S.map.addImage(e.id, S.icons[e.id], {pixelRatio: ICON_RATIO}); });
+  if (Object.keys(iconThemes()).length) await setIconTheme(initialIconTheme());
+}
+
+class SeasonControl {
+  onAdd() {
+    const div = document.createElement('div');
+    div.className = 'maplibregl-ctrl maplibregl-ctrl-group season-switch';
+    const buttons = Object.entries(iconThemes()).map(([name, t]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = t.symbol || t.label[0];
+      b.title = b.ariaLabel = `${t.label} trees`;
+      b.onclick = () => setIconTheme(name);
+      div.append(b);
+      return [name, b];
+    });
+    this.update = () => buttons.forEach(([name, b]) => b.classList.toggle('active', name === S.iconTheme));
+    this.update();
+    S.seasonControl = this;
+    return div;
+  }
+  onRemove() {}
+}
+
+// Symbol layer showing `image` (default: id) at the crown diameter given in metres, never below minPx.
+function iconLayer(id, source, diameter, minPx, opacity, image = id) {
+  // at icon-size 1 the disc shows ICON_DISC_PX / ICON_RATIO screen pixels wide
+  const perMetre = z => (2 ** z / (156543.03 * Math.cos(S.cfg.center[1] * NG.DEG))) / (ICON_DISC_PX / ICON_RATIO);
+  const size = z => ['max', minPx / (ICON_PX / ICON_RATIO), ['*', diameter, perMetre(z)]];
+  return {id, type: 'symbol', source,
+          layout: {'icon-image': image, 'icon-size': ['interpolate', ['exponential', 2], ['zoom'], 12, size(12), 22, size(22)],
+                   'icon-allow-overlap': true, 'icon-ignore-placement': true,
+                   'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'map'},
+          paint: {'icon-opacity': opacity}};
+}
+
 // circle-radius expression for a radius in metres (exact at the configured centre latitude)
 function metres(expr, minPx = 0) {
   const px = z => 2 ** z / (156543.03 * Math.cos(S.cfg.center[1] * NG.DEG));
@@ -728,6 +977,7 @@ const quantile = (sorted, q) => sorted[Math.min(sorted.length - 1, Math.floor(q 
 const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v).toFixed(1);
 const compass = deg => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(deg / 45) % 8];
 const fc = features => ({type: 'FeatureCollection', features});
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 const box = (p, r) => [[p.x - r, p.y - r], [p.x + r, p.y + r]];
 const setData = (id, data) => S.map.getSource(id).setData(data);
 const getJSON = async url => (await fetch(url, {cache: 'no-store'})).json();

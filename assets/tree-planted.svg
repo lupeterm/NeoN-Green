@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Default tree: a leafy crown seen from above. The disc (diameter 120 of 128 px) is the crown size. -->
+  <circle cx="64" cy="64" r="60" fill="#b2f2bb" fill-opacity="0.55" stroke="#2b8a3e" stroke-width="4"/>
+  <g fill="#37b24d">
+    <circle cx="64" cy="40" r="20"/><circle cx="42" cy="56" r="20"/><circle cx="86" cy="56" r="20"/>
+    <circle cx="50" cy="82" r="20"/><circle cx="78" cy="82" r="20"/><circle cx="64" cy="62" r="22"/>
+  </g>
+  <g fill="#ffffff" fill-opacity="0.25">
+    <circle cx="56" cy="36" r="8"/><circle cx="36" cy="52" r="7"/><circle cx="58" cy="58" r="9"/>
+  </g>
+  <circle cx="64" cy="64" r="5" fill="#5c3d1e"/>
+</svg>
