@@ -22,7 +22,9 @@ SunCalc load from unpkg, and the basemap is CARTO Positron.
 
 ## Using it
 
-1. Pick the heat dataset, date and time of day in the left panel. The sun position updates with them.
+1. Pick the data, date and time of day in the left panel: heat (citizen sensors or senseBox:bike),
+   particulate matter (PM10, PM2.5 from the same sensors) or road traffic noise. The sun position
+   updates with date and time.
 2. Zoom in to street level and press **Draw a section**, then drag around the part of the street
    you mean. The street with the longest stretch inside the shape is chosen, and the section snaps
    to exactly that stretch. Clicking a street instead selects all of it. Or click one of the heat
@@ -104,6 +106,7 @@ scripts/fetch_atrai.py    regenerates data/atrai_bike.csv for any period
 scripts/find_hotspots.py  regenerates data/hotspots.geojson
 scripts/fetch_opendata.py    mirrors the portal's environment datasets into opendata/ (git-ignored)
 scripts/prepare_opendata.py  builds the environment layers and the tree file from that mirror
+scripts/prepare_noise.py     builds data/noise_road_lden.csv from the EU noise mapping 2022
 ```
 
 ## Plugging in data
@@ -201,6 +204,22 @@ use all points everywhere. Dense data such as bike tracks only uses points withi
   bumps like trees (per m² of bed, per pole), saturating. Coating and traffic act on the roadway
   and fade over `fade_m` beside it. The coating's reflected sun adds to the felt temperature on
   the road and `sidewalk_m` beside it, scaled with sun height like shade.
+* **Particulate matter (PM10, PM2.5).** New trees change the concentration in the street
+  corridor by a percentage that depends on the street type and scales with the share of the
+  corridor under their crowns: up to `pollution.canyon_increase_pct` more in a street canyon
+  (tree crowns slow the air exchange), up to `pollution.deposition_pct_full_cover` less on an
+  open street (deposition on leaves). A point of the section counts as street canyon when
+  buildings stand within `pollution.canyon_max_halfwidth_m` of the street axis on both sides;
+  the two effects are blended by the canyon share of the section. The linear scaling with crown
+  cover is a simplification.
+* **Noise.** Rows of street trees change road traffic noise by `noise.tree_row_dB` (0 dB):
+  measurable reductions need dense tree belts of 15–20 m depth, which streets do not have.
+
+Which part applies follows the selected data: overlays have a `quantity` of `temperature`,
+`pm` or `noise` in `config/overlays.json`. Particulate matter and noise are modelled for trees;
+of the other measures only "speed limit & less traffic" changes the noise map (by the panel's
+dB(A) change, at most −20 dB when car-free). The rest leave PM and noise unchanged, and the
+panel says so.
 
 Known simplifications: buildings neither cast shadows nor block tree shadows, road widths are
 estimated from the road class, and wind and surfaces are ignored. The model adds the shade
@@ -301,6 +320,7 @@ low-cost sensors: treat the list as candidates to look at, not as measured heat 
 | Data | Source | Licence |
 |---|---|---|
 | `data/heat_sensors.csv` | [sensor.community](https://sensor.community) archive | ODbL |
+| `data/noise_road_lden.csv` | Umweltbundesamt, Lärmkartierung Deutschland 2022 (data of Stadt Heilbronn), road traffic Lden in the agglomeration, sampled on a 25 m grid | © UBA, attribution |
 | `data/trees_hn_2026.geojson` | [Stadt Heilbronn, Baumkataster](https://opendata.heilbronn.de/dataset/baumkataster), 1 Jan 2026 | DL-DE BY 2.0 |
 | Environment layers | [opendata.heilbronn.de](https://opendata.heilbronn.de) (biomass plants: LUBW); street geometry and locations © OpenStreetMap contributors | CC BY 4.0 / DL-DE BY 2.0; geometry ODbL |
 | `data/atrai_bike.csv` | [openSenseMap](https://opensensemap.org) archive, grouptag `heilbronn` | PDDL |

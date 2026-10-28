@@ -34,6 +34,20 @@
     "max_total_C": 2.5,
     "night_factor": 0.5
   },
+  "pollution": {
+    "_about": "Particulate matter (PM10, PM2.5): % change of the street's concentration with full crown cover, scaled linearly by the crown cover of the street corridor.",
+    "canyon_increase_pct": 26,
+    "_canyon_increase_pct": "Street canyon: trees raise concentrations. Lower end of the +26 to +96 % reported by Abhijith et al. (2017).",
+    "deposition_pct_full_cover": 2,
+    "_deposition_pct_full_cover": "Open street: deposition on leaves. Nowak et al. (2006): about 0.7 % PM10 improvement at 33 % city tree cover.",
+    "canyon_max_halfwidth_m": 15,
+    "_canyon_max_halfwidth_m": "Buildings within this distance of the street axis on both sides make a point of the section count as street canyon."
+  },
+  "noise": {
+    "_about": "Road traffic noise: change in dB from new street trees.",
+    "tree_row_dB": 0,
+    "_tree_row_dB": "Rows of street trees are not tree belts; measured reductions need dense belts of 15-20 m depth (Van Renterghem et al. 2015)."
+  },
   "grid": {
     "_about": "Inverse distance weighting of the overlay points. Above dense_point_threshold points, only points within idw_radius_m count.",
     "idw_power": 2,
@@ -301,6 +315,32 @@
           {
             "title": "Spatiotemporal impact of vehicle heat on urban thermal environment: A case study in Hong Kong (PolyU)",
             "url": "https://research.polyu.edu.hk/en/publications/spatiotemporal-impact-of-vehicle-heat-on-urban-thermal-environmen-2/"
+          }
+        ]
+      },
+      {
+        "part": "Particulate matter (PM10, PM2.5)",
+        "model": "street canyon: +{pollution.canyon_increase_pct} % with full crown cover; open street: −{pollution.deposition_pct_full_cover} %; scaled by the crown cover of the street (linear scaling is an assumption)",
+        "observed": "Trees in street canyons raised pollutant concentrations by 26–96 % on average; hedges lowered them by 24–61 % at the footpath; on open roads, dense vegetation barriers lowered them by 15–60 %. City-wide, trees improve PM10 by about 0.7 % (Atlanta, 33 % tree cover).",
+        "refs": [
+          {
+            "title": "Abhijith, Kumar, Gallagher, McNabola, Baldauf, Pilla, Broderick, Di Sabatino & Pulvirenti (2017): Air pollution abatement performances of green infrastructure in open road and built-up street canyon environments – A review. Atmospheric Environment 162, 71–86",
+            "url": "https://researchrepository.ucd.ie/rest/bitstreams/26234/retrieve"
+          },
+          {
+            "title": "Nowak, Crane & Stevens (2006): Air pollution removal by urban trees and shrubs in the United States. Urban Forestry & Urban Greening 4, 115–123",
+            "url": "https://www.itreetools.org/documents/55/UFUG_Air_Pollution_Removal.pdf"
+          }
+        ]
+      },
+      {
+        "part": "Road traffic noise",
+        "model": "{noise.tree_row_dB} dB for rows of street trees",
+        "observed": "Measured attenuation by 35 tree belts 20 m deep: below 3, 3–6 or 6–9 dB(A); a 15 m deep optimised belt can match a 1–2 m noise wall. Single rows of trees are not reported to reduce noise.",
+        "refs": [
+          {
+            "title": "Van Renterghem, Forssén, Attenborough, Jean, Defrance, Hornikx & Kang (2015): Using natural means to reduce surface transport noise during propagation outdoors. Applied Acoustics 92, 86–101",
+            "url": "https://users.ugent.be/~tvrenter/publicaties/reviewnaturalmeans.pdf"
           }
         ]
       },

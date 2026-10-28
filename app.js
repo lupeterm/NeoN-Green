@@ -33,10 +33,19 @@ const S = {
   layerData: {}, existingTrees: [], icons: {}, iconTheme: null,
   job: 0, timer: null, refresh: null, url: null,
 };
-const worker = new Worker('worker.js');
+let worker = null;  // started in main() once its files are known to be current
+
+// The simple dev server lets browsers keep old copies. Revalidate the worker's files first
+// (a cheap "304 not modified" when unchanged), so a stale worker.js or model.js is never mixed
+// with a newer app.js; the worker then loads them from the refreshed cache.
+async function startWorker() {
+  await Promise.all(['worker.js', 'model.js'].map(url => fetch(url, {cache: 'no-cache'}).catch(() => null)));
+  worker = new Worker('worker.js');
+  worker.onmessage = onWorkerResult;
+}
 
 async function main() {
-  [S.cfg, S.model] = await Promise.all([getJSON('config/overlays.json'), getJSON('config/model.json')]);
+  [S.cfg, S.model] = await Promise.all([getJSON('config/overlays.json'), getJSON('config/model.json'), startWorker()]);
   S.theme = initialTheme();
   document.documentElement.dataset.theme = S.theme;
   S.map = new maplibregl.Map({container: 'map', style: BASEMAPS[S.theme], center: S.cfg.center, zoom: S.cfg.zoom, hash: true});
@@ -593,7 +602,8 @@ function buildMeasure(P, trees, sun) {
   const noise = volume ? 10 * Math.log10(volume) + (to30 ? q.noise_30_dB : 0) : null;
   $('volumeLabel').textContent = volume === 1 ? 'unchanged' : volume ? `−${Math.round((1 - volume) * 100)} %` : 'car-free';
   const label = [to30 && volume && '30 km/h', volume < 1 && $('volumeLabel').textContent + (volume ? ' cars' : '')].filter(Boolean).join(' · ');
-  return {measure: {kind, line: section, halfWidth: st.halfWidth, dFlux: flux - after},
+  // on a noise map: car-free is capped at −20 dB (what remains is background noise)
+  return {measure: {kind, line: section, halfWidth: st.halfWidth, dFlux: flux - after, dNoise: noise == null ? -20 : noise},
           features: [roadway({color: '#fab005', outline: '#e67700', opacity: 0.3}), ...(label ? [turf.point(mid, {label})] : [])],
           rows: [['Engine heat', `${flux.toFixed(1)} → ${after.toFixed(1)} W/m²`],
                  ['Noise', noise == null ? 'none' : `${signed(noise)} dB(A)`],
@@ -889,7 +899,8 @@ async function loadOverlay(o, {refresh = false} = {}) {
   S.extent = [Math.min(...lons) - pad, Math.min(...lats) - pad, Math.max(...lons) + pad, Math.max(...lats) + pad];
   if (!refresh && records[0].date) $('date').value = records[0].date;
 
-  $('ramp').style.background = `linear-gradient(90deg, ${RAMP.join(',')})`;
+  S.ramp = o.ramp || RAMP;
+  $('ramp').style.background = `linear-gradient(90deg, ${S.ramp.join(',')})`;
   $('dmin').textContent = S.domain[0].toFixed(0);
   $('dmax').textContent = S.domain[1].toFixed(0);
   $('unit').textContent = o.unit || '';
@@ -975,7 +986,8 @@ function run() {
       : trees.length === n ? `${n} · every ${Math.round(len / n)} m`
       : `${trees.length} of ${n}` + (treed ? ` · ${treed} spot${treed > 1 ? 's' : ''} already treed` : ' fit');
     $('manualCount').textContent = `${S.manual.length} ${S.manual.length === 1 ? 'tree' : 'trees'} placed`;
-    scenario = {measure: built.measure, section: section.geometry.coordinates, sun, minute};
+    scenario = {measure: built.measure, section: section.geometry.coordinates, sun, minute,
+                quantity: S.overlay.quantity || 'temperature', canyonShare: canyonShare()};
   } else {
     for (const id of ['section', 'measure', 'planted', 'shadows']) setData(id, fc([]));
   }
@@ -990,11 +1002,12 @@ function run() {
   }
   const canvas = S.map.getCanvas(), W = Math.min(900, Math.round(canvas.clientWidth * 0.75));
   const H = Math.max(1, Math.round((W * canvas.clientHeight) / canvas.clientWidth));
+  if (!worker) return;
   worker.postMessage({id: ++S.job, points, origin: S.cfg.center, extent: S.extent, view, size: [W, H],
-                      domain: S.domain, ramp: RAMP, params: S.model, scenario});
+                      domain: S.domain, ramp: S.ramp || RAMP, params: S.model, scenario, interpolation: S.overlay.interpolation});
 }
 
-worker.onmessage = ({data}) => {
+function onWorkerResult({data}) {
   if (data.id !== S.job) return;  // a newer request is already on its way
   if (data.image) {
     const old = S.url;
@@ -1004,23 +1017,66 @@ worker.onmessage = ({data}) => {
   }
   S.map.setLayoutProperty('heat', 'visibility', data.image ? 'visible' : 'none');
   showResult(data.stats);
-};
+}
 
 function showResult(st) {
   if (!S.street) return;
-  const unit = S.overlay.unit || '', trees = S.measure === 'trees';
-  const rows = !st ? [['No values along the street', '']] : [
-    ['Mean before', `${st.before.toFixed(1)} ${unit}`],
-    [`Mean with ${trees ? 'trees' : 'measure'}`, `${st.after.toFixed(1)} ${unit}`],
-    ['Change', `${signed(st.after - st.before)} °C`, 'big'],
-    ['Strongest cooling', `${signed(st.maxCooling)} °C`],
-    ...(st.maxWarming > 0.05 ? [['Strongest warming', `${signed(st.maxWarming)} °C`]] : []),
-    ...(trees || S.measure === 'sails' ? [['Shaded', `${Math.round(st.shadedArea).toLocaleString('en')} of ${Math.round(st.area).toLocaleString('en')} m²`]] : []),
-  ];
+  const unit = S.overlay.unit || '', quantity = S.overlay.quantity || 'temperature';
+  if (st && (st.quantity || 'temperature') !== quantity) return;  // computed for other data; the right one follows
+  const trees = S.measure === 'trees', label = S.model.measures[S.measure].label;
+  const m2 = v => Math.round(v).toLocaleString('en');
+  let rows, note = '';
+  if (!st) {
+    rows = [['No values along the street', '']];
+  } else {
+    rows = [
+      ['Mean before', `${st.before.toFixed(1)} ${unit}`],
+      [`Mean with ${trees ? 'trees' : 'measure'}`, `${st.after.toFixed(1)} ${unit}`],
+      ['Change', `${signed(st.after - st.before)} ${quantity === 'temperature' ? '°C' : unit}` +
+                 (quantity === 'pm' && trees ? ` (${signed(st.pct)} %)` : ''), 'big'],
+    ];
+    if (quantity === 'pm' && trees) {
+      const share = S.canyon?.share ?? 0;
+      rows.push(['Street type', share >= 0.5 ? `street canyon (${Math.round(share * 100)} % of the section)`
+                                             : `open street (canyon: ${Math.round(share * 100)} %)`],
+                ['Crown cover', `${Math.round(st.coverage * 100)} % of the street`]);
+      note = 'In street canyons, tree crowns slow the air exchange and raise particle levels; on open streets they remove a little by deposition.';
+    } else if (quantity === 'noise' && trees) {
+      note = 'Rows of street trees hardly reduce traffic noise. Measurable reductions need dense tree belts about 15–20 m deep.';
+    } else if (quantity === 'pm' && S.measure === 'traffic') {
+      note = 'Less traffic means less exhaust and road dust, but how much of the particles here come from this street is not known, so the model leaves them unchanged.';
+    } else if (quantity !== 'temperature' && S.measure !== 'traffic') {
+      note = `${label}: no effect on ${quantity === 'pm' ? 'particulate matter' : 'noise'} in this model.`;
+    } else if (quantity === 'temperature') {
+      rows.push(['Strongest cooling', `${signed(st.maxCooling)} °C`],
+                ...(st.maxWarming > 0.05 ? [['Strongest warming', `${signed(st.maxWarming)} °C`]] : []),
+                ...(trees || S.measure === 'sails' ? [['Shaded', `${m2(st.shadedArea)} of ${m2(st.area)} m²`]] : []));
+    }
+  }
   rows.push(...(S.resultRows || []));
   $('result').innerHTML = rows.map(([k, v, cls]) => cls === 'note' ? `<dt class="muted" style="grid-column:1/-1">${k}</dt>`
                                                     : `<dt>${k}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
-    `<dt class="muted" style="grid-column:1/-1">Mean within ${S.model.street_corridor_m} m on both sides of the section</dt>`;
+    `<dt class="muted" style="grid-column:1/-1">Mean within ${S.model.street_corridor_m} m on both sides of the section</dt>` +
+    (note ? `<dt class="muted" style="grid-column:1/-1">${note}</dt>` : '');
+}
+
+// Share of the section with buildings close on both sides (a street canyon), cached per section.
+function canyonShare() {
+  const st = S.street, hw = S.model.pollution?.canyon_max_halfwidth_m ?? 15, key = `${st.name}|${st.a}|${st.b}`;
+  if (S.canyon?.key === key) return S.canyon.share;
+  const inBuilding = (x, y) => st.obstacles.buildings.some(b => b.kind !== 'water'
+    && x >= b.box[0] && x <= b.box[2] && y >= b.box[1] && y <= b.box[3] && NG.inPolygon(x, y, b.rings));
+  let n = 0, both = 0;
+  for (let d = st.a; d <= st.b; d += 5) {
+    const q = alongXY(st, d), side = s => {
+      for (let off = 2; off <= hw; off += 1) if (inBuilding(q.x - q.ty * s * off, q.y + q.tx * s * off)) return true;
+      return false;
+    };
+    n++;
+    if (side(1) && side(-1)) both++;
+  }
+  S.canyon = {key, share: n ? both / n : 0};
+  return S.canyon.share;
 }
 
 // ------------------------------------------------------------------ 3D street view (prototype)
