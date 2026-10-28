@@ -7,10 +7,12 @@ const BASEMAPS = {  // same tiles and layer schema, only the colours differ
   dark: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
 };
 const THEME_PAINT = {  // our own layers that need different colours on a dark map
-  light: {shadows: {'fill-color': '#102030', 'fill-opacity': 0.3}, section: {'line-opacity': 0.3}},
-  dark: {shadows: {'fill-color': '#000000', 'fill-opacity': 0.5}, section: {'line-opacity': 0.45}},
+  light: {shadows: {'fill-color': '#102030', 'fill-opacity': 0.3}, section: {'line-opacity': 0.3},
+          'buildings-3d': {'fill-extrusion-color': '#e4dfd6'}},
+  dark: {shadows: {'fill-color': '#000000', 'fill-opacity': 0.5}, section: {'line-opacity': 0.45},
+         'buildings-3d': {'fill-extrusion-color': '#3d4148'}},
 };
-const OWN_SOURCES = ['heat', 'section', 'shadows', 'planted', 'lasso', 'hotspots'];
+const OWN_SOURCES = ['heat', 'section', 'shadows', 'planted', 'lasso', 'hotspots', 'trees-3d'];
 const RAMP = ['#ffffcc', '#ffeda0', '#fed976', '#feb24c', '#fd8d3c', '#fc4e2a', '#e31a1c', '#b10026'];
 const STITCH_TOLERANCE_M = 2;
 const MIN_SELECT_ZOOM = 14.5;
@@ -21,7 +23,7 @@ const $ = id => document.getElementById(id);
 const S = {
   cfg: null, model: null, map: null, popup: null,
   overlay: null, records: [], hasTime: false, extent: null, domain: null,   // heat overlay
-  roadLayers: [], roadSource: null, theme: 'light',
+  roadLayers: [], roadSource: null, theme: 'light', view3d: false,
   street: null,          // {name, line, xy, cum, length, halfWidth, obstacles, a, b}
   mode: 'even',          // tree placement: 'even' | 'manual'
   manual: [],            // [{lon, lat}] trees placed by hand
@@ -119,6 +121,7 @@ function setupUi() {
   $('clearTrees').onclick = () => { S.manual = []; update(); };
   $('drawBtn').onclick = () => setDrawMode(!S.draw.active);
   $('close').onclick = closeScenario;
+  $('view3d').onclick = () => set3D(!S.view3d);
   renderSources();
   addEventListener('keydown', e => { if (e.key === 'Escape') setDrawMode(false); });
 }
@@ -149,7 +152,8 @@ function setTheme(theme) {
     const own = id => OWN_SOURCES.includes(id) || id.startsWith('lyr-');
     const sources = {...next.sources};
     for (const [id, src] of Object.entries(prev.sources)) if (own(id)) sources[id] = src;
-    const mine = prev.layers.filter(l => own(l.source || ''));
+    // our layers, plus the 3D buildings (drawn from the basemap's tiles, which both styles share)
+    const mine = prev.layers.filter(l => own(l.source || '') || l.id === 'buildings-3d');
     const restyle = l => ({...l, paint: {...l.paint, ...(THEME_PAINT[theme][l.id] || {})}});
     const below = mine.filter(l => l.id === 'heat');
     const top = mine.filter(l => l.source === 'hotspots');
@@ -165,6 +169,7 @@ function setTheme(theme) {
     const {roads} = anchors(S.map.getStyle().layers);
     S.roadLayers = roads.map(l => l.id);
     S.roadSource = roads[0].source;
+    if (S.view3d) add3DLayers();
   });
 }
 
@@ -359,6 +364,7 @@ function renderSources() {
 }
 
 function closeScenario() {
+  if (S.view3d) set3D(false);
   S.street = null;
   S.manual = [];
   $('scenario').hidden = true;
@@ -796,6 +802,7 @@ function run() {
     setData('section', fc([section]));
     setData('planted', fc(trees.map((t, i) => turf.point([t.lon, t.lat], {r: t.crown_diameter_m / 2, i}))));
     setData('shadows', fc(shadows));
+    if (S.view3d) setData('trees-3d', fc(trees3D(trees, P)));
     const len = Math.round(S.street.b - S.street.a), n = +$('trees').value;
     $('secLabel').textContent = `Section: ${len} m` + (S.street.b - S.street.a < S.street.length - 1 ? ` of ${Math.round(S.street.length)} m` : '');
     const treed = S.mode === 'even' ? S.placement.alreadyTreed || 0 : 0;
@@ -811,7 +818,11 @@ function run() {
   const points = currentPoints();
   if (!points.length) setStatus('No measurements at this time of day.', true);
   const b = S.map.getBounds(), padX = (b.getEast() - b.getWest()) * 0.25, padY = (b.getNorth() - b.getSouth()) * 0.25;
-  const view = [b.getWest() - padX, b.getSouth() - padY, b.getEast() + padX, b.getNorth() + padY];
+  let view = [b.getWest() - padX, b.getSouth() - padY, b.getEast() + padX, b.getNorth() + padY];
+  if (S.view3d && S.street) {  // a tilted view reaches to the horizon: rasterise only around the street
+    const [w, s, e, n] = turf.bbox(sectionLine(NG.projection(...S.cfg.center))), d = VIEW3D.radius_m / 111320;
+    view = [w - d * 1.6, s - d, e + d * 1.6, n + d];
+  }
   const canvas = S.map.getCanvas(), W = Math.min(900, Math.round(canvas.clientWidth * 0.75));
   const H = Math.max(1, Math.round((W * canvas.clientHeight) / canvas.clientWidth));
   worker.postMessage({id: ++S.job, points, origin: S.cfg.center, extent: S.extent, view, size: [W, H],
@@ -841,6 +852,94 @@ function showResult(st) {
   ];
   $('result').innerHTML = rows.map(([k, v, cls]) => `<dt>${k}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
     `<dt class="muted" style="grid-column:1/-1">Mean within ${S.model.street_corridor_m} m on both sides of the section</dt>`;
+}
+
+// ------------------------------------------------------------------ 3D street view (prototype)
+// Tilts the camera down into the selected street. Buildings are extruded from the basemap
+// (real height where known), trees become a trunk plus a crown of their real size.
+
+const VIEW3D = {pitch: 82, zoom: 19.6, radius_m: 300, default_building_m: 10};
+const TREE_COLOURS = {  // per tree icon style: [planted crown, existing crown], tiers = stepped fir
+  normal: {planted: '#37b24d', existing: '#82c91e'},
+  halloween: {planted: '#f76707', existing: '#845ef7'},
+  christmas: {planted: '#2b8a3e', existing: '#5c940d', tiers: true},
+};
+
+function set3D(on) {
+  if (on === S.view3d || (on && !S.street)) return;
+  S.view3d = on;
+  $('view3d').textContent = on ? 'Back to top-down map' : '3D street view';
+  $('view3d').classList.toggle('active', on);
+  const flat = ['planted', 'lyr-trees', 'hotspots', 'hotspot-labels'];
+  if (on) {
+    S.hiddenFor3D = flat.filter(id => S.map.getLayer(id) && S.map.getLayoutProperty(id, 'visibility') !== 'none');
+    S.hiddenFor3D.forEach(id => S.map.setLayoutProperty(id, 'visibility', 'none'));
+    S.map.setMaxPitch(85);
+    add3DLayers();
+    const st = S.street, P = NG.projection(...S.cfg.center), q = alongXY(st, (st.a + st.b) / 2);
+    S.map.easeTo({center: P.toLL(q.x, q.y), zoom: VIEW3D.zoom, pitch: VIEW3D.pitch,
+                  bearing: Math.atan2(q.tx, q.ty) / NG.DEG, duration: 1600});
+  } else {
+    (S.hiddenFor3D || []).forEach(id => S.map.getLayer(id) && S.map.setLayoutProperty(id, 'visibility', 'visible'));
+    for (const id of ['buildings-3d', 'trees-3d-existing', 'trees-3d-planted']) if (S.map.getLayer(id)) S.map.removeLayer(id);
+    S.map.easeTo({pitch: 0, bearing: 0, zoom: Math.min(S.map.getZoom(), 17.5), duration: 1200});
+    S.map.once('moveend', () => { if (!S.view3d) S.map.setMaxPitch(60); });
+  }
+  update();
+}
+
+function add3DLayers() {
+  const m = S.map, {firstLabel} = anchors(m.getStyle().layers);
+  if (!m.getSource('trees-3d')) m.addSource('trees-3d', {type: 'geojson', data: fc([])});
+  if (!m.getLayer('buildings-3d')) {
+    m.addLayer({id: 'buildings-3d', type: 'fill-extrusion', source: S.roadSource, 'source-layer': 'buildings', minzoom: 14,
+                paint: {...THEME_PAINT[S.theme]['buildings-3d'], 'fill-extrusion-opacity': 0.92,
+                        'fill-extrusion-height': ['coalesce', ['get', 'height'], VIEW3D.default_building_m],
+                        'fill-extrusion-base': ['coalesce', ['get', 'min_height'], 0]}}, firstLabel);
+  }
+  for (const [id, kind, opacity] of [['trees-3d-existing', 'existing', 0.85], ['trees-3d-planted', 'planted', 1]]) {
+    if (m.getLayer(id)) continue;
+    m.addLayer({id, type: 'fill-extrusion', source: 'trees-3d', filter: ['==', ['get', 'kind'], kind],
+                paint: {'fill-extrusion-color': ['get', 'color'], 'fill-extrusion-opacity': opacity,
+                        'fill-extrusion-base': ['get', 'base'], 'fill-extrusion-height': ['get', 'top']}}, firstLabel);
+  }
+}
+
+// Trunk and crown of every planted tree and of existing trees near the street, as extrusions.
+function trees3D(planted, P) {
+  const colours = TREE_COLOURS[S.iconTheme] || TREE_COLOURS.normal, out = [];
+  const disc = (x, y, r, n) => Array.from({length: n + 1}, (_, i) => {
+    const t = ((i % n) / n) * 2 * Math.PI;
+    return P.toLL(x + r * Math.cos(t), y + r * Math.sin(t));
+  });
+  const piece = (x, y, r, base, top, color, kind, n = 14) =>
+    out.push({type: 'Feature', properties: {base, top, color, kind}, geometry: {type: 'Polygon', coordinates: [disc(x, y, r, n)]}});
+  const tree = (x, y, height, crown, kind) => {
+    const r = crown / 2, crownBase = Math.max(1.5, height - crown), color = colours[kind];
+    piece(x, y, Math.max(0.2, crown * 0.04), 0, crownBase + 0.5, '#6b4f36', kind, 6);
+    if (colours.tiers) {  // stepped fir: three tiers getting narrower
+      const step = (height - crownBase) / 3;
+      for (let i = 0; i < 3; i++) piece(x, y, r * (1 - i * 0.3), crownBase + i * step, crownBase + (i + 1) * step, color, kind);
+    } else {  // round crown: slices following a sphere's profile
+      const slices = 5, sliceH = (height - crownBase) / slices;
+      for (let i = 0; i < slices; i++) {
+        const z = ((i + 0.5) / slices) * 2 - 1;  // -1 (bottom) .. 1 (top)
+        piece(x, y, r * Math.sqrt(1 - z * z * 0.85), crownBase + i * sliceH, crownBase + (i + 1) * sliceH, color, kind);
+      }
+    }
+  };
+  for (const t of planted) {
+    const {x, y} = P.toXY(t.lon, t.lat);
+    tree(x, y, t.height_m, t.crown_diameter_m, 'planted');
+  }
+  const st = S.street, mid = alongXY(st, (st.a + st.b) / 2), reach = VIEW3D.radius_m;
+  for (const t of S.existingTrees) {
+    const {x, y} = P.toXY(t.lon, t.lat);
+    if (Math.abs(x - mid.x) > reach || Math.abs(y - mid.y) > reach) continue;
+    const crown = 2 * t.r;
+    tree(x, y, Math.min(25, Math.max(4, crown * 1.4 + 2)), crown, 'existing');  // no heights in the inventory: estimate
+  }
+  return out;
 }
 
 // ------------------------------------------------------------------ helpers
@@ -925,6 +1024,7 @@ async function setIconTheme(name) {
     }
   }));
   S.map.triggerRepaint();  // updated images only reach the icon atlas on the next frame
+  if (S.view3d) update();  // 3D trees take their colours from the icon style
 }
 
 async function loadIcons() {

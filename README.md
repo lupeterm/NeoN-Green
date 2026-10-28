@@ -33,6 +33,13 @@ SunCalc load from unpkg, and the basemap is CARTO Positron.
 4. Read the result: the mean value within 10 m on both sides of the section, before and after,
    plus the strongest local cooling and the shaded area.
 
+**3D street view (prototype).** With a street selected, "3D street view" in the right panel
+tilts the camera into the street, looking along the section. Buildings are extruded from the
+basemap (real height where known, otherwise 10 m), and planted and nearby existing trees appear
+as a trunk with a crown of their real size, in the colours of the current tree style. Heights of
+existing trees are estimated from their crown, as the inventory has none. Drag with the right
+mouse button to look around; "Back to top-down map" returns to the plan view.
+
 The sun/moon button under the zoom controls switches between a light and a dark map, and the
 three buttons below it switch the tree icons between normal, Halloween and Christmas. It starts
 with the system setting and remembers the choice in the browser. Switching keeps the selected
