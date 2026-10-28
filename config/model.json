@@ -22,16 +22,16 @@
   "max_trees": 40,
   "shade": {
     "_about": "Felt temperature drop inside a crown shadow. Scaled by sun altitude; full effect from full_effect_sun_altitude_deg.",
-    "max_cooling_K": 10,
+    "max_cooling_C": 10,
     "full_effect_sun_altitude_deg": 50,
     "min_sun_altitude_deg": 3,
     "soft_edge_m": 1.5
   },
   "evapotranspiration": {
-    "_about": "Air cooling around each tree (Gaussian, sigma_m), saturating at max_total_K for many trees; scaled by night_factor after sunset.",
-    "per_tree_K": 0.8,
+    "_about": "Air cooling around each tree (Gaussian, sigma_m), saturating at max_total_C for many trees; scaled by night_factor after sunset.",
+    "per_tree_C": 0.8,
     "sigma_m": 15,
-    "max_total_K": 2.5,
+    "max_total_C": 2.5,
     "night_factor": 0.5
   },
   "grid": {

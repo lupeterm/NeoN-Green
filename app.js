@@ -220,8 +220,8 @@ async function loadHotspots() {
     const p = f.properties, li = document.createElement('li'), b = document.createElement('button');
     const name = document.createElement('span'), val = document.createElement('b');
     name.textContent = `${p.rang}. ${p.strasse}`;
-    val.textContent = `${signed(p.anomalie_K)} K`;
-    b.title = `${p.fahrten} rides by ${p.raeder} bikes, mean ${p.temperatur_mittel} °C (± ${p.fehler_K} K)`;
+    val.textContent = `${signed(p.anomalie_K)} °C`;
+    b.title = `${p.fahrten} rides by ${p.raeder} bikes, mean ${p.temperatur_mittel} °C (± ${p.fehler_K} °C)`;
     b.append(name, val);
     b.onclick = () => goToHotspot(f);
     li.append(b);
@@ -793,8 +793,8 @@ function showResult(st) {
   const rows = !st ? [['No values along the street', '']] : [
     ['Mean before', `${st.before.toFixed(1)} ${unit}`],
     ['Mean with trees', `${st.after.toFixed(1)} ${unit}`],
-    ['Change', `${signed(st.after - st.before)} K`, 'big'],
-    ['Strongest cooling', `${signed(st.maxCooling)} K`],
+    ['Change', `${signed(st.after - st.before)} °C`, 'big'],
+    ['Strongest cooling', `${signed(st.maxCooling)} °C`],
     ['Shaded', `${Math.round(st.shadedArea).toLocaleString('en')} of ${Math.round(st.area).toLocaleString('en')} m²`],
     ['Cost (assumed)', `€${(n * S.model.cost_per_tree_eur).toLocaleString('en')}`],
   ];

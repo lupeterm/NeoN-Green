@@ -148,9 +148,9 @@ use all points everywhere. Dense data such as bike tracks only uses points withi
 
 * **Shade.** Each crown is a sphere whose shadow is projected along the sun ray: an ellipse,
   offset away from the sun and stretched at low sun. Inside it the felt temperature drops by
-  up to `shade.max_cooling_K`, scaled by sun altitude. No effect when the sun is below the horizon.
+  up to `shade.max_cooling_C`, scaled by sun altitude. No effect when the sun is below the horizon.
 * **Evapotranspiration.** Each tree cools the air around it by a Gaussian bump. Several trees
-  add up but saturate at `evapotranspiration.max_total_K`, and the effect is weaker at night.
+  add up but saturate at `evapotranspiration.max_total_C`, and the effect is weaker at night.
 
 Known simplifications: buildings neither cast shadows nor block tree shadows, road widths are
 estimated from the road class, and wind and surfaces are ignored. The default values are
@@ -220,7 +220,7 @@ python3 scripts/fetch_atrai.py --from 2026-06-01 --to 2026-10-26 --out /tmp/atra
 python3 scripts/find_hotspots.py /tmp/atrai_jun_oct.csv
 ```
 
-The effects are small (+0.2 to +0.7 K, standard error 0.1 to 0.3 K) and come from mobile
+The effects are small (+0.2 to +0.7 °C, standard error 0.1 to 0.3 °C) and come from mobile
 low-cost sensors: treat the list as candidates to look at, not as measured heat islands.
 
 ## Data and licences
