@@ -51,6 +51,8 @@
     "crown_overlap": 0.7,
     "_existing_tree_spacing": "Distance to an existing tree as a fraction of both crown radii; 1 = crowns may not overlap.",
     "existing_tree_spacing": 1.0,
+    "_existing_trees_claim_side": "Evenly spaced trees: an existing tree within half a spacing claims its side of the street, so the new tree goes to the other side (or is skipped if both sides have trees).",
+    "existing_trees_claim_side": true,
     "avoid_buildings": true,
     "avoid_water": true,
     "default_existing_crown_m": 4,

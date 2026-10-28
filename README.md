@@ -40,7 +40,10 @@ street, the trees and all layers.
 
 Trees are only planted where there is room: not on a roadway (width estimated from the road
 class), not inside a building or water, and never overlapping the crown of an existing tree
-(`placement.existing_tree_spacing`; new trees may overlap each other slightly, `crown_overlap`). Evenly spaced trees alternate sides. A blocked spot first moves away from the
+(`placement.existing_tree_spacing`; new trees may overlap each other slightly, `crown_overlap`). Evenly spaced trees alternate sides, but an existing tree claims its side of the street for
+the stretch around it (half a spacing either way): the new tree goes to the other side, or the
+spot is skipped and counted as "already treed" when both sides have trees
+(`placement.existing_trees_claim_side`). A blocked spot first moves away from the
 centre line, up to `placement.max_offset_m` but never past a building or water, and then
 slides along the street until it fits. The panel says how many of the requested trees fit; a click by hand that
 does not fit says why.

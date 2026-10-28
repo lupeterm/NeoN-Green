@@ -421,35 +421,70 @@ function currentTrees(P) {
   const withSize = t => ({lon: t.lon, lat: t.lat, height_m: size.height_m, crown_diameter_m: size.crown_diameter_m});
   if (S.mode === 'manual') return S.manual.map(withSize);
   const n = +$('trees').value, key = [S.street.a, S.street.b, n, $('preset').value, S.existingTrees.length].join('|');
-  if (S.placement.key !== key) S.placement = {key, trees: placeEvenly(n, size.crown_diameter_m / 2, P).map(withSize)};
+  if (S.placement.key !== key) {
+    const {trees, alreadyTreed} = placeEvenly(n, size.crown_diameter_m / 2, P);
+    S.placement = {key, trees: trees.map(withSize), alreadyTreed};
+  }
   return S.placement.trees;
 }
 
 // Evenly spaced on alternating sides. A blocked spot first moves away from the centre line
 // (real streets are often wider than their class suggests, e.g. tram tracks in a pedestrian
 // zone) but never past a building or water, then slides along the street until one fits.
+//
+// An existing tree claims its side of the street for the stretch around it: a slot whose side
+// already has a tree within half a spacing goes to the other side, and is skipped when both
+// sides have one (placement.existing_trees_claim_side).
 function placeEvenly(n, r, P) {
   const st = S.street, pl = S.model.placement, placed = [];
   const start = (st.halfWidth || pl.path_offset_m) + pl.clearance_m + 0.5;
   const spacing = (st.b - st.a) / Math.max(n, 1), reach = Math.max(2, spacing / 2);
+  const existing = pl.existing_trees_claim_side ? existingAlongStreet(st, pl.max_offset_m) : [];
+  let alreadyTreed = 0;
   for (let i = 0; i < n; i++) {
-    const d0 = st.a + (i + 0.5) * spacing, sides = i % 2 ? [-1, 1] : [1, -1];
+    const d0 = st.a + (i + 0.5) * spacing;
+    const claimed = (side, d) => existing.some(e => e.side === side && Math.abs(e.at - d) <= spacing / 2);
+    const sides = (i % 2 ? [-1, 1] : [1, -1]).filter(side => !claimed(side, d0));
+    if (!sides.length) { alreadyTreed++; continue; }
     search: for (let k = 0; k <= reach; k++) {
       for (const d of k ? [d0 + k, d0 - k] : [d0]) {
         if (d < st.a || d > st.b) continue;
         const q = alongXY(st, d);
         for (const side of sides) {
+          if (claimed(side, d)) continue;  // sliding along must not walk into an existing tree's stretch
           for (let off = start; off <= Math.max(start, pl.max_offset_m); off += 0.5) {
             const p = {x: q.x - q.ty * side * off, y: q.y + q.tx * side * off};
             const why = blocked(p, r, placed, st.obstacles);
-            if (!why) { placed.push(p); break search; }
+            if (!why) {
+              const where = relate(st, p.x, p.y);  // on bends the point can project onto another stretch or side
+              if (claimed(where.side, where.at)) break;
+              placed.push(p);
+              break search;
+            }
             if (why === 'building' || why === 'water') break;
           }
         }
       }
     }
   }
-  return placed.map(p => { const [lon, lat] = P.toLL(p.x, p.y); return {lon, lat}; });
+  return {trees: placed.map(p => { const [lon, lat] = P.toLL(p.x, p.y); return {lon, lat}; }), alreadyTreed};
+}
+
+// Existing trees beside the selected street: distance along it and side (+1 left, -1 right),
+// for trees up to maxOffset (plus their crown) from the centre line.
+function existingAlongStreet(st, maxOffset) {
+  const out = [];
+  for (const t of st.obstacles.trees) {
+    const w = relate(st, t.x, t.y);
+    if (Math.abs(w.lateral) <= maxOffset + t.r) out.push(w);
+  }
+  return out;
+}
+
+// Position of (x, y) relative to a measured street: distance along it, signed lateral offset, side.
+function relate(st, x, y) {
+  const at = locate(st, x, y), q = alongXY(st, at), lateral = (x - q.x) * -q.ty + (y - q.y) * q.tx;
+  return {at, lateral, side: Math.sign(lateral) || 1};
 }
 
 function toggleManualTree(e) {
@@ -720,7 +755,10 @@ function run() {
     setData('shadows', fc(shadows));
     const len = Math.round(S.street.b - S.street.a), n = +$('trees').value;
     $('secLabel').textContent = `Section: ${len} m` + (S.street.b - S.street.a < S.street.length - 1 ? ` of ${Math.round(S.street.length)} m` : '');
-    $('treeLabel').textContent = !n ? 'none' : trees.length === n ? `${n} · every ${Math.round(len / n)} m` : `${trees.length} of ${n} fit`;
+    const treed = S.mode === 'even' ? S.placement.alreadyTreed || 0 : 0;
+    $('treeLabel').textContent = !n ? 'none'
+      : trees.length === n ? `${n} · every ${Math.round(len / n)} m`
+      : `${trees.length} of ${n}` + (treed ? ` · ${treed} spot${treed > 1 ? 's' : ''} already treed` : ' fit');
     $('manualCount').textContent = `${S.manual.length} ${S.manual.length === 1 ? 'tree' : 'trees'} placed`;
     scenario = {trees, section: section.geometry.coordinates, sun};
   } else {
