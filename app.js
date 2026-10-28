@@ -731,7 +731,8 @@ async function loadOverlay(o, {refresh = false} = {}) {
   S.extent = [Math.min(...lons) - pad, Math.min(...lats) - pad, Math.max(...lons) + pad, Math.max(...lats) + pad];
   if (!refresh && records[0].date) $('date').value = records[0].date;
 
-  $('ramp').style.background = `linear-gradient(90deg, ${RAMP.join(',')})`;
+  S.ramp = o.ramp || RAMP;
+  $('ramp').style.background = `linear-gradient(90deg, ${S.ramp.join(',')})`;
   $('dmin').textContent = S.domain[0].toFixed(0);
   $('dmax').textContent = S.domain[1].toFixed(0);
   $('unit').textContent = o.unit || '';
@@ -814,7 +815,7 @@ function run() {
       : trees.length === n ? `${n} · every ${Math.round(len / n)} m`
       : `${trees.length} of ${n}` + (treed ? ` · ${treed} spot${treed > 1 ? 's' : ''} already treed` : ' fit');
     $('manualCount').textContent = `${S.manual.length} ${S.manual.length === 1 ? 'tree' : 'trees'} placed`;
-    scenario = {trees, section: section.geometry.coordinates, sun};
+    scenario = {trees, section: section.geometry.coordinates, sun, quantity: S.overlay.quantity || 'temperature', canyonShare: canyonShare()};
   } else {
     for (const id of ['section', 'planted', 'shadows']) setData(id, fc([]));
   }
@@ -830,7 +831,7 @@ function run() {
   const canvas = S.map.getCanvas(), W = Math.min(900, Math.round(canvas.clientWidth * 0.75));
   const H = Math.max(1, Math.round((W * canvas.clientHeight) / canvas.clientWidth));
   worker.postMessage({id: ++S.job, points, origin: S.cfg.center, extent: S.extent, view, size: [W, H],
-                      domain: S.domain, ramp: RAMP, params: S.model, scenario});
+                      domain: S.domain, ramp: S.ramp || RAMP, params: S.model, scenario, interpolation: S.overlay.interpolation});
 }
 
 worker.onmessage = ({data}) => {
@@ -846,16 +847,60 @@ worker.onmessage = ({data}) => {
 };
 
 function showResult(st) {
-  const unit = S.overlay.unit || '';
-  const rows = !st ? [['No values along the street', '']] : [
-    ['Mean before', `${st.before.toFixed(1)} ${unit}`],
-    ['Mean with trees', `${st.after.toFixed(1)} ${unit}`],
-    ['Change', `${signed(st.after - st.before)} °C`, 'big'],
-    ['Strongest cooling', `${signed(st.maxCooling)} °C`],
-    ['Shaded', `${Math.round(st.shadedArea).toLocaleString('en')} of ${Math.round(st.area).toLocaleString('en')} m²`],
-  ];
+  const unit = S.overlay.unit || '', quantity = S.overlay.quantity || 'temperature';
+  const m2 = v => Math.round(v).toLocaleString('en');
+  let rows, note = '';
+  if (!st) {
+    rows = [['No values along the street', '']];
+  } else if (quantity === 'pm') {
+    const share = S.canyon?.share ?? 0;
+    rows = [
+      ['Mean before', `${st.before.toFixed(1)} ${unit}`],
+      ['Mean with trees', `${st.after.toFixed(1)} ${unit}`],
+      ['Change', `${signed(st.after - st.before)} ${unit} (${signed(st.pct)} %)`, 'big'],
+      ['Street type', share >= 0.5 ? `street canyon (${Math.round(share * 100)} % of the section)`
+                                   : `open street (canyon: ${Math.round(share * 100)} %)`],
+      ['Crown cover', `${Math.round(st.coverage * 100)} % of the street`],
+    ];
+    note = 'In street canyons, tree crowns slow the air exchange and raise particle levels; on open streets they remove a little by deposition.';
+  } else if (quantity === 'noise') {
+    rows = [
+      ['Mean before', `${st.before.toFixed(1)} ${unit}`],
+      ['Mean with trees', `${st.after.toFixed(1)} ${unit}`],
+      ['Change', `${signed(st.after - st.before)} ${unit}`, 'big'],
+    ];
+    note = 'Rows of street trees hardly reduce traffic noise. Measurable reductions need dense tree belts about 15–20 m deep.';
+  } else {
+    rows = [
+      ['Mean before', `${st.before.toFixed(1)} ${unit}`],
+      ['Mean with trees', `${st.after.toFixed(1)} ${unit}`],
+      ['Change', `${signed(st.after - st.before)} °C`, 'big'],
+      ['Strongest cooling', `${signed(st.maxCooling)} °C`],
+      ['Shaded', `${m2(st.shadedArea)} of ${m2(st.area)} m²`],
+    ];
+  }
   $('result').innerHTML = rows.map(([k, v, cls]) => `<dt>${k}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
-    `<dt class="muted" style="grid-column:1/-1">Mean within ${S.model.street_corridor_m} m on both sides of the section</dt>`;
+    `<dt class="muted" style="grid-column:1/-1">Mean within ${S.model.street_corridor_m} m on both sides of the section</dt>` +
+    (note ? `<dt class="muted" style="grid-column:1/-1">${note}</dt>` : '');
+}
+
+// Share of the section with buildings close on both sides (a street canyon), cached per section.
+function canyonShare() {
+  const st = S.street, hw = S.model.pollution?.canyon_max_halfwidth_m ?? 15, key = `${st.name}|${st.a}|${st.b}`;
+  if (S.canyon?.key === key) return S.canyon.share;
+  const inBuilding = (x, y) => st.obstacles.buildings.some(b => b.kind !== 'water'
+    && x >= b.box[0] && x <= b.box[2] && y >= b.box[1] && y <= b.box[3] && NG.inPolygon(x, y, b.rings));
+  let n = 0, both = 0;
+  for (let d = st.a; d <= st.b; d += 5) {
+    const q = alongXY(st, d), side = s => {
+      for (let off = 2; off <= hw; off += 1) if (inBuilding(q.x - q.ty * s * off, q.y + q.tx * s * off)) return true;
+      return false;
+    };
+    n++;
+    if (side(1) && side(-1)) both++;
+  }
+  S.canyon = {key, share: n ? both / n : 0};
+  return S.canyon.share;
 }
 
 // ------------------------------------------------------------------ 3D street view (prototype)

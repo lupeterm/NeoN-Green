@@ -1,4 +1,4 @@
-// Tree cooling model, shared by app.js (shadow outlines) and worker.js (grid).
+// Tree effect model (heat, particulate matter, noise), shared by app.js and worker.js.
 // Deliberately simple and explainable; every number comes from config/model.json.
 //
 //   ΔT(x, y) = − shade(x, y) · max_cooling_C · sunFactor              (crown shadow, felt temperature)
@@ -74,7 +74,17 @@
     return {dT: -(p.shade.max_cooling_C * f.shade * shade + etCooling), shade: shade * (f.shade > 0 ? 1 : 0)};
   }
 
-  // ---- small geometry helpers (local metres), shared by app.js and worker.js
+  // Particulate matter: relative change (%) of the street's concentration caused by new trees.
+  // coverage = share of the street corridor under new crowns (0..1); canyonShare = share of the
+  // section with buildings close on both sides (0..1). In street canyons trees slow the air
+  // exchange and raise concentrations; on open streets they remove a little by deposition.
+  // Both effects scale linearly with crown cover (a simplification, see config/model.json sources).
+  function pollutionChangePct(coverage, canyonShare, p) {
+    const pp = p.pollution;
+    return coverage * (canyonShare * pp.canyon_increase_pct - (1 - canyonShare) * pp.deposition_pct_full_cover);
+  }
+
+    // ---- small geometry helpers (local metres), shared by app.js and worker.js
 
   function distToPolyline(x, y, pts) {
     let best = Infinity;
@@ -98,5 +108,5 @@
     return inside;
   }
 
-  root.NG = {DEG, projection, sunFactors, shadowEllipse, ellipseRing, treeEffect, distToPolyline, inPolygon};
+  root.NG = {DEG, projection, sunFactors, shadowEllipse, ellipseRing, treeEffect, pollutionChangePct, distToPolyline, inPolygon};
 })(self);
