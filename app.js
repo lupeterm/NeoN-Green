@@ -588,6 +588,7 @@ function setupDataLayers() {
 }
 
 async function showLayer(l, on) {
+  if (l.type === 'table') return showTable(l, on);
   const id = `lyr-${l.id}`;
   $(`legend-${l.id}`).hidden = !on || !l.value;
   if (!on) { if (S.map.getLayer(id)) S.map.setLayoutProperty(id, 'visibility', 'none'); return; }
@@ -602,11 +603,39 @@ async function showLayer(l, on) {
     }
     if (S.map.getLayer(id)) return;  // toggled twice while loading
     S.map.addSource(id, {type: 'geojson', data});
-    S.map.addLayer(layerStyle(l, id), 'section');
+    S.map.addLayer({...layerStyle(l, id), ...(l.minzoom ? {minzoom: l.minzoom} : {})}, 'section');
     S.map.on('mousemove', id, e => tooltip(l, e));
     S.map.on('mouseleave', id, () => S.popup.remove());
   }
   S.map.setLayoutProperty(id, 'visibility', 'visible');
+  if (l.fitOnShow) {  // data far outside the current view, e.g. regional sites
+    S.map.fitBounds(turf.bbox(await layerData(l)), {padding: {top: 80, bottom: 80, left: 330, right: 80}, maxZoom: 14, duration: 800});
+  }
+}
+
+// City-wide figures without locations: outline the city and show the table in the panel.
+async function showTable(l, on) {
+  const box = $(`legend-${l.id}`);
+  box.hidden = !on;
+  if (!S.map.getSource('city-outline') && S.cfg.cityBoundary) {
+    S.map.addSource('city-outline', {type: 'geojson', data: S.cfg.cityBoundary});
+    S.map.addLayer({id: 'city-outline', type: 'line', source: 'city-outline',
+                    paint: {'line-color': '#1c7ed6', 'line-width': 2.5, 'line-dasharray': [3, 2]}}, 'section');
+  }
+  const anyTable = (S.cfg.layers || []).some(x => x.type === 'table' && !$(`legend-${x.id}`).hidden);
+  if (S.map.getLayer('city-outline')) S.map.setLayoutProperty('city-outline', 'visibility', anyTable ? 'visible' : 'none');
+  if (!on || box.dataset.loaded) return;
+  try {
+    const t = await layerData(l);
+    const cell = v => `<td>${typeof v === 'number' ? v.toLocaleString('en') : v ?? ''}</td>`;
+    box.innerHTML = `<p class="muted"><strong>${t.title}</strong></p><div class="table-wrap"><table class="data-table">
+      <thead><tr>${t.columns.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+      <tbody>${t.rows.map(r => `<tr>${r.map(cell).join('')}</tr>`).join('')}</tbody></table></div>
+      ${t.note ? `<p class="muted">${t.note}</p>` : ''}`;
+    box.dataset.loaded = '1';
+  } catch (e) {
+    setStatus(`“${l.label}” is not available: ${e.message}`, true);
+  }
 }
 
 function layerData(l) {
@@ -630,7 +659,7 @@ function layerStyle(l, id) {
   }
   const radius = crown
     ? metres(['/', ['to-number', ['get', l.crownDiameterField], S.model.placement.default_existing_crown_m], 2], 1.5)
-    : ['interpolate', ['linear'], ['zoom'], 12, 2, 18, 7];
+    : ['interpolate', ['linear'], ['zoom'], 12, (l.radius || [2, 7])[0], 18, (l.radius || [2, 7])[1]];
   return {id, type: 'circle', source: id, paint: {'circle-color': color, 'circle-radius': radius,
           'circle-opacity': crown ? 0.45 : 0.85, 'circle-stroke-color': crown ? '#1b5e20' : '#fff', 'circle-stroke-width': crown ? 0.6 : 0.8}};
 }
@@ -656,7 +685,8 @@ function tooltip(l, e) {
 function pretty(v) {
   if (typeof v === 'number' || /^\s*-?\d+(\.\d+)?\s*$/.test(v)) {
     const n = +v;
-    return (Math.abs(n) >= 100 ? Math.round(n) : +n.toFixed(2)).toLocaleString('en');
+    if (Math.abs(n) < 10000) return String(Math.abs(n) >= 100 ? Math.round(n) : +n.toFixed(2));  // years, small counts: no separator
+    return Math.round(n).toLocaleString('en');
   }
   return String(v).replace(/^\[|\]$/g, '').replace(/'/g, '');  // "['A', 'B']" -> "A, B"
 }

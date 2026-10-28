@@ -57,6 +57,11 @@
     .seg input { display: none; }
     .seg label:has(input:checked) { background: var(--accent); color: #fff; font-weight: 600; }
     #layers { margin-top: 4px; border-top: 1px solid var(--line); }
+    .table-wrap { overflow-x: auto; margin-top: 4px; }
+    .data-table { border-collapse: collapse; font-size: 11px; width: 100%; font-variant-numeric: tabular-nums; }
+    .data-table th, .data-table td { padding: 2px 4px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    .data-table th:first-child, .data-table td:first-child { text-align: left; white-space: normal; }
+    .data-table th { color: var(--muted); font-weight: 600; }
     .maplibregl-popup-content dl { margin: 6px 0 0; padding: 0; border: 0; font-size: 12px; }
     #hint { color: var(--err); min-height: 0; }
     .ticks { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }

@@ -58,11 +58,16 @@ model.js            tree cooling model (shared by app and worker)
 config/overlays.json  heat datasets ("overlays") and extra map layers ("layers")
 config/model.json     model and tree placement parameters
 data/heat_sensors.csv sensor.community temperatures, Heilbronn, 2 July 2025, 10-minute means
-data/trees_hn_innenstadt_2017.geojson  tree inventory of the city centre, 2017
+data/trees_hn_2026.geojson  city tree inventory, 1 Jan 2026 (43,031 trees)
+data/water_hardness.geojson, traffic_counter.geojson, landfills.geojson, biomass_plants.geojson,
+data/climate_table.json, water_supply_table.json, city_boundary.geojson
+                      environment layers from opendata.heilbronn.de (see "Environment data")
 data/atrai_bike.csv   senseBox:bike measurements, Heilbronn, 1–7 Sep 2026 (snapshot)
 data/hotspots.geojson five warm street spots found in the bike rides (list in the left panel)
 scripts/fetch_atrai.py    regenerates data/atrai_bike.csv for any period
 scripts/find_hotspots.py  regenerates data/hotspots.geojson
+scripts/fetch_opendata.py    mirrors the portal's environment datasets into opendata/ (git-ignored)
+scripts/prepare_opendata.py  builds the environment layers and the tree file from that mirror
 ```
 
 ## Plugging in data
@@ -113,8 +118,12 @@ Entries in `layers` are drawn as they are, without interpolation. Each is a GeoJ
 }
 ```
 
-* `type` is `line` or `circle`. With `value`, features are coloured along `ramp` over `domain`
-  and a legend appears; without it they use `color`.
+* `type` is `line`, `circle` or `table`. With `value`, features are coloured along `ramp` over
+  `domain` and a legend appears; without it they use `color`. A `table` layer points to a JSON
+  file with `title`, `columns`, `rows` and `note`: the table appears in the panel and the city
+  outline (`cityBoundary`) on the map, for city-wide figures without locations.
+* `radius` ([at zoom 12, at zoom 18], px) sizes circles, `minzoom` hides a layer below a zoom
+  level, and `"fitOnShow": true` zooms to the data when the layer is chosen.
 * Layers without `group` get a checkbox, layers sharing a `group` share one dropdown.
 * `crownDiameterField` draws circles to scale in metres, or the image in `icon` (see below). `"obstacle": true` additionally makes
   these points block tree placement, as the existing trees do.
@@ -157,6 +166,35 @@ estimated from the road class, and wind and surfaces are ignored. The default va
 plausible orders of magnitude for Central European summer days, not calibrated results. Tune
 them in `config/model.json`, or replace `model.js` with a better model behind the same
 `treeEffect()` function.
+
+## Environment data
+
+The group "Environment data (opendata.heilbronn.de)" holds the portal's datasets on pollution,
+climate and related topics that come with files:
+
+| Option | Data | How it is placed |
+|---|---|---|
+| Water hardness & quality by street | hardness per street (2020) and the water analysis of each hardness zone | streets matched by name to OpenStreetMap |
+| Traffic counting station | vehicles per day 2018–2023, Karlsruher Straße / Theresienstraße (sum of 6 detectors) | junction from OpenStreetMap |
+| Landfills | the 3 landfills in the city, class and status | located by name, approximate |
+| Biomass heating plants (region) | 6 sites in Heilbronn-Franken with output, wood use and avoided CO₂ (LUBW 2016) | located by address |
+| Climate 1961–2025 | hot days, tropical nights, frost days and mean temperature per decade and year | city-wide table |
+| Water supply 2004–2016 | abstraction, delivery, use per person, pipe losses | city-wide table |
+
+Not available as files on the portal: air quality (Immissionsdaten, links to the LUBW station
+page), the climate profile and weather warnings (links to LUBW and DWD), and CO₂ emissions and
+traffic load (linked tables of the Statistisches Landesamt, which moved to GENESIS-Online).
+
+To refresh, mirror the portal and rebuild the files; coordinates from OpenStreetMap are cached
+in `opendata/_lookups.json`:
+
+```bash
+python3 scripts/fetch_opendata.py
+```
+
+```bash
+python3 scripts/prepare_opendata.py
+```
 
 ## Bike data
 
@@ -228,7 +266,8 @@ low-cost sensors: treat the list as candidates to look at, not as measured heat 
 | Data | Source | Licence |
 |---|---|---|
 | `data/heat_sensors.csv` | [sensor.community](https://sensor.community) archive | ODbL |
-| `data/trees_hn_innenstadt_2017.geojson` | Stadt Heilbronn tree inventory, city centre, 2017 | not stated in the file |
+| `data/trees_hn_2026.geojson` | [Stadt Heilbronn, Baumkataster](https://opendata.heilbronn.de/dataset/baumkataster), 1 Jan 2026 | DL-DE BY 2.0 |
+| Environment layers | [opendata.heilbronn.de](https://opendata.heilbronn.de) (biomass plants: LUBW); street geometry and locations © OpenStreetMap contributors | CC BY 4.0 / DL-DE BY 2.0; geometry ODbL |
 | Bike layers | [atrai API](https://api.atrai.bike), senseBox:bike campaign Heilbronn | not stated on the page |
 | senseBox:bike (live) | [openSenseMap](https://opensensemap.org), grouptag `heilbronn` | PDDL |
 | `data/atrai_bike.csv` | [openSenseMap](https://opensensemap.org) archive, grouptag `heilbronn` | PDDL |
