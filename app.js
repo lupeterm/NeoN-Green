@@ -12,7 +12,7 @@ const THEME_PAINT = {  // our own layers that need different colours on a dark m
   dark: {shadows: {'fill-color': '#000000', 'fill-opacity': 0.5}, section: {'line-opacity': 0.45},
          'buildings-3d': {'fill-extrusion-color': '#3d4148'}},
 };
-const OWN_SOURCES = ['heat', 'section', 'shadows', 'planted', 'lasso', 'hotspots', 'trees-3d', 'street-views'];
+const OWN_SOURCES = ['heat', 'section', 'shadows', 'planted', 'lasso', 'hotspots', 'trees-3d'];
 const RAMP = ['#ffffcc', '#ffeda0', '#fed976', '#feb24c', '#fd8d3c', '#fc4e2a', '#e31a1c', '#b10026'];
 const STITCH_TOLERANCE_M = 2;
 const MIN_SELECT_ZOOM = 14.5;
@@ -20,7 +20,6 @@ const HOTSPOT_ZOOM = 17;
 const HOTSPOT_SECTION_M = 200;  // section preselected around a hotspot
 const STREET_HANDOFF_KEY = 'ng-street-handoff';  // trees planted in street.html
 const STREET_VIEW_CFG = 'config/street.json';     // photo views of street.html
-const VIEW_CONE_M = 30;
 
 const $ = id => document.getElementById(id);
 const S = {
@@ -122,18 +121,13 @@ function setupMap() {
     'text-field': ['to-string', ['get', 'rang']], 'text-font': font, 'text-size': 11, 'text-allow-overlap': true},
     paint: {'text-color': '#fff'}});
 
-  m.addSource('street-views', {type: 'geojson', data: fc([])});
-  m.addLayer({id: 'street-views', type: 'fill', source: 'street-views', paint: {'fill-color': '#1c7ed6', 'fill-opacity': 0.22}}, 'hotspots');
-  m.addLayer({id: 'street-views-line', type: 'line', source: 'street-views', paint: {'line-color': '#1c7ed6', 'line-width': 1.5}}, 'hotspots');
-
   S.popup = new maplibregl.Popup({closeButton: false, closeOnClick: false, offset: 10, maxWidth: '260px'});
   m.on('moveend', update);
   m.on('click', onClick);
   m.on('mousemove', e => {
     if (S.draw.active) return;
     const layers = S.street && S.mode === 'manual' ? ['planted'] : S.roadLayers;
-    const hit = m.queryRenderedFeatures(e.point, {layers: ['street-views']}).length ||
-                m.getZoom() >= MIN_SELECT_ZOOM && m.queryRenderedFeatures(box(e.point, 10), {layers}).length;
+    const hit = m.getZoom() >= MIN_SELECT_ZOOM && m.queryRenderedFeatures(box(e.point, 10), {layers}).length;
     m.getCanvas().style.cursor = hit ? 'pointer' : S.street && S.mode === 'manual' ? 'copy' : '';
   });
   for (const [down, move, up] of [['mousedown', 'mousemove', 'mouseup'], ['touchstart', 'touchmove', 'touchend']]) {
@@ -164,8 +158,6 @@ function setupUi() {
 function onClick(e) {
   if (S.draw.active) return;
   if (S.street && S.mode === 'manual') return toggleManualTree(e);
-  const view = S.map.queryRenderedFeatures(e.point, {layers: ['street-views']})[0];
-  if (view) return openStreetView(view.properties.id);
   pickStreet(e);
 }
 
@@ -233,64 +225,23 @@ class ThemeControl {
 }
 
 // ------------------------------------------------------------------ street view (street.html)
-// A flag at the road centre where the street view stands, and a cone per view showing where it looks.
+// A flag at the road centre where the street view stands; clicking it opens the street view.
 
 async function setupStreetView() {
   try { S.streetView = await getJSON(STREET_VIEW_CFG); } catch { return; }
   const cfg = S.streetView, views = cfg.centre_views;
-  setData('street-views', fc(views.map(viewCone)));
   const at = [views.reduce((a, v) => a + v.lon, 0) / views.length, views.reduce((a, v) => a + v.lat, 0) / views.length];
   const el = document.createElement('button');
   el.className = 'flag';
-  el.title = `Street view: ${cfg.street}`;
+  el.title = `Open the street view of ${cfg.street}`;
   el.innerHTML = '<svg viewBox="0 0 24 32" width="24" height="32"><path d="M4 2v28" stroke="#1d2329" stroke-width="2.5" stroke-linecap="round"/>' +
                  '<path d="M5 3h15l-4 5 4 5H5z" fill="#1c7ed6" stroke="#fff" stroke-width="1"/></svg><span>Street view</span>';
-  const popup = new maplibregl.Popup({offset: 28, maxWidth: '300px'}).setDOMContent(streetViewCard(cfg));
-  S.flag = new maplibregl.Marker({element: el, anchor: 'bottom-left', offset: [-4, 0]}).setLngLat(at).setPopup(popup).addTo(S.map);
-  el.addEventListener('click', e => e.stopPropagation());
+  el.addEventListener('click', e => { e.stopPropagation(); location.href = 'street.html'; });
+  S.flag = new maplibregl.Marker({element: el, anchor: 'bottom-left', offset: [-4, 0]}).setLngLat(at).addTo(S.map);
   $('findStreetView').onclick = e => {
     e.preventDefault();
     S.map.flyTo({center: at, zoom: Math.max(S.map.getZoom(), 17.5)});
-    if (!popup.isOpen()) S.flag.togglePopup();
   };
-}
-
-function streetViewCard(cfg) {
-  const card = document.createElement('div'), title = document.createElement('b'), row = document.createElement('div');
-  title.textContent = `${cfg.street}: street view`;
-  row.className = 'thumbs';
-  for (const v of cfg.centre_views) {
-    const a = document.createElement('a'), img = document.createElement('img'), cap = document.createElement('span');
-    a.href = `street.html?view=${v.id}`;
-    img.src = v.image;
-    img.alt = cap.textContent = v.label;
-    a.append(img, cap);
-    row.append(a);
-  }
-  const note = document.createElement('p');
-  note.className = 'muted';
-  note.textContent = 'Plant trees and place cars in the street, seen from the centre of the road. The blue cones show where each view looks.';
-  card.append(title, row, note);
-  return card;
-}
-
-// Ground area a view shows, as a cone of VIEW_CONE_M from the camera. Same calibration as
-// camera() in street.js: focal length in pixels, direction from the street's vanishing point.
-function viewCone(v) {
-  const [W, H] = v.image_size, f = v.focal_px;
-  const pitch = Math.atan((H / 2 - v.horizon_y) / f), yaw = Math.atan(((v.vanishing_x - W / 2) * Math.cos(pitch)) / f);
-  const bearing = v.street_bearing_deg * NG.DEG - yaw, half = Math.atan(W / 2 / f);
-  const kx = 111320 * Math.cos(v.lat * NG.DEG), ring = [[v.lon, v.lat]];
-  for (let i = 0; i <= 8; i++) {
-    const b = bearing - half + (i / 8) * 2 * half;
-    ring.push([v.lon + (Math.sin(b) * VIEW_CONE_M) / kx, v.lat + (Math.cos(b) * VIEW_CONE_M) / 111320]);
-  }
-  ring.push([v.lon, v.lat]);
-  return turf.polygon([ring], {id: v.id, label: v.label});
-}
-
-function openStreetView(id) {
-  location.href = id ? `street.html?view=${id}` : 'street.html';
 }
 
 // ------------------------------------------------------------------ street selection: click
