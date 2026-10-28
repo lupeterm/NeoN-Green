@@ -1,0 +1,152 @@
+{
+ "car-front-1": {
+  "kind": "car",
+  "side": "front",
+  "image": "data/street/sprites/car-front-1.png",
+  "ground": [
+   219.0,
+   337
+  ],
+  "px_per_m": 243.33
+ },
+ "car-front-2": {
+  "kind": "car",
+  "side": "front",
+  "image": "data/street/sprites/car-front-2.png",
+  "ground": [
+   187.0,
+   314
+  ],
+  "px_per_m": 207.78
+ },
+ "car-front-3": {
+  "kind": "car",
+  "side": "front",
+  "image": "data/street/sprites/car-front-3.png",
+  "ground": [
+   179.0,
+   317
+  ],
+  "px_per_m": 198.89
+ },
+ "car-rear-1": {
+  "kind": "car",
+  "side": "rear",
+  "image": "data/street/sprites/car-rear-1.png",
+  "ground": [
+   188.0,
+   328
+  ],
+  "px_per_m": 208.89
+ },
+ "car-rear-2": {
+  "kind": "car",
+  "side": "rear",
+  "image": "data/street/sprites/car-rear-2.png",
+  "ground": [
+   171.0,
+   306
+  ],
+  "px_per_m": 190.0
+ },
+ "car-rear-3": {
+  "kind": "car",
+  "side": "rear",
+  "image": "data/street/sprites/car-rear-3.png",
+  "ground": [
+   175.0,
+   320
+  ],
+  "px_per_m": 194.44
+ },
+ "car-side-1": {
+  "kind": "car",
+  "side": "side",
+  "image": "data/street/sprites/car-side-1.png",
+  "ground": [
+   404.0,
+   300
+  ],
+  "px_per_m": 183.64
+ },
+ "car-side-2": {
+  "kind": "car",
+  "side": "side",
+  "image": "data/street/sprites/car-side-2.png",
+  "ground": [
+   403.5,
+   300
+  ],
+  "px_per_m": 183.41
+ },
+ "car-side-3": {
+  "kind": "car",
+  "side": "side",
+  "image": "data/street/sprites/car-side-3.png",
+  "ground": [
+   403.0,
+   299
+  ],
+  "px_per_m": 183.18
+ },
+ "tree-large-1": {
+  "kind": "tree",
+  "preset": "large",
+  "image": "data/street/sprites/tree-large-1.png",
+  "ground": [
+   344.5,
+   875
+  ],
+  "px_per_m": 48.67
+ },
+ "tree-large-2": {
+  "kind": "tree",
+  "preset": "large",
+  "image": "data/street/sprites/tree-large-2.png",
+  "ground": [
+   360.0,
+   845
+  ],
+  "px_per_m": 47.0
+ },
+ "tree-medium-1": {
+  "kind": "tree",
+  "preset": "medium",
+  "image": "data/street/sprites/tree-medium-1.png",
+  "ground": [
+   332.0,
+   987
+  ],
+  "px_per_m": 82.33
+ },
+ "tree-medium-2": {
+  "kind": "tree",
+  "preset": "medium",
+  "image": "data/street/sprites/tree-medium-2.png",
+  "ground": [
+   325.5,
+   949
+  ],
+  "px_per_m": 79.17
+ },
+ "tree-small-1": {
+  "kind": "tree",
+  "preset": "small",
+  "image": "data/street/sprites/tree-small-1.png",
+  "ground": [
+   208.5,
+   885
+  ],
+  "px_per_m": 147.67
+ },
+ "tree-small-2": {
+  "kind": "tree",
+  "preset": "small",
+  "image": "data/street/sprites/tree-small-2.png",
+  "ground": [
+   197.0,
+   795
+  ],
+  "px_per_m": 132.67
+ }
+}

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>NeoN-Green – Street view</title>
+  <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
+  <script src="model.js"></script>
+  <style>
+    :root { --bg: #ffffffee; --fg: #1d2329; --muted: #5f6b76; --line: #d8dee4; --accent: #2f9e44; --cool: #1c7ed6; }
+    html, body { margin: 0; height: 100%; font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--fg); }
+    body { background: #2b3036; display: flex; }
+    .card { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 12px #0002;
+            padding: 12px 14px; width: 280px; box-sizing: border-box; max-height: calc(100vh - 20px); overflow-y: auto; }
+    #panel, #resultPanel { margin: 10px; flex: none; align-self: flex-start; }
+    #resultPanel[hidden] { display: none; }
+    h2 { font-size: 14px; margin: 0; }
+    #stage { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 10px; }
+    #photo { max-width: 100%; max-height: calc(100vh - 20px); border-radius: 6px; box-shadow: 0 4px 24px #0006; cursor: crosshair; touch-action: none; }
+    h1 { font-size: 15px; margin: 0 0 4px; }
+    a { color: var(--cool); }
+    label { display: block; margin: 10px 0 3px; font-weight: 600; font-size: 12px; color: var(--muted); }
+    label span { float: right; font-weight: 400; color: var(--fg); }
+    label::after { content: ""; display: block; clear: both; }
+    select, input[type=date] { width: 100%; box-sizing: border-box; font: inherit; padding: 3px 4px; }
+    input[type=range] { width: 100%; margin: 2px 0; accent-color: var(--accent); }
+    .muted { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+    .err { color: #c92a2a; }
+    button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 5px 10px; }
+    button.primary { width: 100%; margin-top: 10px; background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+    .tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+    .tools button { padding: 6px 2px; font-size: 12px; }
+    .tools button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+    .scen { display: grid; gap: 4px; }
+    .scen button { text-align: left; font-size: 12px; padding: 5px 8px; }
+    .scen button.on { border-color: var(--accent); background: #ebfbee; font-weight: 600; }
+    label.check { display: flex; gap: 6px; align-items: center; font-weight: 400; color: var(--fg); font-size: 13px; }
+    .row { display: flex; gap: 6px; margin-top: 10px; }
+    dl { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; margin: 4px 0 0; }
+    dt { color: var(--muted); } dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+    dt.head { grid-column: 1 / -1; color: var(--fg); font-weight: 600; font-size: 12px; margin-top: 6px; }
+    dd.big { font-size: 18px; font-weight: 700; color: var(--cool); }
+    dd.up { color: #c92a2a; } dd.big.up { color: #c92a2a; }
+    .row button { flex: 1; }
+    @media (max-width: 760px) {
+      body { flex-direction: column-reverse; height: auto; }
+      #panel, #resultPanel { width: auto; max-height: none; }
+      #resultPanel { order: 1; } #stage { order: 2; }
+      #photo { max-height: 80vh; }
+    }
+  </style>
+</head>
+<body>
+  <aside id="panel" class="card">
+    <h1 id="title">Street view</h1>
+    <p class="muted"><a href="index.html">← back to the map</a></p>
+    <label>View <span>from the centre of the road</span></label>
+    <div class="scen" id="views"></div>
+    <p class="muted" id="viewNote"></p>
+    <label>Place</label>
+    <div class="tools" id="tools"></div>
+    <p class="muted" id="hint">Trees go on the footpath, cars on the road, with room between them. Use Remove to take one away.</p>
+    <p class="muted" id="count"></p>
+    <label>Date</label>
+    <input type="date" id="date">
+    <label>Time of day <span id="timeLabel"></span></label>
+    <input type="range" id="time" min="0" max="1430" step="10">
+    <p class="muted" id="sun"></p>
+    <label class="check"><input type="checkbox" id="shadows" checked>Sun shadows of the trees</label>
+    <div class="row"><button id="clear">Remove all</button><button id="save">Save image</button></div>
+    <button id="toMap" class="primary">Show trees on the map</button>
+    <p class="muted" id="mapNote"></p>
+    <p class="muted">The views are AI images made from photos of the street by an open model (Qwen-Image-Edit,
+      Apache 2.0), and so are the trees and cars. They are placed at the size and distance the perspective of the
+      view gives. Not a planned design and not a simulation.</p>
+  </aside>
+  <main id="stage"><canvas id="photo"></canvas></main>
+  <aside id="resultPanel" class="card" hidden>
+    <h2 id="resultTitle">Effect on the street</h2>
+    <dl id="result"></dl>
+  </aside>
+  <script src="street.js"></script>
+</body>
+</html>
