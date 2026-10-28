@@ -8,6 +8,8 @@ const HANDOFF_KEY = 'ng-street-handoff';   // read by app.js
 const STORE_KEY = 'ng-street-objects-centre';
 const SPRITES = 'data/street/sprites/sprites.json';
 const MIN_DISTANCE_M = 2;
+const TREE_KERB_M = 0.5;   // trunk at least this far behind the kerb, on the footpath
+const CAR_KERB_M = 1.1;    // car centre at least this far inside the kerb (half a car's width plus a little)
 const TOOLS = [
   {id: 'small', label: 'Small tree', kind: 'tree'},
   {id: 'medium', label: 'Medium tree', kind: 'tree'},
@@ -114,6 +116,8 @@ async function showView(id) {
   const W = S.img.naturalWidth, H = S.img.naturalHeight;
   S.cam = camera(v, W, H);
   S.ground = path(v.ground);
+  // distance of each kerb from the centre line, from one image point on it (config "kerbs")
+  S.kerb = {left: lateral(S.cam.toGround(...v.kerbs.left)), right: lateral(S.cam.toGround(...v.kerbs.right))};
   S.foreground = v.foreground.map(path);
   S.objects[id] ||= [];
   $('photo').width = W;
@@ -129,11 +133,29 @@ function imagePoint(e) {
 }
 
 // Ground point under an image point if something can be placed there, else null.
-function placeable({u, v}) {
-  if (S.tool === 'remove' || !S.ctx.isPointInPath(S.ground, u, v)) return null;
-  const p = S.cam.toGround(u, v);
-  if (!p || Math.hypot(p.x, p.z) < MIN_DISTANCE_M || Math.hypot(p.x, p.z) > S.cfg.max_distance_m) return null;
-  return p;
+function placeable(pt) {
+  return spot(pt).p || null;
+}
+
+// Where the current tool may go: trees on the footpath, cars on the road.
+// {p} if allowed, otherwise {why} for the hint.
+function spot({u, v}) {
+  if (S.tool === 'remove') return {why: 'Click a tree trunk or a car to remove it.'};
+  const p = S.ctx.isPointInPath(S.ground, u, v) && S.cam.toGround(u, v);
+  if (!p || Math.hypot(p.x, p.z) < MIN_DISTANCE_M || Math.hypot(p.x, p.z) > S.cfg.max_distance_m) {
+    return {why: `Click the footpath or the road, up to ${S.cfg.max_distance_m} m away.`};
+  }
+  const l = lateral(p), {left, right} = S.kerb;
+  if (TOOLS.find(t => t.id === S.tool).kind === 'tree') {
+    return l < left - TREE_KERB_M || l > right + TREE_KERB_M ? {p} : {why: 'Trees can only be planted on the footpath.'};
+  }
+  return l > left + CAR_KERB_M && l < right - CAR_KERB_M ? {p} : {why: 'Cars can only be placed on the road.'};
+}
+
+// Distance of a ground point from the centre line, positive to the right (street frame).
+function lateral(p) {
+  const yaw = S.view.street_bearing_deg * DEG - S.cam.bearing;
+  return p.x * Math.cos(yaw) - p.z * Math.sin(yaw);
 }
 
 function onClick(pt) {
@@ -143,8 +165,8 @@ function onClick(pt) {
   if (hit) {
     list.splice(list.indexOf(hit.obj), 1);
   } else {
-    const p = placeable(pt);
-    if (!p) return hint(S.tool === 'remove' ? 'Click an object you placed to remove it.' : 'Click the pavement or the road, up to ' + S.cfg.max_distance_m + ' m away.', true);
+    const {p, why} = spot(pt);
+    if (!p) return hint(why, true);
     const tool = TOOLS.find(t => t.id === S.tool);
     list.push({kind: tool.kind, preset: tool.kind === 'tree' ? tool.id : null, x: round2(p.x), z: round2(p.z), seed: (Math.random() * 1e9) | 0});
   }
@@ -155,7 +177,7 @@ function onClick(pt) {
 }
 
 function hint(msg, error = false) {
-  $('hint').textContent = msg || 'Click the pavement or road to place, click an object to remove it.';
+  $('hint').textContent = msg || 'Trees go on the footpath, cars on the road. Click an object to remove it.';
   $('hint').classList.toggle('err', error);
 }
 
@@ -172,6 +194,9 @@ function render(opts = {}) {
   const W = img.naturalWidth, H = img.naturalHeight, sun = sunPosition();
   const minute = +$('time').value;
   $('timeLabel').textContent = `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+  const alt = sun.altitude / DEG, from = ((sun.azimuth / DEG + 180) % 360 + 360) % 360;
+  $('sun').textContent = alt > 0 ? `Sun ${alt.toFixed(0)}° high, from the ${compass(from)} (${from.toFixed(0)}°): tree shadows fall to the ${compass((from + 180) % 360)}.`
+                                 : 'The sun is below the horizon: no shadows.';
 
   const objs = S.objects[S.view.id].map(o => ({...o, depth: Math.hypot(o.x, o.z)}));
   if (S.hover && !opts.clean) {
@@ -213,8 +238,9 @@ function groundMarks(o, sun) {
       if (e) {
         const crown = NG.ellipseRing(e, 40).map(([x, y]) => cam.fromEN(x, y));
         const tip = cam.fromEN(e.cx - e.dir[0] * e.a * 0.6, e.cy - e.dir[1] * e.a * 0.6);
-        fillGround(crown, `rgba(18, 24, 30, ${0.42 * alpha})`, 6);
-        fillGround(quad(o, tip, 0.16), `rgba(18, 24, 30, ${0.38 * alpha})`, 3);
+        const k = Math.min(1, Math.sin(sun.altitude) / Math.sin(30 * DEG));  // weaker at low sun
+        fillGround(crown, `rgba(28, 34, 44, ${(0.45 + 0.25 * k) * alpha})`, 4, 'multiply');
+        fillGround(quad(o, tip, 0.18), `rgba(28, 34, 44, ${(0.4 + 0.25 * k) * alpha})`, 2, 'multiply');
       }
     }
     fillGround(circle(o, p.crown_diameter_m * 0.42), `rgba(10, 14, 10, ${0.22 * alpha})`, 10);
@@ -230,16 +256,19 @@ function groundMarks(o, sun) {
   }
 }
 
-function fillGround(pts, colour, blur) {
-  const proj = pts.map(p => S.cam.project(p.x, 0, p.z));
-  if (proj.some(p => !p)) return;
+function fillGround(pts, colour, blur, mode = 'source-over') {
+  // points behind the camera are dropped, so a shadow reaching past it is still drawn in front
+  const proj = pts.map(p => S.cam.project(p.x, 0, p.z)).filter(Boolean);
+  if (proj.length < 3) return;
   const {ctx} = S;
+  ctx.save();
+  ctx.globalCompositeOperation = mode;
   ctx.filter = blur ? `blur(${Math.max(1, blur * proj[0].scale / 40).toFixed(1)}px)` : 'none';
   ctx.fillStyle = colour;
   ctx.beginPath();
   proj.forEach((p, i) => (i ? ctx.lineTo(p.u, p.v) : ctx.moveTo(p.u, p.v)));
   ctx.fill();
-  ctx.filter = 'none';
+  ctx.restore();
 }
 
 const circle = (o, r, n = 28) => Array.from({length: n}, (_, i) => ({x: o.x + r * Math.cos((i / n) * 2 * Math.PI), z: o.z + r * Math.sin((i / n) * 2 * Math.PI)}));
@@ -413,6 +442,7 @@ function loadImage(src) {
 }
 
 const round2 = x => Math.round(x * 100) / 100;
+const compass = deg => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(deg / 45) % 8];
 const getJSON = async url => (await fetch(url, {cache: 'no-store'})).json();
 
 main().catch(e => { $('hint').textContent = e.message; $('hint').classList.add('err'); });

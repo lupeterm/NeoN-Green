@@ -270,17 +270,19 @@ low-cost sensors: treat the list as candidates to look at, not as measured heat 
 
 `street.html` (linked from the map's left panel and its flag on Weipertstraße) shows the street
 in front of the Open Space from the centre of the road, looking north and looking south. Click
-the pavement or the road to place a small, medium or large tree or a car; click a tree's trunk
-or a car to remove it. Objects get the size and position the perspective gives at that spot and
+the footpath to plant a small, medium or large tree, or the road to place a car; click a tree's
+trunk or a car to remove it. Trees only go behind the kerb, cars only between the kerbs. Objects get the size and position the perspective gives at that spot and
 nearer objects cover farther ones; cars keep to the right, so they are seen from behind, from
-the front or from the side. Tree shadows can follow the sun for a chosen date and time. **Save
+the front or from the side. Tree shadows follow the sun for the chosen date and time (the panel
+says where the sun stands and where shadows fall). **Save
 image** downloads the view, **Show trees on the map** hands the planted trees to the map, which
 selects Weipertstraße there, plants them by hand and computes the cooling.
 
 The views and the trees and cars are AI images (see below). Each view's calibration in
 `centre_views` in `config/street.json`: `horizon_y` and `vanishing_x` are where the street's
 lines meet, the camera stands on the centre line 2 m above the road at `lat`/`lon`, and
-`focal_px` assumes a 70° horizontal field of view. Open `street.html?debug` to see a ground grid
+`focal_px` assumes a 70° horizontal field of view, and `kerbs` marks one point on each kerb,
+which sets where the footpath begins. Open `street.html?debug` to see a ground grid
 (1 m lines along the street, 5 m across) and check it against the kerbs.
 
 ### Trees and cars

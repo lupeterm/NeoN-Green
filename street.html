@@ -51,13 +51,14 @@
     <p class="muted" id="viewNote"></p>
     <label>Place</label>
     <div class="tools" id="tools"></div>
-    <p class="muted" id="hint">Click the pavement or road to place, click an object to remove it.</p>
+    <p class="muted" id="hint">Trees go on the footpath, cars on the road. Click an object to remove it.</p>
     <p class="muted" id="count"></p>
     <label>Date</label>
     <input type="date" id="date">
     <label>Time of day <span id="timeLabel"></span></label>
     <input type="range" id="time" min="300" max="1320" step="10">
-    <label class="check"><input type="checkbox" id="shadows">Sun shadows</label>
+    <p class="muted" id="sun"></p>
+    <label class="check"><input type="checkbox" id="shadows" checked>Sun shadows of the trees</label>
     <div class="row"><button id="clear">Remove all</button><button id="save">Save image</button></div>
     <button id="toMap" class="primary">Show trees on the map</button>
     <p class="muted" id="mapNote"></p>
