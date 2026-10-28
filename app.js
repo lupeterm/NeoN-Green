@@ -601,12 +601,16 @@ function buildMeasure(P, trees, sun) {
   const after = flux * volume * (to30 ? q.fuel_factor_30 : 1);
   const noise = volume ? 10 * Math.log10(volume) + (to30 ? q.noise_30_dB : 0) : null;
   $('volumeLabel').textContent = volume === 1 ? 'unchanged' : volume ? `−${Math.round((1 - volume) * 100)} %` : 'car-free';
+  // particulate matter: the part this street's own traffic adds falls with it (README "Traffic and particulate matter")
+  const pmShare = (q.pm_traffic_share[S.overlay.pm_size] ?? q.pm_traffic_share.pm10) * Math.min(1, vehicles / q.pm_reference_vehicles_per_day);
+  const pmPct = -100 * pmShare * (1 - volume * (to30 ? q.pm_factor_30 : 1));
   const label = [to30 && volume && '30 km/h', volume < 1 && $('volumeLabel').textContent + (volume ? ' cars' : '')].filter(Boolean).join(' · ');
   // on a noise map: car-free is capped at −20 dB (what remains is background noise)
-  return {measure: {kind, line: section, halfWidth: st.halfWidth, dFlux: flux - after, dNoise: noise == null ? -20 : noise},
+  return {measure: {kind, line: section, halfWidth: st.halfWidth, dFlux: flux - after, dNoise: noise == null ? -20 : noise, pmPct},
           features: [roadway({color: '#fab005', outline: '#e67700', opacity: 0.3}), ...(label ? [turf.point(mid, {label})] : [])],
           rows: [['Engine heat', `${flux.toFixed(1)} → ${after.toFixed(1)} W/m²`],
                  ['Noise', noise == null ? 'none' : `${signed(noise)} dB(A)`],
+                 ...(S.overlay.quantity === 'pm' ? [['Particles from this street', `~${Math.round(pmShare * 100)} % (est.)`]] : []),
                  [`Assumed today: ${limit} km/h, ${vehicles.toLocaleString('en')} vehicles a day (from the road class).` +
                   ($('speed').value === '30' && !to30 ? ' The limit is probably 30 km/h or less already.' : ''), null, 'note']]};
 }
@@ -1033,7 +1037,7 @@ function showResult(st) {
       ['Mean before', `${st.before.toFixed(1)} ${unit}`],
       [`Mean with ${trees ? 'trees' : 'measure'}`, `${st.after.toFixed(1)} ${unit}`],
       ['Change', `${signed(st.after - st.before)} ${quantity === 'temperature' ? '°C' : unit}` +
-                 (quantity === 'pm' && trees ? ` (${signed(st.pct)} %)` : ''), 'big'],
+                 (quantity === 'pm' && st.pct != null ? ` (${signed(st.pct)} %)` : ''), 'big'],
     ];
     if (quantity === 'pm' && trees) {
       const share = S.canyon?.share ?? 0;
@@ -1044,7 +1048,7 @@ function showResult(st) {
     } else if (quantity === 'noise' && trees) {
       note = 'Rows of street trees hardly reduce traffic noise. Measurable reductions need dense tree belts about 15–20 m deep.';
     } else if (quantity === 'pm' && S.measure === 'traffic') {
-      note = 'Less traffic means less exhaust and road dust, but how much of the particles here come from this street is not known, so the model leaves them unchanged.';
+      note = 'Rough estimate from the difference between Heilbronn\'s traffic and background stations. Most traffic particles come from brakes, tyres and road dust, so fewer vehicles help, a lower speed limit hardly.';
     } else if (quantity !== 'temperature' && S.measure !== 'traffic') {
       note = `${label}: no effect on ${quantity === 'pm' ? 'particulate matter' : 'noise'} in this model.`;
     } else if (quantity === 'temperature') {

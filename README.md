@@ -217,9 +217,57 @@ use all points everywhere. Dense data such as bike tracks only uses points withi
 
 Which part applies follows the selected data: overlays have a `quantity` of `temperature`,
 `pm` or `noise` in `config/overlays.json`. Particulate matter and noise are modelled for trees;
-of the other measures only "speed limit & less traffic" changes the noise map (by the panel's
-dB(A) change, at most −20 dB when car-free). The rest leave PM and noise unchanged, and the
-panel says so.
+of the other measures only "speed limit & less traffic" changes them: the noise map by the panel's
+dB(A) change (at most −20 dB when car-free), particulate matter as described below. The rest
+leave PM and noise unchanged, and the panel says so.
+
+### Traffic and particulate matter (a conservative approximation)
+
+No study gives the share of a street's particulate matter that comes from its own traffic for
+every street in Heilbronn, so the model estimates it from the city's two permanent stations:
+the traffic station DEBW152 Weinsberger Straße-Ost (OSM class `primary`) and the urban background
+station DEBW015. Their difference is the part the street adds on top of what reaches it from the
+rest of the city and the region. Annual means in µg/m³ from the
+[UBA air data API](https://luftdaten.umweltbundesamt.de/api/air-data/v3/annualbalances/json?component=1&year=2024&lang=en)
+(component 1 = PM10, 9 = PM2.5):
+
+| Year | PM10 traffic | PM10 background | difference | PM2.5 traffic | PM2.5 background | difference |
+|---|---|---|---|---|---|---|
+| 2016 | 24 | 20 | 4 | 15 | 13 | 2 |
+| 2017 | 24 | 20 | 4 | 14 | 13 | 1 |
+| 2018 | 25 | 20 | 5 | 14 | 12 | 2 |
+| 2019 | 22 | 18 | 4 | 12 | 11 | 1 |
+| 2020 | 17 | 16 | 1 | 9.8 | 9.2 | 0.6 |
+| 2021 | 15 | 16 | −1 | 8.9 | 9.0 | −0.1 |
+| 2022 | 17 | 16 | 1 | 9.9 | 9.5 | 0.4 |
+| 2023 | 15 | 13 | 2 | 8.3 | 7.7 | 0.6 |
+| 2024 | 16 | 14 | 2 | 8.7 | 8.0 | 0.7 |
+| 2025 | 17 | 16 | 1 | 9.9 | 9.4 | 0.5 |
+
+The difference has shrunk from 4–5 µg/m³ PM10 before 2020 to 1–2 µg/m³ since. The model uses the
+recent years (2022–2025; 2020–21 left out for the pandemic): about **9 % of PM10 and 6 % of PM2.5**
+at the traffic station come from the street itself (`measures.traffic.pm_traffic_share`).
+
+How it is applied, and why it is conservative:
+
+* Removing a share of the traffic removes the same share of that street part, nothing more. Most
+  traffic particles today come from brakes, tyres and road dust, not exhausts (Harrison et al. 2021),
+  so they scale with the number of vehicles, and electric cars would change little.
+* Traffic volumes per street are not known; the share is scaled linearly by the vehicles per day
+  assumed for the road class, relative to a `primary` road (`pm_reference_vehicles_per_day`).
+  Busier roads are capped at the measured share instead of extrapolated.
+* Tempo 30 alone changes nothing (`pm_factor_30` = 1): studies range from no lower exhaust
+  emissions (LUBW, Stuttgart) to about −2 ± 3 %, and the possible drop in road dust and brake wear
+  is not quantified.
+* The station difference is an upper bound for local traffic in one way (other sources near the
+  station count too) and a lower bound in another (the background station also sees some traffic).
+  We have not found a source apportionment for PM at Weinsberger Straße; the clean air plan
+  (Luftreinhalteplan 2020) only breaks down NO₂, where road traffic accounts for 66 %.
+* For comparison, Berlin around 2000 had up to 40 % more PM10 at main streets than in the background
+  (Lenschow et al. 2001), with older vehicles. The Heilbronn numbers are the relevant ones today.
+
+Example: halving the traffic on a main road lowers PM10 there by about 4.5 %, on a residential
+street (1,000 vehicles a day assumed) by about 0.3 %.
 
 Known simplifications: buildings neither cast shadows nor block tree shadows, road widths are
 estimated from the road class, and wind and surfaces are ignored. The model adds the shade

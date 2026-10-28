@@ -31,6 +31,9 @@ onmessage = async ({data: job}) => {
       extra = {coverage, pct};
     } else if (m.kind === 'traffic' && quantity === 'noise' && m.dNoise) {
       effect = (x, y) => ({d: m.dNoise * fade(x, y), shade: 0});
+    } else if (m.kind === 'traffic' && quantity === 'pm') {
+      effect = (x, y, b) => ({d: b * (m.pmPct / 100) * fade(x, y), shade: 0});
+      extra = {pct: m.pmPct};
     }  // other measures: no effect on particulate matter or noise in this model
     stats = corridorStats(section, corridor, base, effect || (() => ({d: 0, shade: 0})), inExtent);
     if (stats) Object.assign(stats, extra, {quantity});
