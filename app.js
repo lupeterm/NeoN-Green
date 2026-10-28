@@ -32,10 +32,19 @@ const S = {
   layerData: {}, existingTrees: [], icons: {}, iconTheme: null,
   job: 0, timer: null, refresh: null, url: null,
 };
-const worker = new Worker('worker.js');
+let worker = null;  // started in main() once its files are known to be current
+
+// The simple dev server lets browsers keep old copies. Revalidate the worker's files first
+// (a cheap "304 not modified" when unchanged), so a stale worker.js or model.js is never mixed
+// with a newer app.js; the worker then loads them from the refreshed cache.
+async function startWorker() {
+  await Promise.all(['worker.js', 'model.js'].map(url => fetch(url, {cache: 'no-cache'}).catch(() => null)));
+  worker = new Worker('worker.js');
+  worker.onmessage = onWorkerResult;
+}
 
 async function main() {
-  [S.cfg, S.model] = await Promise.all([getJSON('config/overlays.json'), getJSON('config/model.json')]);
+  [S.cfg, S.model] = await Promise.all([getJSON('config/overlays.json'), getJSON('config/model.json'), startWorker()]);
   S.theme = initialTheme();
   document.documentElement.dataset.theme = S.theme;
   S.map = new maplibregl.Map({container: 'map', style: BASEMAPS[S.theme], center: S.cfg.center, zoom: S.cfg.zoom, hash: true});
@@ -830,11 +839,12 @@ function run() {
   }
   const canvas = S.map.getCanvas(), W = Math.min(900, Math.round(canvas.clientWidth * 0.75));
   const H = Math.max(1, Math.round((W * canvas.clientHeight) / canvas.clientWidth));
+  if (!worker) return;
   worker.postMessage({id: ++S.job, points, origin: S.cfg.center, extent: S.extent, view, size: [W, H],
                       domain: S.domain, ramp: S.ramp || RAMP, params: S.model, scenario, interpolation: S.overlay.interpolation});
 }
 
-worker.onmessage = ({data}) => {
+function onWorkerResult({data}) {
   if (data.id !== S.job) return;  // a newer request is already on its way
   if (data.image) {
     const old = S.url;
@@ -844,10 +854,11 @@ worker.onmessage = ({data}) => {
   }
   S.map.setLayoutProperty('heat', 'visibility', data.image ? 'visible' : 'none');
   showResult(data.stats);
-};
+}
 
 function showResult(st) {
   const unit = S.overlay.unit || '', quantity = S.overlay.quantity || 'temperature';
+  if (st && (st.quantity || 'temperature') !== quantity) return;  // computed for other data; the right one follows
   const m2 = v => Math.round(v).toLocaleString('en');
   let rows, note = '';
   if (!st) {
