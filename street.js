@@ -5,7 +5,7 @@
 // model.js; views and their calibration in config/street.json ("centre_views").
 
 const HANDOFF_KEY = 'ng-street-handoff';   // read by app.js
-const STORE_KEY = 'ng-street-objects-centre';
+const STORE_KEY = 'ng-street-items';  // one list for the whole street, in world metres
 const SPRITES = 'data/street/sprites/sprites.json';
 const MIN_DISTANCE_M = 2;
 const TREE_KERB_M = 0.5;   // trunk at least this far behind the kerb, on the footpath
@@ -25,8 +25,9 @@ const DEG = Math.PI / 180;
 const S = {
   cfg: null, model: null,
   view: null, cam: null, img: null, imgs: {},
-  objects: {},           // view id -> [{kind, preset, x, z, seed}] in camera ground metres
+  items: [],             // trees and cars of the whole street: [{kind, preset, east, north, seed}], metres from the views' common camera point
   tool: 'medium', hover: null, rects: [], sprites: {},  // sprite id -> {img, ground, px_per_m, ...}
+  resultKey: null,
   ground: null, foreground: [], frame: 0, debug: new URLSearchParams(location.search).has('debug'),
 };
 
@@ -36,7 +37,7 @@ async function main() {
   S.views = S.cfg.centre_views;
   await Promise.all(Object.entries(sprites).map(async ([id, sp]) => { S.sprites[id] = {...sp, img: await loadImage(sp.image)}; }));
   S.ctx = $('photo').getContext('2d');
-  S.objects = loadObjects();
+  S.items = loadItems();
   setupUi();
   const wanted = new URLSearchParams(location.search).get('view');
   await showView((S.views.find(v => v.id === wanted) || S.views[0]).id);
@@ -91,7 +92,7 @@ function setupUi() {
   $('date').value = S.cfg.default_date;
   $('time').value = S.cfg.default_time_min;
   for (const id of ['date', 'time', 'shadows']) $(id).oninput = draw;
-  $('clear').onclick = () => { S.objects[S.view.id] = []; saveObjects(); draw(); };
+  $('clear').onclick = () => { S.items = []; saveItems(); draw(); };
   $('save').onclick = saveImage;
   $('toMap').onclick = toMap;
 
@@ -121,7 +122,6 @@ async function showView(id) {
   // distance of each kerb from the centre line, from one image point on it (config "kerbs")
   S.kerb = {left: lateral(S.cam.toGround(...v.kerbs.left)), right: lateral(S.cam.toGround(...v.kerbs.right))};
   S.foreground = v.foreground.map(path);
-  S.objects[id] ||= [];
   $('photo').width = W;
   $('photo').height = H;
   for (const b of $('views').children) b.classList.toggle('on', b.dataset.id === id);
@@ -148,7 +148,7 @@ function spot({u, v}) {
     return {why: `Click the footpath or the road, up to ${S.cfg.max_distance_m} m away.`};
   }
   const tool = TOOLS.find(t => t.id === S.tool), l = lateral(p), {left, right} = S.kerb;
-  const others = S.objects[S.view.id].filter(o => o.kind === tool.kind);
+  const others = viewObjects().filter(o => o.kind === tool.kind);  // includes those behind the camera
   if (tool.kind === 'tree') {
     if (!(l < left - TREE_KERB_M || l > right + TREE_KERB_M)) return {why: 'Trees can only be planted on the footpath.'};
     // crowns may overlap a little, as on the map (placement.crown_overlap in config/model.json)
@@ -174,22 +174,26 @@ function along(p) {
 }
 
 function onClick(pt) {
-  const list = S.objects[S.view.id];
   // only the Remove tool takes objects away: the nearest one under the click
   if (S.tool === 'remove') {
     const hit = S.rects.filter(r => pt.u >= r.x0 && pt.u <= r.x1 && pt.v >= r.y0 && pt.v <= r.y1).sort((a, b) => a.depth - b.depth)[0];
     if (!hit) return hint('Click a tree trunk or a car to remove it.', true);
-    list.splice(list.indexOf(hit.obj), 1);
+    S.items.splice(S.items.indexOf(hit.item), 1);
   } else {
     const {p, why} = spot(pt);
     if (!p) return hint(why, true);
-    const tool = TOOLS.find(t => t.id === S.tool);
-    list.push({kind: tool.kind, preset: tool.kind === 'tree' ? tool.id : null, x: round2(p.x), z: round2(p.z), seed: (Math.random() * 1e9) | 0});
+    const tool = TOOLS.find(t => t.id === S.tool), {east, north} = S.cam.toEN(p);
+    S.items.push({kind: tool.kind, preset: tool.kind === 'tree' ? tool.id : null, east: round2(east), north: round2(north), seed: (Math.random() * 1e9) | 0});
   }
   hint('');
   S.hover = null;
-  saveObjects();
+  saveItems();
   draw();
+}
+
+// The street's trees and cars in the current view's ground metres {x, z} (z < 0: behind the camera).
+function viewObjects() {
+  return S.items.map(item => ({...S.cam.fromEN(item.east, item.north), kind: item.kind, preset: item.preset, seed: item.seed, item}));
 }
 
 function hint(msg, error = false) {
@@ -214,7 +218,7 @@ function render(opts = {}) {
   $('sun').textContent = alt > 0 ? `Sun ${alt.toFixed(0)}° high, from the ${compass(from)} (${from.toFixed(0)}°): tree shadows fall to the ${compass((from + 180) % 360)}.`
                                  : 'The sun is below the horizon: no shadows.';
 
-  const objs = S.objects[S.view.id].map(o => ({...o, depth: Math.hypot(o.x, o.z)}));
+  const objs = viewObjects().filter(o => o.z > 1).map(o => ({...o, depth: Math.hypot(o.x, o.z)}));
   if (S.hover && !opts.clean) {
     const t = TOOLS.find(x => x.id === S.tool);
     objs.push({kind: t.kind, preset: t.kind === 'tree' ? t.id : null, x: S.hover.x, z: S.hover.z, seed: 7, depth: Math.hypot(S.hover.x, S.hover.z), ghost: true});
@@ -231,7 +235,7 @@ function render(opts = {}) {
   S.rects = [];
   for (const o of objs.sort((a, b) => b.depth - a.depth)) {
     const r = drawObject(o);
-    if (r && !o.ghost) S.rects.push({...r, depth: o.depth, obj: S.objects[S.view.id].find(x => x.seed === o.seed && x.x === o.x && x.z === o.z)});
+    if (r && !o.ghost) S.rects.push({...r, depth: o.depth, item: o.item});
   }
   for (const fg of S.foreground) { ctx.save(); ctx.clip(fg); ctx.drawImage(img, 0, 0); ctx.restore(); }
 
@@ -241,6 +245,7 @@ function render(opts = {}) {
   }
   if (S.debug) debugGrid();
   updateCount();
+  showResult(sun);
 }
 
 // Contact shadows and sun shadows on the ground (drawn under every object).
@@ -345,9 +350,12 @@ function label(text, u, v) {
 }
 
 function updateCount() {
-  const list = S.objects[S.view.id], n = k => list.filter(o => o.kind === k).length;
+  const n = k => S.items.filter(o => o.kind === k).length, ahead = viewObjects().filter(o => o.z > 1).length;
   const plural = (c, w) => `${c} ${w}${c === 1 ? '' : 's'}`;
-  $('count').textContent = `In this view: ${plural(n('tree'), 'tree')}, ${plural(n('car'), 'car')}.`;
+  const total = S.items.length;
+  $('count').textContent = !total ? 'Nothing placed yet. Both views share one street.'
+    : `On the street: ${plural(n('tree'), 'tree')}, ${plural(n('car'), 'car')}` +
+      (ahead === total ? ', all in this view.' : `; ${ahead} in this view, ${total - ahead} behind you (in the other view).`);
 }
 
 // Ground lines parallel to the street every metre (magenta every 5 m) and across it every 5 m,
@@ -370,6 +378,76 @@ function debugGrid() {
   ctx.beginPath(); ctx.moveTo(0, S.view.horizon_y); ctx.lineTo(S.img.naturalWidth, S.view.horizon_y); ctx.stroke();
 }
 
+// ------------------------------------------------------------------ before / after
+// As the map's scenario panel: means within street_corridor_m of the centre line, area_along_m
+// ahead in both directions, without and with everything placed on the street, so both views
+// show the same numbers. Numbers in config/model.json; the tree model is the map's (model.js).
+
+function showResult(sun) {
+  const placed = S.items;
+  const key = JSON.stringify([placed.map(o => [o.kind, o.preset, o.east, o.north]), $('date').value, $('time').value]);
+  if (S.resultKey === key) return;
+  S.resultKey = key;
+  $('resultPanel').hidden = !placed.length;  // only once something is placed
+  if (!placed.length) return;
+  const p = S.model.street_view, corridor = S.model.street_corridor_m, [s0, s1] = p.area_along_m, cell = 1;
+  const A = S.cfg.street_axis_bearing_deg * DEG, sa = Math.sin(A), ca = Math.cos(A);
+  const toStreet = (e, n) => ({l: e * ca - n * sa, s: e * sa + n * ca});                 // across (east side +), along (north +)
+  const toEN = (l, s) => ({east: s * sa + l * ca, north: s * ca - l * sa});
+  const trees = placed.filter(o => o.kind === 'tree').map(o => {
+    const t = S.model.presets[o.preset];
+    return {x: o.east, y: o.north, height_m: t.height_m, crown_diameter_m: t.crown_diameter_m};
+  });
+  const shadows = trees.map(t => NG.shadowEllipse(t, sun, S.model));
+  const cars = placed.filter(o => o.kind === 'car').map(o => toStreet(o.east, o.north));
+  const two = v => 2 * v * v;
+  let n = 0, dT = 0, maxCooling = 0, shaded = 0, traffic = 0;
+  for (const dir of [1, -1]) {
+    for (let a0 = s0 + cell / 2; a0 < s1; a0 += cell) {
+      const s = dir * a0;
+      for (let l = -corridor + cell / 2; l < corridor; l += cell) {
+        const {east, north} = toEN(l, s);
+        n++;
+        if (trees.length) {
+          const e = NG.treeEffect(east, north, trees, shadows, sun, S.model);
+          dT += e.dT;
+          maxCooling = Math.min(maxCooling, e.dT);
+          if (e.shade > 0.5) shaded += cell * cell;
+        }
+        let plume = 0, crowns = 0;
+        for (const c of cars) plume += Math.exp(-((l - c.l) ** 2) / two(p.plume_sigma_across_m) - ((s - c.s) ** 2) / two(p.plume_sigma_along_m));
+        for (const t of trees) crowns += Math.exp(-((east - t.x) ** 2 + (north - t.y) ** 2) / two(t.crown_diameter_m / 2));
+        traffic += plume * (1 - Math.min(0.5, p.tree_deposition * crowns));
+      }
+    }
+  }
+  const before = p.air_temperature_C, after = before + dT / n, area = n * cell * cell;
+  const no2 = [p.no2_background_ugm3, p.no2_background_ugm3 + (p.no2_per_car_ugm3 * traffic) / n];
+  const pm = [p.pm25_background_ugm3, p.pm25_background_ugm3 + (p.pm25_per_car_ugm3 * traffic) / n];
+  const count = k => placed.filter(o => o.kind === k).length;
+  const rows = [
+    ['head', `Temperature, ${count('tree')} ${count('tree') === 1 ? 'tree' : 'trees'}`],
+    ['Mean before', `${before.toFixed(1)} °C`],
+    ['Mean with trees', `${after.toFixed(1)} °C`],
+    ['Change', `${signed(after - before, 1)} °C`, 'big'],
+    ['Strongest cooling', `${signed(maxCooling, 1)} °C`],
+    ['Shaded', `${Math.round(shaded).toLocaleString('en')} of ${Math.round(area).toLocaleString('en')} m²`],
+    ['head', `Pollution, ${count('car')} ${count('car') === 1 ? 'car' : 'cars'}`],
+    ['NO₂ before', `${no2[0].toFixed(1)} µg/m³`],
+    ['NO₂ with cars and trees', `${no2[1].toFixed(1)} µg/m³`],
+    ['Change', `${signed(no2[1] - no2[0], 1)} µg/m³`, no2[1] > no2[0] + 0.05 ? 'big up' : 'big'],
+    ['PM2.5 before', `${pm[0].toFixed(1)} µg/m³`],
+    ['PM2.5 with cars and trees', `${pm[1].toFixed(1)} µg/m³`],
+    ['Change', `${signed(pm[1] - pm[0], 1)} µg/m³`, pm[1] > pm[0] + 0.05 ? 'up' : ''],
+  ];
+  $('result').innerHTML = rows.map(([k, v, cls]) => k === 'head' ? `<dt class="head">${v}</dt>` : `<dt>${k}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
+    `<dt class="muted" style="grid-column:1/-1">The whole street in both views: mean within ${corridor} m on both sides of the centre line, ` +
+    `${s0}–${s1} m to the north and to the south. Temperature from a ${before} °C day with the map's tree model; pollution from a ` +
+    `background value plus traffic. Illustrative estimates, not measurements.</dt>`;
+}
+
+const signed = (v, digits) => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v).toFixed(digits);
+
 // ------------------------------------------------------------------ sprites
 // Realistic cut-outs from scripts/make_sprites.py: trees per size, cars from behind, the front and
 // the side (facing right). The object's seed picks one of the variants.
@@ -384,17 +462,13 @@ function sprite(o) {
 
 // ------------------------------------------------------------------ map hand-off, saving
 
-// Trees from all views go to the map tool (app.js reads them and plants them "by hand").
+// The street's trees go to the map tool (app.js reads them and plants them "by hand").
 function toMap() {
-  const trees = [], presets = {};
-  for (const v of S.views) {
-    const cam = camera(v, S.img.naturalWidth, S.img.naturalHeight);
-    for (const o of S.objects[v.id] || []) {
-      if (o.kind !== 'tree') continue;
-      const [lon, lat] = cam.toLL(o);
-      trees.push({lon, lat});
-      presets[o.preset] = (presets[o.preset] || 0) + 1;
-    }
+  const trees = [], presets = {}, v = S.view, kx = 111320 * Math.cos(v.lat * DEG);
+  for (const o of S.items) {
+    if (o.kind !== 'tree') continue;
+    trees.push({lon: v.lon + o.east / kx, lat: v.lat + o.north / 111320});
+    presets[o.preset] = (presets[o.preset] || 0) + 1;
   }
   if (!trees.length) return ($('mapNote').textContent = 'Place a tree first.');
   const preset = Object.entries(presets).sort((a, b) => b[1] - a[1])[0][0];
@@ -418,12 +492,12 @@ function saveImage() {
   });
 }
 
-function loadObjects() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; }
+function loadItems() {
+  try { const items = JSON.parse(localStorage.getItem(STORE_KEY)); return Array.isArray(items) ? items : []; } catch { return []; }
 }
 
-function saveObjects() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(S.objects)); } catch { /* not persisted, still works */ }
+function saveItems() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(S.items)); } catch { /* not persisted, still works */ }
 }
 
 // ------------------------------------------------------------------ helpers

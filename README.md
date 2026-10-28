@@ -281,6 +281,17 @@ says where the sun stands and where shadows fall). **Save
 image** downloads the view, **Show trees on the map** hands the planted trees to the map, which
 selects Weipertstraße there, plants them by hand and computes the cooling.
 
+Both views share one street: what you place is stored in metres from the common camera point,
+so it shows in whichever view looks its way, counts for spacing in both, and **Remove all** clears
+the street. As on the map, a panel on the right (once something is placed) gives the mean
+temperature before and with the trees within
+`street_corridor_m` of the centre line, 3–60 m in both directions, so both views show the same
+numbers (the map's tree model: shade by date and time, plus
+evaporation, on a base temperature), the strongest cooling and the shaded area, and below it NO₂
+and PM2.5 before and with the cars and trees: a background value plus a plume per car along its
+lane, lowered a little under tree crowns. All numbers are in `street_view` in `config/model.json`;
+they are illustrative estimates, not measurements.
+
 The views and the trees and cars are AI images (see below). Each view's calibration in
 `centre_views` in `config/street.json`: `horizon_y` and `vanishing_x` are where the street's
 lines meet, the camera stands on the centre line 2 m above the road at `lat`/`lon`, and

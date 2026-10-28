@@ -12,7 +12,9 @@
     body { background: #2b3036; display: flex; }
     .card { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 2px 12px #0002;
             padding: 12px 14px; width: 280px; box-sizing: border-box; max-height: calc(100vh - 20px); overflow-y: auto; }
-    #panel { margin: 10px; flex: none; align-self: flex-start; }
+    #panel, #resultPanel { margin: 10px; flex: none; align-self: flex-start; }
+    #resultPanel[hidden] { display: none; }
+    h2 { font-size: 14px; margin: 0; }
     #stage { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 10px; }
     #photo { max-width: 100%; max-height: calc(100vh - 20px); border-radius: 6px; box-shadow: 0 4px 24px #0006; cursor: crosshair; touch-action: none; }
     h1 { font-size: 15px; margin: 0 0 4px; }
@@ -34,10 +36,16 @@
     .scen button.on { border-color: var(--accent); background: #ebfbee; font-weight: 600; }
     label.check { display: flex; gap: 6px; align-items: center; font-weight: 400; color: var(--fg); font-size: 13px; }
     .row { display: flex; gap: 6px; margin-top: 10px; }
+    dl { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; margin: 4px 0 0; }
+    dt { color: var(--muted); } dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+    dt.head { grid-column: 1 / -1; color: var(--fg); font-weight: 600; font-size: 12px; margin-top: 6px; }
+    dd.big { font-size: 18px; font-weight: 700; color: var(--cool); }
+    dd.up { color: #c92a2a; } dd.big.up { color: #c92a2a; }
     .row button { flex: 1; }
     @media (max-width: 760px) {
       body { flex-direction: column-reverse; height: auto; }
-      #panel { width: auto; max-height: none; }
+      #panel, #resultPanel { width: auto; max-height: none; }
+      #resultPanel { order: 1; } #stage { order: 2; }
       #photo { max-height: 80vh; }
     }
   </style>
@@ -67,6 +75,10 @@
       view gives. Not a planned design and not a simulation.</p>
   </aside>
   <main id="stage"><canvas id="photo"></canvas></main>
+  <aside id="resultPanel" class="card" hidden>
+    <h2 id="resultTitle">Effect on the street</h2>
+    <dl id="result"></dl>
+  </aside>
   <script src="street.js"></script>
 </body>
 </html>
