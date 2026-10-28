@@ -270,8 +270,11 @@ low-cost sensors: treat the list as candidates to look at, not as measured heat 
 
 `street.html` (linked from the map's left panel and its flag on Weipertstraße) shows the street
 in front of the Open Space from the centre of the road, looking north and looking south. Click
-the footpath to plant a small, medium or large tree, or the road to place a car; click a tree's
-trunk or a car to remove it. Trees only go behind the kerb, cars only between the kerbs. Objects get the size and position the perspective gives at that spot and
+the footpath to plant a small, medium or large tree, or the road to place a car; with **Remove**,
+click a tree's trunk or a car to take it away. Trees only go behind the kerb, cars only between the
+kerbs, and neither too close to its own kind: crowns may overlap by at most
+`placement.crown_overlap` of their radii (as on the map), and cars keep 1 m in front and behind and
+0.5 m beside. Objects get the size and position the perspective gives at that spot and
 nearer objects cover farther ones; cars keep to the right, so they are seen from behind, from
 the front or from the side. Tree shadows follow the sun for the chosen date and time (the panel
 says where the sun stands and where shadows fall). **Save

@@ -10,6 +10,8 @@ const SPRITES = 'data/street/sprites/sprites.json';
 const MIN_DISTANCE_M = 2;
 const TREE_KERB_M = 0.5;   // trunk at least this far behind the kerb, on the footpath
 const CAR_KERB_M = 1.1;    // car centre at least this far inside the kerb (half a car's width plus a little)
+const CAR_SIZE_M = [4.4, 1.8];   // length along the street, width
+const CAR_GAP_M = [1.0, 0.5];    // safety gap to the next car: in front and behind, beside
 const TOOLS = [
   {id: 'small', label: 'Small tree', kind: 'tree'},
   {id: 'medium', label: 'Medium tree', kind: 'tree'},
@@ -145,24 +147,38 @@ function spot({u, v}) {
   if (!p || Math.hypot(p.x, p.z) < MIN_DISTANCE_M || Math.hypot(p.x, p.z) > S.cfg.max_distance_m) {
     return {why: `Click the footpath or the road, up to ${S.cfg.max_distance_m} m away.`};
   }
-  const l = lateral(p), {left, right} = S.kerb;
-  if (TOOLS.find(t => t.id === S.tool).kind === 'tree') {
-    return l < left - TREE_KERB_M || l > right + TREE_KERB_M ? {p} : {why: 'Trees can only be planted on the footpath.'};
+  const tool = TOOLS.find(t => t.id === S.tool), l = lateral(p), {left, right} = S.kerb;
+  const others = S.objects[S.view.id].filter(o => o.kind === tool.kind);
+  if (tool.kind === 'tree') {
+    if (!(l < left - TREE_KERB_M || l > right + TREE_KERB_M)) return {why: 'Trees can only be planted on the footpath.'};
+    // crowns may overlap a little, as on the map (placement.crown_overlap in config/model.json)
+    const r = S.model.presets[tool.id].crown_diameter_m / 2, k = S.model.placement.crown_overlap;
+    const near = others.find(o => Math.hypot(o.x - p.x, o.z - p.z) < (r + S.model.presets[o.preset].crown_diameter_m / 2) * k);
+    return near ? {why: 'Too close to another tree: their crowns would overlap.'} : {p};
   }
-  return l > left + CAR_KERB_M && l < right - CAR_KERB_M ? {p} : {why: 'Cars can only be placed on the road.'};
+  if (!(l > left + CAR_KERB_M && l < right - CAR_KERB_M)) return {why: 'Cars can only be placed on the road.'};
+  const s = along(p), [len, wid] = CAR_SIZE_M, [gapL, gapW] = CAR_GAP_M;
+  const near = others.find(o => Math.abs(along(o) - s) < len + gapL && Math.abs(lateral(o) - l) < wid + gapW);
+  return near ? {why: 'Too close to another car: keep a safe distance.'} : {p};
 }
 
-// Distance of a ground point from the centre line, positive to the right (street frame).
+// Street frame of a ground point: distance from the centre line (positive to the right) and along the street.
 function lateral(p) {
   const yaw = S.view.street_bearing_deg * DEG - S.cam.bearing;
   return p.x * Math.cos(yaw) - p.z * Math.sin(yaw);
 }
 
+function along(p) {
+  const yaw = S.view.street_bearing_deg * DEG - S.cam.bearing;
+  return p.x * Math.sin(yaw) + p.z * Math.cos(yaw);
+}
+
 function onClick(pt) {
   const list = S.objects[S.view.id];
-  // the nearest object under the click is removed, whatever the tool
-  const hit = S.rects.filter(r => pt.u >= r.x0 && pt.u <= r.x1 && pt.v >= r.y0 && pt.v <= r.y1).sort((a, b) => a.depth - b.depth)[0];
-  if (hit) {
+  // only the Remove tool takes objects away: the nearest one under the click
+  if (S.tool === 'remove') {
+    const hit = S.rects.filter(r => pt.u >= r.x0 && pt.u <= r.x1 && pt.v >= r.y0 && pt.v <= r.y1).sort((a, b) => a.depth - b.depth)[0];
+    if (!hit) return hint('Click a tree trunk or a car to remove it.', true);
     list.splice(list.indexOf(hit.obj), 1);
   } else {
     const {p, why} = spot(pt);
@@ -177,7 +193,7 @@ function onClick(pt) {
 }
 
 function hint(msg, error = false) {
-  $('hint').textContent = msg || 'Trees go on the footpath, cars on the road. Click an object to remove it.';
+  $('hint').textContent = msg || 'Trees go on the footpath, cars on the road, with room between them. Use Remove to take one away.';
   $('hint').classList.toggle('err', error);
 }
 
