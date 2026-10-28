@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Green redesign visualisations of the street in config/street.json ("redesigns").
+"""Views of the street from the centre of the road, made from the photos (config/street.json, "centre_views").
 
-    python scripts/redesign_street.py              # every redesign
-    python scripts/redesign_street.py north        # one of them
-    python scripts/redesign_street.py --seed 7     # another take, if one is not convincing
+    python scripts/centre_view.py              # every view
+    python scripts/centre_view.py north        # one of them
+    python scripts/centre_view.py --seed 7     # another take, if one is not convincing
 
-Each redesign gives the open model Qwen-Image-Edit-2511 (Apache 2.0) the street's photos
-(data/street/*.jpg, taken from the pavement) and asks for a new picture of the same street from
-the centre of the road, a few metres up, after a green redesign: tree rows, planted strips,
-cycle lanes, one car lane per direction, people. It is an AI visualisation in the style of a
-planning office's, not a planned design: the buildings are recognisable, details are invented.
+The photos in data/street/ were taken from the pavement. For each view the open model
+Qwen-Image-Edit-2511 (Apache 2.0) gets the street's photos and is asked for the same street,
+as it is today, seen from the centre line of the road: same buildings, trees, bus stop, markings
+and light, nothing added. The model reconstructs a viewpoint nobody photographed, so it is an
+AI image: the street is recognisable, small details are invented.
 
 Needs a CUDA GPU with about 60 GB and `pip install torch torchvision diffusers transformers
 accelerate pillow`. On a GH200 (ARM), load the model from a local disk (`--model /local/copy`).
@@ -29,18 +29,18 @@ from transformers import AutoConfig, Qwen2_5_VLForConditionalGeneration
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MODEL = "Qwen/Qwen-Image-Edit-2511"
-SIZE = (1536, 1024)  # landscape, like a planning visualisation
-NEGATIVE = ("cartoon, illustration, painting, drawing, flat colours, blurry, distorted, deformed, text, watermark, "
-            "fisheye, collage, split image")
-VIEWPOINT = ("The pictures show the same street ({street}) photographed from its pavement. Create a new landscape photo of this "
-             "street seen from the centre of the road, about 3 metres above the ground, looking straight along the street "
-             "{looking}, with the street vanishing in the middle of the picture and the buildings of picture 1 on both sides. ")
-DESIGN = ("Show the street after a green redesign, like an architectural visualisation by a city planning office, on a sunny "
-          "summer day with blue sky. In the middle: two grey asphalt car lanes, one per direction, with white dashed lane markings "
-          "and a few cars. On each side of the car lanes: a red-coloured cycle lane, about 2 metres wide, separated by a white "
-          "line, with a few cyclists. Beyond each cycle lane: a planted green strip with grass and shrubs and a row of tall, "
-          "mature, lush deciduous street trees giving shade, then a wide pavement with people walking. Photorealistic, natural "
-          "light and leaf shadows.")
+SIZE = (1536, 1024)  # landscape
+NEGATIVE = ("cartoon, illustration, painting, drawing, blurry, distorted, deformed, watermark, fisheye, collage, split image, "
+            "sunny, blue sky, summer, cycle lane, red asphalt, bicycle symbol, new trees, planted strips, crowd, "
+            "architectural rendering")
+VIEWPOINT = ("The pictures show the same street ({street}) today, photographed from its pavement on an overcast autumn morning. "
+             "Create a new landscape photo of exactly this street as it is today, seen from the centre of the road, standing on "
+             "the centre line between the two directions, about 2 metres above the ground, looking straight along the street "
+             "{looking}, with the street vanishing in the middle of the picture. ")
+TODAY = ("Show only what is in the photos: the same buildings, the same existing trees with their autumn leaves, the bus stop with "
+         "its shelter, the lane markings, the kerbs, pavements, street lamps, signs, poles and the parked cars. Same overcast grey "
+         "sky, same light and colours, same wet asphalt. Do not add anything that is not in the photos: no new trees, no cycle "
+         "lanes, no planted strips, no people, no extra cars. A realistic photo, not a visualisation.")
 
 
 def load_pipeline(model):
@@ -60,7 +60,7 @@ def load_pipeline(model):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("redesigns", nargs="*", help="redesign ids (default: all)")
+    ap.add_argument("views", nargs="*", help="view ids (default: all)")
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--steps", type=int, default=40)
     ap.add_argument("--model", default=MODEL, help="Hugging Face id or local copy (much faster to load from a local disk)")
@@ -68,7 +68,7 @@ def main():
 
     cfg = json.loads((ROOT / "config/street.json").read_text())
     views = {v["id"]: v for v in cfg["views"]}
-    todo = [r for r in cfg.get("redesigns", []) if not a.redesigns or r["id"] in a.redesigns]
+    todo = [r for r in cfg.get("centre_views", []) if not a.views or r["id"] in a.views]
 
     t0 = time.time()
     pipe = load_pipeline(a.model)
@@ -76,7 +76,7 @@ def main():
     for r in todo:
         t = time.time()
         photos = [Image.open(ROOT / views[v]["image"]).convert("RGB") for v in r["photos"]]
-        prompt = VIEWPOINT.format(street=cfg["street"], looking=r["looking"]) + DESIGN
+        prompt = VIEWPOINT.format(street=cfg["street"], looking=r["looking"]) + TODAY
         out = pipe(image=photos, prompt=prompt, negative_prompt=NEGATIVE, true_cfg_scale=4.0, num_inference_steps=a.steps,
                    width=SIZE[0], height=SIZE[1], generator=torch.Generator("cuda").manual_seed(a.seed)).images[0]
         dest = ROOT / r["image"]

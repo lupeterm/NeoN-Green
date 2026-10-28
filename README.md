@@ -82,10 +82,10 @@ scripts/find_hotspots.py  regenerates data/hotspots.geojson
 scripts/fetch_opendata.py    mirrors the portal's environment datasets into opendata/ (git-ignored)
 scripts/prepare_opendata.py  builds the environment layers and the tree file from that mirror
 street.html, street.js    street view: trees and vehicles drawn into photos of Weipertstraße
-config/street.json        photo views, their camera calibration and the redesign views
+config/street.json        photo views, their camera calibration and the centre views
 data/street/*.jpg         the photos, 1200 x 1600
-data/street/redesign/     AI visualisations of the redesigned street
-scripts/redesign_street.py  makes them on a GPU
+data/street/centre/       AI views of the street from the centre of the road
+scripts/centre_view.py    makes them on a GPU
 ```
 
 ## Plugging in data
@@ -286,20 +286,22 @@ parts that stay in front of them.
 
 It is a photomontage with drawn trees and vehicles, not a rendering or a simulation.
 
-### Green redesign (AI)
+### From the centre of the road (AI)
 
-**Green redesign** in the street view shows Weipertstraße from the centre of the road, a few
-metres up, after a redesign: tree rows on both sides, planted strips, red cycle lanes, one car
-lane per direction, people walking and cycling. `scripts/redesign_street.py` makes these images
-with the open model [Qwen-Image-Edit-2511](https://huggingface.co/Qwen/Qwen-Image-Edit-2511)
-(Apache 2.0) from the photos in `data/street/`; the brief is in the script, the views in
-`redesigns` in `config/street.json`. The buildings are recognisable, everything else is invented
-by the model: an AI visualisation, not a planned design. It needs a GPU with about 60 GB:
+**From the centre of the road** in the street view shows Weipertstraße looking north and looking
+south from the centre line, as it is today: the same buildings, trees, bus stop and markings, on
+the same overcast autumn day, nothing added. The photos were taken from the pavement, so
+`scripts/centre_view.py` has the open model
+[Qwen-Image-Edit-2511](https://huggingface.co/Qwen/Qwen-Image-Edit-2511) (Apache 2.0) reconstruct
+that viewpoint from the north and south photos in `data/street/`. The brief is in the script; what
+each direction shows (which side has the bus stop, where there are no trees) is in `centre_views`
+in `config/street.json`. The street is recognisable, small details are the model's: an AI image,
+not a photo. It needs a GPU with about 60 GB:
 
 ```bash
 pip install torch torchvision diffusers transformers accelerate pillow
-python scripts/redesign_street.py                # all redesigns, about 70 s each
-python scripts/redesign_street.py north --seed 7 # another take of one
+python scripts/centre_view.py                 # both views, about 70 s each
+python scripts/centre_view.py north --seed 7  # another take of one
 ```
 
 On a GH200 (ARM) load the model from a local disk (`--model /local/copy`): the script reads the
@@ -316,7 +318,7 @@ weight files whole, because moving memory-mapped weights to the GPU is extremely
 | `data/hotspots.geojson` | derived from the above, 11 Jun – 22 Oct 2026; street names © OpenStreetMap contributors via [Nominatim](https://nominatim.org) | ODbL |
 | 3D tree models (`assets/models/`) | [Kenney](https://kenney.nl): Nature Kit, Graveyard Kit, Holiday Kit | CC0 |
 | `data/street/*.jpg` | own photos of Weipertstraße, 28 Oct 2026 | the team's |
-| `data/street/redesign/*.jpg` | generated from those photos with Qwen-Image-Edit-2511 | model: Apache 2.0 |
+| `data/street/centre/*.jpg` | generated from those photos with Qwen-Image-Edit-2511 | model: Apache 2.0 |
 | Basemap | © OpenStreetMap contributors, © CARTO | ODbL / CARTO terms |
 
 Citizen temperature sensors are often unshaded and read several degrees above the

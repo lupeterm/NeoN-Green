@@ -14,7 +14,7 @@
             padding: 12px 14px; width: 280px; box-sizing: border-box; max-height: calc(100vh - 20px); overflow-y: auto; }
     #panel { margin: 10px; flex: none; align-self: flex-start; }
     #stage { flex: 1; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 10px; }
-    #redesign { max-width: 100%; max-height: calc(100vh - 20px); border-radius: 6px; box-shadow: 0 4px 24px #0006; }
+    #centre { max-width: 100%; max-height: calc(100vh - 20px); border-radius: 6px; box-shadow: 0 4px 24px #0006; }
     #photo { max-width: 100%; max-height: calc(100vh - 20px); border-radius: 6px; box-shadow: 0 4px 24px #0006; cursor: crosshair; touch-action: none; }
     h1 { font-size: 15px; margin: 0 0 4px; }
     a { color: var(--cool); }
@@ -56,9 +56,9 @@
     <div class="tools" id="tools"></div>
     <p class="muted" id="hint">Click the pavement or road to place, click an object to remove it.</p>
     <p class="muted" id="count"></p>
-    <label>Green redesign <span>AI visualisation</span></label>
-    <div class="scen" id="redesigns"></div>
-    <p class="muted" id="redesignNote"></p>
+    <label>From the centre of the road <span>AI image</span></label>
+    <div class="scen" id="centreViews"></div>
+    <p class="muted" id="centreNote"></p>
     <label>Date</label>
     <input type="date" id="date">
     <label>Time of day <span id="timeLabel"></span></label>
@@ -70,10 +70,10 @@
     <button id="toMap" class="primary">Show trees on the map</button>
     <p class="muted" id="mapNote"></p>
     <p class="muted">Photomontage: trees and vehicles are drawn into the photo at the size and distance the camera
-      perspective gives. The green redesign images are AI visualisations made from the photos by an open model
+      perspective gives. The views from the centre of the road are AI images made from the photos by an open model
       (Qwen-Image-Edit, Apache 2.0). None of this is a planned design or a simulation.</p>
   </aside>
-  <main id="stage"><canvas id="photo"></canvas><img id="redesign" alt="AI visualisation of the redesigned street" hidden></main>
+  <main id="stage"><canvas id="photo"></canvas><img id="centre" alt="AI image of the street from the centre of the road" hidden></main>
   <script src="street.js"></script>
 </body>
 </html>

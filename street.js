@@ -35,7 +35,7 @@ async function main() {
   setupUi();
   const q = new URLSearchParams(location.search), wanted = q.get('view');
   await showView((S.cfg.views.find(v => v.id === wanted) || S.cfg.views[0]).id);
-  if (q.get('redesign')) showRedesign(q.get('redesign'));
+  if (q.get('centre')) showCentre(q.get('centre'));
 }
 
 // ------------------------------------------------------------------ camera
@@ -92,12 +92,12 @@ function setupUi() {
   $('clear').onclick = () => { S.objects[S.view.id] = []; saveObjects(); draw(); };
   $('save').onclick = saveImage;
   $('toMap').onclick = toMap;
-  for (const r of S.cfg.redesigns || []) {
+  for (const r of S.cfg.centre_views || []) {
     const b = document.createElement('button');
     b.textContent = r.label;
     b.dataset.id = r.id;
-    b.onclick = () => showRedesign(r.id);
-    $('redesigns').append(b);
+    b.onclick = () => showCentre(r.id);
+    $('centreViews').append(b);
   }
 
   const c = $('photo');
@@ -129,7 +129,7 @@ async function showView(id) {
   $('photo').height = H;
   for (const b of $('views').children) b.classList.toggle('on', b.dataset.id === id);
   $('viewLabel').textContent = v.label;
-  showRedesign(null);
+  showCentre(null);
   draw();
 }
 
@@ -552,18 +552,18 @@ function bikeSide(g, jacket) {
   g.beginPath(); g.ellipse(0.22, 1.66, 0.14, 0.08, 0, 0, Math.PI); g.fill();
 }
 
-// ------------------------------------------------------------------ green redesign (AI)
-// Whole-street visualisations from the centre of the road, made from the photos by
-// scripts/redesign_street.py; shown instead of the photo until a view is picked again.
+// ------------------------------------------------------------------ views from the centre of the road (AI)
+// The street as it is today seen from the road centre, made from the photos by
+// scripts/centre_view.py; shown instead of the photo until a photo view is picked again.
 
-function showRedesign(id) {
-  const r = id && (S.cfg.redesigns || []).find(x => x.id === id);
-  $('redesign').hidden = !r;
+function showCentre(id) {
+  const r = id && (S.cfg.centre_views || []).find(x => x.id === id);
+  $('centre').hidden = !r;
   $('photo').hidden = !!r;
-  for (const b of $('redesigns').children) b.classList.toggle('on', !!r && b.dataset.id === r.id);
+  for (const b of $('centreViews').children) b.classList.toggle('on', !!r && b.dataset.id === r.id);
   for (const b of $('views').children) b.classList.toggle('on', !r && S.view && b.dataset.id === S.view.id);
-  $('redesignNote').textContent = r ? `${r.label}: ${r.description}` : '';
-  if (r) $('redesign').src = r.image;
+  $('centreNote').textContent = r ? `${r.label}: ${r.description}` : '';
+  if (r) $('centre').src = r.image;
 }
 
 // ------------------------------------------------------------------ map hand-off, saving
