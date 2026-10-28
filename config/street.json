@@ -1,5 +1,5 @@
 {
-  "_about": "Photo views for street.html. Image coordinates are pixels of the 1200 x 1600 photos. Calibration: horizon_y and vanishing_x are where the street's parallel lines (kerbs, building base, lane markings) meet; street_bearing_deg is the street direction from OSM (way 81083900), towards the vanishing point. ground: polygon where objects can be placed. foreground: photo parts in front of anything placed (posts, parked cars). centre_views: AI images of the street from the centre of the road, made from the listed photos by scripts/centre_view.py.",
+  "_about": "views: the photos of the street (calibration as described below), used by the map and by scripts/centre_view.py. centre_views: AI images of the street from the centre of the road (scripts/centre_view.py), the views of street.html; lat/lon is the road centre, horizon_y and vanishing_x where the street lines meet, focal_px assumes a 70 degree horizontal field of view. Photo calibration: horizon_y and vanishing_x are where the street's parallel lines (kerbs, building base, lane markings) meet; street_bearing_deg is the street direction from OSM (way 81083900), towards the vanishing point. ground: polygon where objects can be placed. foreground: photo parts in front of anything placed.",
   "street": "Weipertstraße",
   "focal_35mm": 26,
   "image_size": [1200, 1600],
@@ -65,16 +65,36 @@
       "label": "Looking north, past the Open Space",
       "photos": ["north", "south"],
       "looking": "towards the north, as in picture 1: on the left the long red-brick factory building with a bare pavement and no trees in front of it; on the right the opposite side of the road with the white office buildings of picture 1, and no bus stop, the bus stop and the trees of picture 2 are behind the camera",
-      "description": "Weipertstraße as it is today, seen from the centre of the road. Made from the photos by an AI model; small details are invented.",
-      "image": "data/street/centre/weipert_north.jpg"
+      "description": "Weipertstraße as it is today, seen from the centre of the road. An AI image made from the photos; small details are invented. Click the road or pavement to place trees and cars.",
+      "image": "data/street/centre/weipert_north.jpg",
+      "lat": 49.151545,
+      "lon": 9.215877,
+      "camera_height_m": 2.0,
+      "image_size": [1536, 1024],
+      "focal_px": 1097,
+      "foreground": [],
+      "horizon_y": 496,
+      "vanishing_x": 806,
+      "street_bearing_deg": 22,
+      "ground": [[0, 1024], [0, 592], [300, 553], [690, 503], [806, 498], [1000, 503], [1300, 530], [1536, 545], [1536, 1024]]
     },
     {
       "id": "south",
       "label": "Looking south, towards the bus stop",
       "photos": ["south", "north"],
       "looking": "towards the south, as in picture 1: on the right the bus stop with its shelter, the trees along the pavement and the brick building, and the bus lane marked with the word BUS",
-      "description": "Weipertstraße as it is today, seen from the centre of the road. Made from the photos by an AI model; small details are invented.",
-      "image": "data/street/centre/weipert_south.jpg"
+      "description": "Weipertstraße as it is today, seen from the centre of the road. An AI image made from the photos; small details are invented. Click the road or pavement to place trees and cars.",
+      "image": "data/street/centre/weipert_south.jpg",
+      "lat": 49.151545,
+      "lon": 9.215877,
+      "camera_height_m": 2.0,
+      "image_size": [1536, 1024],
+      "focal_px": 1097,
+      "foreground": [],
+      "horizon_y": 490,
+      "vanishing_x": 800,
+      "street_bearing_deg": 202,
+      "ground": [[0, 1024], [0, 552], [230, 548], [500, 515], [800, 493], [1000, 500], [1200, 545], [1536, 560], [1536, 1024]]
     }
   ]
 }

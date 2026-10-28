@@ -233,12 +233,12 @@ class ThemeControl {
 }
 
 // ------------------------------------------------------------------ street view (street.html)
-// A flag where the photos were taken and a cone per photo showing where it looks.
+// A flag at the road centre where the street view stands, and a cone per view showing where it looks.
 
 async function setupStreetView() {
   try { S.streetView = await getJSON(STREET_VIEW_CFG); } catch { return; }
-  const cfg = S.streetView, views = cfg.views;
-  setData('street-views', fc(views.map(v => viewCone(v, cfg))));
+  const cfg = S.streetView, views = cfg.centre_views;
+  setData('street-views', fc(views.map(viewCone)));
   const at = [views.reduce((a, v) => a + v.lon, 0) / views.length, views.reduce((a, v) => a + v.lat, 0) / views.length];
   const el = document.createElement('button');
   el.className = 'flag';
@@ -259,7 +259,7 @@ function streetViewCard(cfg) {
   const card = document.createElement('div'), title = document.createElement('b'), row = document.createElement('div');
   title.textContent = `${cfg.street}: street view`;
   row.className = 'thumbs';
-  for (const v of cfg.views) {
+  for (const v of cfg.centre_views) {
     const a = document.createElement('a'), img = document.createElement('img'), cap = document.createElement('span');
     a.href = `street.html?view=${v.id}`;
     img.src = v.image;
@@ -269,15 +269,15 @@ function streetViewCard(cfg) {
   }
   const note = document.createElement('p');
   note.className = 'muted';
-  note.textContent = 'Plant trees and place vehicles in the photos. The blue cones show where each photo looks.';
+  note.textContent = 'Plant trees and place cars in the street, seen from the centre of the road. The blue cones show where each view looks.';
   card.append(title, row, note);
   return card;
 }
 
-// Ground area a photo shows, as a cone of VIEW_CONE_M from the camera. Same calibration as
-// camera() in street.js: 26 mm-equivalent lens, direction from the street's vanishing point.
-function viewCone(v, cfg) {
-  const [W, H] = cfg.image_size, f = (cfg.focal_35mm / 43.27) * Math.hypot(W, H);
+// Ground area a view shows, as a cone of VIEW_CONE_M from the camera. Same calibration as
+// camera() in street.js: focal length in pixels, direction from the street's vanishing point.
+function viewCone(v) {
+  const [W, H] = v.image_size, f = v.focal_px;
   const pitch = Math.atan((H / 2 - v.horizon_y) / f), yaw = Math.atan(((v.vanishing_x - W / 2) * Math.cos(pitch)) / f);
   const bearing = v.street_bearing_deg * NG.DEG - yaw, half = Math.atan(W / 2 / f);
   const kx = 111320 * Math.cos(v.lat * NG.DEG), ring = [[v.lon, v.lat]];

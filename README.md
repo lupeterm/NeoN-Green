@@ -81,11 +81,13 @@ scripts/fetch_atrai.py    regenerates data/atrai_bike.csv for any period
 scripts/find_hotspots.py  regenerates data/hotspots.geojson
 scripts/fetch_opendata.py    mirrors the portal's environment datasets into opendata/ (git-ignored)
 scripts/prepare_opendata.py  builds the environment layers and the tree file from that mirror
-street.html, street.js    street view: trees and vehicles drawn into photos of Weipertstraße
+street.html, street.js    street view: place trees and cars on Weipertstraße
 config/street.json        photo views, their camera calibration and the centre views
 data/street/*.jpg         the photos, 1200 x 1600
 data/street/centre/       AI views of the street from the centre of the road
 scripts/centre_view.py    makes them on a GPU
+data/street/sprites/      AI cut-outs of trees and cars for the street view
+scripts/make_sprites.py   makes them on a GPU
 ```
 
 ## Plugging in data
@@ -266,30 +268,37 @@ low-cost sensors: treat the list as candidates to look at, not as measured heat 
 
 ## Street view (Weipertstraße)
 
-`street.html` (linked from the map's left panel) shows three photos of Weipertstraße in front
-of the Open Space, taken on 28 Oct 2026. Click the pavement or the road to place a small,
-medium or large tree, a car or a bike; click a tree's trunk or a vehicle to remove it. Objects
-get the size and position the camera perspective gives at that spot, nearer objects cover
-farther ones, posts and the parked car in the photos stay in front, and tree shadows follow
-the sun for the chosen date and time. Vehicles keep to the right, so they are seen from behind,
-from the front or from the side. **Before / after** slides the original photo over the montage,
-**Save image** downloads it, and **Show trees on the map** hands the planted trees to the map,
-which selects Weipertstraße there, plants them by hand and computes the cooling.
+`street.html` (linked from the map's left panel and its flag on Weipertstraße) shows the street
+in front of the Open Space from the centre of the road, looking north and looking south. Click
+the pavement or the road to place a small, medium or large tree or a car; click a tree's trunk
+or a car to remove it. Objects get the size and position the perspective gives at that spot and
+nearer objects cover farther ones; cars keep to the right, so they are seen from behind, from
+the front or from the side. Tree shadows can follow the sun for a chosen date and time. **Save
+image** downloads the view, **Show trees on the map** hands the planted trees to the map, which
+selects Weipertstraße there, plants them by hand and computes the cooling.
 
-Each view in `config/street.json` is calibrated from the photo itself: `horizon_y` and
-`vanishing_x` are where the street's parallel lines (kerb, building base, lane markings) meet,
-`street_bearing_deg` is the street direction from OSM, the focal length comes from the
-phone's 26 mm-equivalent lens, and the camera is assumed 1.5 m above the ground. Open
-`street.html?debug` to see a ground grid (1 m lines along the street, 5 m across) and check it
-against the kerbs. `ground` is the area where objects can be placed and `foreground` lists photo
-parts that stay in front of them.
+The views and the trees and cars are AI images (see below). Each view's calibration in
+`centre_views` in `config/street.json`: `horizon_y` and `vanishing_x` are where the street's
+lines meet, the camera stands on the centre line 2 m above the road at `lat`/`lon`, and
+`focal_px` assumes a 70° horizontal field of view. Open `street.html?debug` to see a ground grid
+(1 m lines along the street, 5 m across) and check it against the kerbs.
 
-It is a photomontage with drawn trees and vehicles, not a rendering or a simulation.
+### Trees and cars
 
-### From the centre of the road (AI)
+`scripts/make_sprites.py` makes the cut-outs in `data/street/sprites/` with the same open model:
+two trees per size (the presets in `config/model.json`) and three cars each from behind, the
+front and the side, painted on magenta and keyed out. `sprites.json` gives each one's ground
+point and pixels per metre.
 
-**From the centre of the road** in the street view shows Weipertstraße looking north and looking
-south from the centre line, as it is today: the same buildings, trees, bus stop and markings, on
+```bash
+python scripts/make_sprites.py                 # all 15, about 30 s each
+python scripts/make_sprites.py car-side-2 --seed 4   # redo one
+```
+
+### The views
+
+The two views show Weipertstraße looking north and looking south from the centre line, as it is
+today: the same buildings, trees, bus stop and markings, on
 the same overcast autumn day, nothing added. The photos were taken from the pavement, so
 `scripts/centre_view.py` has the open model
 [Qwen-Image-Edit-2511](https://huggingface.co/Qwen/Qwen-Image-Edit-2511) (Apache 2.0) reconstruct
@@ -318,7 +327,7 @@ weight files whole, because moving memory-mapped weights to the GPU is extremely
 | `data/hotspots.geojson` | derived from the above, 11 Jun – 22 Oct 2026; street names © OpenStreetMap contributors via [Nominatim](https://nominatim.org) | ODbL |
 | 3D tree models (`assets/models/`) | [Kenney](https://kenney.nl): Nature Kit, Graveyard Kit, Holiday Kit | CC0 |
 | `data/street/*.jpg` | own photos of Weipertstraße, 28 Oct 2026 | the team's |
-| `data/street/centre/*.jpg` | generated from those photos with Qwen-Image-Edit-2511 | model: Apache 2.0 |
+| `data/street/centre/*.jpg`, `data/street/sprites/*.png` | generated with Qwen-Image-Edit-2511, the views from those photos | model: Apache 2.0 |
 | Basemap | © OpenStreetMap contributors, © CARTO | ODbL / CARTO terms |
 
 Citizen temperature sensors are often unshaded and read several degrees above the
