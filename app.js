@@ -27,7 +27,7 @@ const S = {
   manual: [],            // [{lon, lat}] trees placed by hand
   placement: {key: null, trees: []},
   draw: {active: false, drawing: false, ring: []},
-  layerData: {}, existingTrees: [],
+  layerData: {}, existingTrees: [], icons: {},
   job: 0, timer: null, refresh: null, url: null,
 };
 const worker = new Worker('worker.js');
@@ -41,6 +41,7 @@ async function main() {
   S.map.addControl(new ThemeControl(), 'top-right');
   S.map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
   await S.map.once('style.load');  // don't wait for every basemap tile
+  await loadIcons();
   setupMap();
   setupUi();
   setupDataLayers();
@@ -74,9 +75,11 @@ function setupMap() {
   m.addLayer({id: 'lasso', type: 'line', source: 'lasso',
               paint: {'line-color': '#1c7ed6', 'line-width': 2, 'line-dasharray': [2, 2]}}, firstLabel);
   m.addLayer({id: 'shadows', type: 'fill', source: 'shadows', paint: {...THEME_PAINT[S.theme].shadows}}, firstLabel);
-  m.addLayer({id: 'planted', type: 'circle', source: 'planted', paint: {
-    'circle-color': '#2f9e44', 'circle-opacity': 0.9, 'circle-stroke-color': '#0b3d16', 'circle-stroke-width': 1.5,
-    'circle-radius': metres(['get', 'r'], 4)}}, firstLabel);
+  m.addLayer(S.icons.planted
+    ? iconLayer('planted', 'planted', ['*', 2, ['get', 'r']], 22, 1)
+    : {id: 'planted', type: 'circle', source: 'planted', paint: {
+        'circle-color': '#2f9e44', 'circle-opacity': 0.9, 'circle-stroke-color': '#0b3d16', 'circle-stroke-width': 1.5,
+        'circle-radius': metres(['get', 'r'], 4)}}, firstLabel);
 
   const font = layers.find(l => l.layout && l.layout['text-font'])?.layout['text-font'];
   m.addSource('hotspots', {type: 'geojson', data: fc([])});
@@ -471,7 +474,7 @@ function blocked(p, r, placed, o) {
   for (const b of o.buildings) {
     if (p.x >= b.box[0] && p.x <= b.box[2] && p.y >= b.box[1] && p.y <= b.box[3] && NG.inPolygon(p.x, p.y, b.rings)) return b.kind === 'water' ? 'water' : 'building';
   }
-  for (const t of o.trees) if (Math.hypot(p.x - t.x, p.y - t.y) < (t.r + r) * pl.crown_overlap) return 'existing tree';
+  for (const t of o.trees) if (Math.hypot(p.x - t.x, p.y - t.y) < (t.r + r) * pl.existing_tree_spacing) return 'existing tree';
   for (const q of placed) if (Math.hypot(p.x - q.x, p.y - q.y) < 2 * r * pl.crown_overlap) return 'too close to another new tree';
   return '';
 }
@@ -585,6 +588,10 @@ function layerStyle(l, id) {
             paint: {'line-color': color, 'line-opacity': 0.9, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1.5, 18, 6]}};
   }
   const crown = !!l.crownDiameterField;
+  if (crown && S.icons[`lyr-${l.id}`]) {
+    const diameter = ['to-number', ['get', l.crownDiameterField], S.model.placement.default_existing_crown_m];
+    return iconLayer(id, id, diameter, 10, 0.85, `lyr-${l.id}`);
+  }
   const radius = crown
     ? metres(['/', ['to-number', ['get', l.crownDiameterField], S.model.placement.default_existing_crown_m], 2], 1.5)
     : ['interpolate', ['linear'], ['zoom'], 12, 2, 18, 7];
@@ -794,6 +801,43 @@ function parseCsv(text) {
   const split = l => l.split(new RegExp(`${sep}(?=(?:[^"]*"[^"]*")*[^"]*$)`)).map(c => c.replace(/^"|"$/g, ''));
   const head = split(lines[0]);
   return lines.slice(1).map(l => Object.fromEntries(split(l).map((c, i) => [head[i], c])));
+}
+
+// ------------------------------------------------------------------ tree icons
+// config/overlays.json "icons": {"planted": url} and per layer "icon": url. The disc in an icon
+// spans ICON_DISC_PX of its ICON_PX and is drawn at the crown's real diameter on the map.
+
+const ICON_PX = 128, ICON_DISC_PX = 120, ICON_RATIO = 2;
+
+async function loadIcons() {
+  S.icons = {};
+  const wanted = {...(S.cfg.icons || {})};
+  for (const l of S.cfg.layers || []) if (l.icon) wanted[`lyr-${l.id}`] = l.icon;
+  await Promise.all(Object.entries(wanted).map(async ([id, url]) => {
+    try {
+      const img = new Image(ICON_PX, ICON_PX);
+      img.src = url;
+      await img.decode();
+      S.icons[id] = img;
+      S.map.addImage(id, img, {pixelRatio: ICON_RATIO});
+    } catch (e) {
+      console.warn(`icon ${url} not loaded, falling back to circles`, e);
+    }
+  }));
+  // a basemap swap (dark mode) drops all images; put ours back when a layer asks for them
+  S.map.on('styleimagemissing', e => { if (S.icons[e.id] && !S.map.hasImage(e.id)) S.map.addImage(e.id, S.icons[e.id], {pixelRatio: ICON_RATIO}); });
+}
+
+// Symbol layer showing `image` (default: id) at the crown diameter given in metres, never below minPx.
+function iconLayer(id, source, diameter, minPx, opacity, image = id) {
+  // at icon-size 1 the disc shows ICON_DISC_PX / ICON_RATIO screen pixels wide
+  const perMetre = z => (2 ** z / (156543.03 * Math.cos(S.cfg.center[1] * NG.DEG))) / (ICON_DISC_PX / ICON_RATIO);
+  const size = z => ['max', minPx / (ICON_PX / ICON_RATIO), ['*', diameter, perMetre(z)]];
+  return {id, type: 'symbol', source,
+          layout: {'icon-image': image, 'icon-size': ['interpolate', ['exponential', 2], ['zoom'], 12, size(12), 22, size(22)],
+                   'icon-allow-overlap': true, 'icon-ignore-placement': true,
+                   'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'map'},
+          paint: {'icon-opacity': opacity}};
 }
 
 // circle-radius expression for a radius in metres (exact at the configured centre latitude)

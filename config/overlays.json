@@ -5,6 +5,9 @@
     49.1422
   ],
   "zoom": 16,
+  "icons": {
+    "planted": "assets/spooky-tree-planted.svg"
+  },
   "hotspots": "data/hotspots.geojson",
   "overlays": [
     {
@@ -64,7 +67,8 @@
         "KRONE_DM": "Crown Ø (m)",
         "ST_UMFANG": "Trunk girth (m)",
         "STRASSE": "Street"
-      }
+      },
+      "icon": "assets/spooky-tree-existing.svg"
     },
     {
       "id": "bike_overtaking",

@@ -15,7 +15,8 @@ microclimate simulation.
 python3 -m http.server 8765
 ```
 
-Open <http://localhost:8765>. No build step and no API keys. MapLibre GL JS, Turf and
+Open <http://localhost:8765>. No build step and no API keys. After editing a file, reload with
+Ctrl+Shift+R (Cmd+Shift+R on macOS): the simple Python server lets browsers keep old copies. MapLibre GL JS, Turf and
 SunCalc load from unpkg, and the basemap is CARTO Positron.
 
 ## Using it
@@ -37,8 +38,8 @@ with the system setting and remembers the choice in the browser. Switching keeps
 street, the trees and all layers.
 
 Trees are only planted where there is room: not on a roadway (width estimated from the road
-class), not inside a building or water, and not under the crown of an existing or another
-new tree. Evenly spaced trees alternate sides. A blocked spot first moves away from the
+class), not inside a building or water, and never overlapping the crown of an existing tree
+(`placement.existing_tree_spacing`; new trees may overlap each other slightly, `crown_overlap`). Evenly spaced trees alternate sides. A blocked spot first moves away from the
 centre line, up to `placement.max_offset_m` but never past a building or water, and then
 slides along the street until it fits. The panel says how many of the requested trees fit; a click by hand that
 does not fit says why.
@@ -111,9 +112,16 @@ Entries in `layers` are drawn as they are, without interpolation. Each is a GeoJ
 * `type` is `line` or `circle`. With `value`, features are coloured along `ramp` over `domain`
   and a legend appears; without it they use `color`.
 * Layers without `group` get a checkbox, layers sharing a `group` share one dropdown.
-* `crownDiameterField` draws circles to scale in metres. `"obstacle": true` additionally makes
+* `crownDiameterField` draws circles to scale in metres, or the image in `icon` (see below). `"obstacle": true` additionally makes
   these points block tree placement, as the existing trees do.
 * `tooltip` maps property names to the labels shown on hover.
+
+### Tree icons
+
+Trees are drawn as icons from `assets/`: `icons.planted` in `config/overlays.json` for new
+trees and `icon` on a layer for existing ones. An icon is a 128 × 128 px image whose central
+disc of 120 px is scaled to the crown diameter on the map. The current icons are a Halloween
+theme, a bare tree against the full moon. Remove both entries to get plain circles back.
 
 ### Interpolation
 
