@@ -51,9 +51,10 @@ onmessage = async ({data: job}) => {
 // Inverse distance weighting. Few points: all of them (sparse sensor networks).
 // Many points (e.g. bike tracks): only those within idw_radius_m, else no value.
 // Gridded data (overlay "interpolation": {"mode": "nearest", "radius_m": ...}) keeps the value of
-// the nearest point instead, so mapped bands stay crisp.
+// the nearest point instead, so mapped bands stay crisp; {"mode": "smooth", "sigma_m", "cell_m"} blurs them.
 function interpolator(pts, g, interp) {
   if (interp?.mode === 'nearest') return nearest(pts, interp.radius_m || 20);
+  if (interp?.mode === 'smooth') return smooth(pts, interp.sigma_m || 15, interp.cell_m || 25);
   const pow = g.idw_power / 2;
   const fold = (x, y, list, r2) => {
     let sw = 0, s = 0;
@@ -99,6 +100,31 @@ function nearest(pts, R) {
       }
     }
     return v;
+  };
+}
+
+// Gridded data, blurred: Gaussian-weighted mean of the grid points within 3 sigma. Where the grid
+// stops (e.g. noise below 55 dB is not mapped), a point only gets a value when at least half of the
+// kernel weight a full grid would give falls on existing points, so the outline is smooth as well.
+function smooth(pts, sigma, cell) {
+  const R = 3 * sigma, two = 2 * sigma * sigma, full = (Math.PI * two) / (cell * cell);  // kernel sum on a full grid
+  const buckets = new Map(), key = (i, j) => i * 100003 + j;
+  for (const p of pts) {
+    const k = key(Math.floor(p.x / R), Math.floor(p.y / R));
+    (buckets.get(k) || buckets.set(k, []).get(k)).push(p);
+  }
+  return (x, y) => {
+    const i = Math.floor(x / R), j = Math.floor(y / R);
+    let sw = 0, s = 0;
+    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) {
+      for (const p of buckets.get(key(i + di, j + dj)) || []) {
+        const d2 = (p.x - x) ** 2 + (p.y - y) ** 2;
+        if (d2 > R * R) continue;
+        const wt = Math.exp(-d2 / two);
+        sw += wt; s += wt * p.v;
+      }
+    }
+    return sw >= 0.5 * full ? s / sw : NaN;
   };
 }
 

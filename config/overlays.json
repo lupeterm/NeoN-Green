@@ -257,8 +257,9 @@
         "#7b3294"
       ],
       "interpolation": {
-        "mode": "nearest",
-        "radius_m": 20
+        "mode": "smooth",
+        "sigma_m": 15,
+        "cell_m": 25
       }
     }
   ],

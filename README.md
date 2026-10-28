@@ -190,6 +190,13 @@ Points are interpolated by inverse distance weighting. Sparse networks (up to 30
 use all points everywhere. Dense data such as bike tracks only uses points within
 `grid.idw_radius_m` and leaves gaps elsewhere.
 
+Gridded data can set `"interpolation"` on its overlay instead: `{"mode": "nearest", "radius_m": 20}`
+keeps each grid cell's value (crisp but boxy), `{"mode": "smooth", "sigma_m": 15, "cell_m": 25}`
+takes a Gaussian-weighted mean of the grid points nearby. Where the grid ends, a place only gets a
+value if at least half the weight of a full grid falls on existing points, so the edge is smoothed
+too rather than extended. The noise map uses `smooth`: its 5 dB bands (sampled every 25 m) then
+show as gradual transitions, which is a drawing aid, not a finer measurement.
+
 ## The model
 
 `model.js`, with parameters in `config/model.json`:
