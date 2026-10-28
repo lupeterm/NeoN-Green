@@ -129,7 +129,9 @@ function setupUi() {
   range('bedWidth', ms.beds.width_m);
   range('albedo', ms.pavement.albedo);
   range('poles', [ms.misting.poles[0], 0, ms.misting.poles[1]]);
-  for (const id of ['date', 'time', 'trees', 'preset', 'bedWidth', 'bedShare', 'albedo', 'poles', 'speed', 'volume']) $(id).oninput = update;
+  range('sails', [ms.sails.sails[0], 0, ms.sails.sails[1]]);
+  for (const r of document.querySelectorAll('input[name=sailSpan]')) r.onchange = update;
+  for (const id of ['date', 'time', 'trees', 'preset', 'sails', 'bedWidth', 'bedShare', 'albedo', 'poles', 'speed', 'volume']) $(id).oninput = update;
   setMeasure(S.measure);
   for (const r of document.querySelectorAll('input[name=mode]')) r.onchange = () => setMode(r.value);
   $('clearTrees').onclick = () => { S.manual = []; update(); };
@@ -522,7 +524,7 @@ function setMeasure(kind) {
   update();
 }
 
-function buildMeasure(P, trees) {
+function buildMeasure(P, trees, sun) {
   const st = S.street, kind = S.measure, q = S.model.measures[kind];
   const section = sectionLine(P).geometry.coordinates.map(([lon, lat]) => P.toXY(lon, lat));
   const len = st.b - st.a, poly = (pts, props) => turf.polygon([[...pts, pts[0]].map(p => P.toLL(p.x, p.y))], props);
@@ -530,7 +532,23 @@ function buildMeasure(P, trees) {
   const roadway = props => ({...turf.buffer(sectionLine(P), Math.max(1, st.halfWidth), {units: 'meters'}), properties: props});
   const centre = alongXY(st, (st.a + st.b) / 2), mid = P.toLL(centre.x, centre.y);
 
+  const rect = (c, props) => poly(NG.boxRing(c).map(([x, y]) => ({x, y})), props);
+
   if (kind === 'trees') return {measure: {kind, trees: trees.map(t => ({...t, ...P.toXY(t.lon, t.lat)}))}, features: [], rows: []};
+
+  if (kind === 'sails') {
+    const n = +$('sails').value, span = document.querySelector('input[name=sailSpan]:checked').value;
+    const key = [st.a, st.b, n, span].join('|');
+    if (S.layout.key !== key) S.layout = {key, sails: placeSails(n, span)};
+    const sails = S.layout.sails, area = sails.reduce((sum, c) => sum + c.len * c.w, 0);
+    $('sailsLabel').textContent = sails.length === n ? String(n) : `${sails.length} of ${n} fit`;
+    return {measure: {kind, sails},
+            shadows: sails.map(c => NG.sailShadow(c, sun, S.model)).filter(Boolean).map(c => rect(c, {})),
+            features: S.view3d ? [] : sails.map(c => rect(c, {color: '#fff4e6', outline: '#e8590c', opacity: 0.85})),
+            solids: sails.map(c => rect(c, {base: c.h, top: c.h + 0.15, color: '#ffe8cc', kind: 'planted'})),  // 3D view
+            rows: [['Sail area', `${Math.round(area).toLocaleString('en')} m²`],
+                   ...(span === 'across' && st.halfWidth > 2.5 ? [[`Spans the roadway: ${q.across.height_m} m high, anchored on both sides.`, null, 'note']] : [])]};
+  }
 
   if (kind === 'beds') {
     const w = +$('bedWidth').value, share = +$('bedShare').value / 100;
@@ -540,9 +558,7 @@ function buildMeasure(P, trees) {
     const wanted = 2 * len * share * w;
     $('bedWidthLabel').textContent = `${w} m`;
     $('bedShareLabel').textContent = `${Math.round(share * 100)} %`;
-    const corners = c => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => ({
-      x: c.x + u * c.tx * c.len / 2 - v * c.ty * c.w / 2, y: c.y + u * c.ty * c.len / 2 + v * c.tx * c.w / 2}));
-    return {measure: {kind, cells}, features: cells.map(c => poly(corners(c), {color: '#51cf66', outline: '#2b8a3e', opacity: 0.75})),
+    return {measure: {kind, cells}, features: cells.map(c => rect(c, {color: '#51cf66', outline: '#2b8a3e', opacity: 0.75})),
             rows: [['Beds', `${Math.round(area).toLocaleString('en')} m²`],
                    ...(area < wanted * 0.95 ? [[`Room for beds on ${Math.round((100 * area) / wanted)} % of the strip only.`, null, 'note']] : [])]};
   }
@@ -583,6 +599,29 @@ function buildMeasure(P, trees) {
                  ['Noise', noise == null ? 'none' : `${signed(noise)} dB(A)`],
                  [`Assumed today: ${limit} km/h, ${vehicles.toLocaleString('en')} vehicles a day (from the road class).` +
                   ($('speed').value === '30' && !to30 ? ' The limit is probably 30 km/h or less already.' : ''), null, 'note']]};
+}
+
+// Shade sails evenly along the section: over the pavements on alternating sides (the other side
+// if a building is in the way), or across the whole street. Overhead, so roads do not block them.
+function placeSails(n, span) {
+  const st = S.street, pl = S.model.placement, q = S.model.measures.sails, sails = [];
+  const spacing = (st.b - st.a) / Math.max(n, 1), buildings = {roads: [], buildings: st.obstacles.buildings, trees: []};
+  for (let i = 0; i < n; i++) {
+    const c = alongXY(st, st.a + (i + 0.5) * spacing);
+    if (span === 'across') {
+      const g = q.across;
+      sails.push({x: c.x, y: c.y, tx: c.tx, ty: c.ty, len: Math.min(g.length_m, spacing), w: 2 * (st.halfWidth + g.pavement_m), h: g.height_m});
+      continue;
+    }
+    const g = q.pavement, off = (st.halfWidth || pl.path_offset_m) + pl.clearance_m + g.width_m / 2;
+    for (const side of i % 2 ? [-1, 1] : [1, -1]) {
+      const p = {x: c.x - c.ty * side * off, y: c.y + c.tx * side * off};
+      if (blocked(p, 0, [], buildings)) continue;
+      sails.push({...p, tx: c.tx, ty: c.ty, len: Math.min(g.length_m, 2 * spacing), w: g.width_m, h: g.height_m});
+      break;
+    }
+  }
+  return sails;
 }
 
 // Strips of grass and flowers behind both kerbs, cells of sample_m along the section. Like trees,
@@ -916,17 +955,17 @@ function run() {
   let scenario = null;
   if (S.street) {
     const P = NG.projection(...S.cfg.center), section = sectionLine(P);
-    const trees = S.measure === 'trees' ? currentTrees(P) : [], built = buildMeasure(P, trees);
+    const trees = S.measure === 'trees' ? currentTrees(P) : [], built = buildMeasure(P, trees, sun);
     const shadows = trees.map(t => NG.shadowEllipse({...t, ...P.toXY(t.lon, t.lat)}, sun, S.model)).filter(Boolean)
       .map(e => { const ring = NG.ellipseRing(e).map(([x, y]) => P.toLL(x, y)); return turf.polygon([[...ring, ring[0]]]); });
     setData('section', fc([section]));
     setData('planted', fc(trees.map((t, i) => turf.point([t.lon, t.lat], {r: t.crown_diameter_m / 2, i}))));
-    setData('shadows', fc(shadows));
+    setData('shadows', fc([...shadows, ...(built.shadows || [])]));
     setData('measure', fc(built.features));
     S.resultRows = built.rows;
     if (S.view3d) {
       const models = S.deck && iconThemes()[S.iconTheme]?.models3d;
-      setData('trees-3d', fc(models ? [] : trees3D(trees, P)));  // block trees only as fallback
+      setData('trees-3d', fc([...(models ? [] : trees3D(trees, P)), ...(built.solids || [])]));  // block trees only as fallback
       if (models) S.deck.setProps({layers: treeModelLayers(trees, P, models)});
     }
     const len = Math.round(S.street.b - S.street.a), n = +$('trees').value;
@@ -976,7 +1015,7 @@ function showResult(st) {
     ['Change', `${signed(st.after - st.before)} °C`, 'big'],
     ['Strongest cooling', `${signed(st.maxCooling)} °C`],
     ...(st.maxWarming > 0.05 ? [['Strongest warming', `${signed(st.maxWarming)} °C`]] : []),
-    ...(trees ? [['Shaded', `${Math.round(st.shadedArea).toLocaleString('en')} of ${Math.round(st.area).toLocaleString('en')} m²`]] : []),
+    ...(trees || S.measure === 'sails' ? [['Shaded', `${Math.round(st.shadedArea).toLocaleString('en')} of ${Math.round(st.area).toLocaleString('en')} m²`]] : []),
   ];
   rows.push(...(S.resultRows || []));
   $('result').innerHTML = rows.map(([k, v, cls]) => cls === 'note' ? `<dt class="muted" style="grid-column:1/-1">${k}</dt>`

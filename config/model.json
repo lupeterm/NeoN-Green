@@ -76,6 +76,7 @@
     "_about": "Measures selectable in the scenario panel, one at a time, listed in 'order' (by how well they fit a street in Heilbronn). 'note' is shown under the selector.",
     "order": [
       "trees",
+      "sails",
       "beds",
       "pavement",
       "misting",
@@ -84,6 +85,28 @@
     "trees": {
       "label": "Street trees",
       "note": "Strongest and best-studied cooling: shade plus evaporation. Needs room for roots and a decade to grow."
+    },
+    "sails": {
+      "label": "Shade sails",
+      "note": "Fabric stretched over the pavement or across the street. Shade from day one where trees cannot grow; needs anchors on facades or masts and comes down in winter.",
+      "_sails": "Number of sails: default, max. Over the pavements they alternate sides like trees; across the street they span it.",
+      "sails": [
+        6,
+        30
+      ],
+      "_shade_factor": "Share of the full tree-shade cooling (shade.max_cooling_C) under a sail: fabric lets some sun through and warms up.",
+      "shade_factor": 0.85,
+      "pavement": {
+        "length_m": 6,
+        "width_m": 4,
+        "height_m": 4
+      },
+      "_across": "Across the street: width = road plus pavement_m on both sides, high enough for lorries (4.5 m clearance).",
+      "across": {
+        "length_m": 6,
+        "pavement_m": 3,
+        "height_m": 6
+      }
     },
     "beds": {
       "label": "Grass & flower beds",
@@ -208,6 +231,22 @@
           }
         ],
         "measure": "trees"
+      },
+      {
+        "measure": "sails",
+        "part": "Shade sails",
+        "model": "{measures.sails.shade_factor} × the tree shade: up to −{shade.max_cooling_C} °C felt in full shade, shadow projected from the sail height along the sun ray; no air cooling",
+        "observed": "In Tempe, Arizona, people in shade felt about one point cooler on a 9-point scale, and a shade canopy worked as well as tree shade. Tree shade lowers the felt temperature (PET) by 7–15 °C on hot days.",
+        "refs": [
+          {
+            "title": "Middel, Selover, Hagen & Chhetri (2016): Impact of shade on outdoor thermal comfort—a seasonal field study in Tempe, Arizona. International Journal of Biometeorology 60, 1849–1861",
+            "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5127889/"
+          },
+          {
+            "title": "Rahman & Ennos (2016): What we know and don't know about the cooling benefits of urban trees. Trees & Design Action Group",
+            "url": "https://www.tdag.org.uk/uploads/4/2/8/0/4280686/what_is_known_and_not_know_cooling_benefits_of_urban_trees.pdf"
+          }
+        ]
       },
       {
         "measure": "beds",

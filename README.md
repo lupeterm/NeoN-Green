@@ -1,8 +1,8 @@
 # NeoN-Green: "What if we planted trees here?"
 
 An interactive street map of Heilbronn with a heat overlay. Draw around part of a street
-and plant trees on it, evenly spaced or by hand, or try another measure instead: grass and
-flower beds, a reflective road surface, misting poles, or a speed limit and less traffic. The overlay recalculates live, and the
+and plant trees on it, evenly spaced or by hand, or try another measure instead: shade sails,
+grass and flower beds, a reflective road surface, misting poles, or a speed limit and less traffic. The overlay recalculates live, and the
 panel shows how much cooler the street gets on average. Tree shadows follow the sun for
 the chosen date and time of day. Existing trees and environment data from the city's open
 data portal can be shown as extra layers.
@@ -70,17 +70,19 @@ street in Heilbronn. Each changes the same heat map, and the panel adds what mat
 | Measure | Controls | Effect in the model | Also shown |
 |---|---|---|---|
 | Street trees | number or by hand, size | crown shade (felt) and evaporation (air) | shaded area |
+| Shade sails | number, over the pavements or across the street | shade like a crown (× `shade_factor`), no air cooling | shaded area, sail area |
 | Grass & flower beds | bed width, share of the section | a little air cooling around the beds, slightly lower felt temperature on them | bed area |
 | Reflective road surface | albedo after coating | a little air cooling over the road, but reflected sun raises the felt temperature on road and pavements | both parts separately |
 | Misting poles | number of poles | strong, very local air cooling, only during operating hours | water use |
 | Speed limit & less traffic | 30 km/h, share of motor traffic | less engine heat over the road: almost nothing | engine heat in W/m², noise in dB(A) |
 
 Beds are strips behind both kerbs (they move outward past tram tracks or other roads, never into a building).
-Misting poles are spaced like trees but ignore existing trees. Traffic volumes and current
+Sails over the pavements alternate sides like trees (4 m high); across the street they span road
+and pavements 6 m high. Misting poles are spaced like trees but ignore existing trees. Traffic volumes and current
 speed limits are not known per street and are assumed from the road class. All parameters, with
 notes, are under `measures` in `config/model.json`; "Model sources" shows the studies for the
-selected measure. In the 3D street view only trees are modelled; beds, coating and mist reach
-show as flat areas on the ground.
+selected measure. In the 3D street view trees and sails are drawn in the air; beds, coating
+and mist reach show as flat areas on the ground.
 
 ## Files
 
@@ -194,7 +196,8 @@ use all points everywhere. Dense data such as bike tracks only uses points withi
   up to `shade.max_cooling_C`, scaled by sun altitude. No effect when the sun is below the horizon.
 * **Evapotranspiration.** Each tree cools the air around it by a Gaussian bump. Several trees
   add up but saturate at `evapotranspiration.max_total_C`, and the effect is weaker at night.
-* **Other measures** (`measureEffect()` in `model.js`): beds and misting poles add Gaussian
+* **Other measures** (`measureEffect()` in `model.js`): a sail's shadow is its rectangle moved
+  away from the sun by height / tan(sun altitude), cooling like crown shade. Beds and misting poles add Gaussian
   bumps like trees (per m² of bed, per pole), saturating. Coating and traffic act on the roadway
   and fade over `fade_m` beside it. The coating's reflected sun adds to the felt temperature on
   the road and `sidewalk_m` beside it, scaled with sun height like shade.
@@ -215,6 +218,8 @@ values. Current references:
   tree shade lowers PET by 7–15 °C on hot days; green areas can cool more at night than by day.
 * Rahman et al. (2018), [Vertical air temperature gradients under the shade of two contrasting urban tree species](https://treefund.org/wp-content/uploads/2018/04/Rahman-et-al.-2018.pdf),
   Science of the Total Environment 633: air under canopies 0.5–1.8 °C cooler (Munich), 0.1–2.8 °C in other studies.
+* Middel, Selover, Hagen & Chhetri (2016), [Impact of shade on outdoor thermal comfort](https://pmc.ncbi.nlm.nih.gov/articles/PMC5127889/):
+  a shade canopy felt as cool as tree shade.
 * Armson, Stringer & Ennos (2012), [The effect of tree shade and grass on surface and globe temperatures in an urban area](https://doi.org/10.1016/j.ufug.2012.05.002):
   grass cools the ground by up to 24 °C but hardly the felt temperature.
 * Middel et al. (2020), [Solar reflective pavements—A policy panacea to heat mitigation?](https://doi.org/10.1088/1748-9326/ab87d4):

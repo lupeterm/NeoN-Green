@@ -133,6 +133,14 @@
       <label>Tree size</label>
       <select id="preset"></select>
     </div>
+    <div data-measure="sails" hidden>
+      <div class="seg">
+        <label><input type="radio" name="sailSpan" value="pavement" checked>over the pavements</label>
+        <label><input type="radio" name="sailSpan" value="across">across the street</label>
+      </div>
+      <label>Sails <span id="sailsLabel"></span></label>
+      <input type="range" id="sails" min="0">
+    </div>
     <div data-measure="beds" hidden>
       <label>Bed width <span id="bedWidthLabel"></span></label>
       <input type="range" id="bedWidth" step="0.5">
