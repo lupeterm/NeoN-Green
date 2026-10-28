@@ -862,7 +862,7 @@ function showResult(st) {
 // Tilts the camera down into the selected street. Buildings are extruded from the basemap
 // (real height where known), trees become a trunk plus a crown of their real size.
 
-const VIEW3D = {pitch: 82, zoom: 19.6, radius_m: 300, default_building_m: 10};
+const VIEW3D = {pitch: 85, eye_height_m: 1.8, radius_m: 300, default_building_m: 10};
 const TREE_COLOURS = {  // per tree icon style: [planted crown, existing crown], tiers = stepped fir
   normal: {planted: '#37b24d', existing: '#82c91e'},
   halloween: {planted: '#f76707', existing: '#845ef7'},
@@ -874,16 +874,14 @@ function set3D(on) {
   S.view3d = on;
   $('view3d').textContent = on ? 'Back to top-down map' : '3D street view';
   $('view3d').classList.toggle('active', on);
-  const flat = ['planted', 'lyr-trees', 'hotspots', 'hotspot-labels'];
+  const flat = ['planted', 'lyr-trees', 'hotspots', 'hotspot-labels', 'section'];  // flat 2D marks, a broad band at eye level
   if (on) {
     S.hiddenFor3D = flat.filter(id => S.map.getLayer(id) && S.map.getLayoutProperty(id, 'visibility') !== 'none');
     S.hiddenFor3D.forEach(id => S.map.setLayoutProperty(id, 'visibility', 'none'));
     S.map.setMaxPitch(85);
     add3DLayers();
     ensureDeck().then(ok => { if (ok && S.view3d) update(); });
-    const st = S.street, P = NG.projection(...S.cfg.center), q = alongXY(st, (st.a + st.b) / 2);
-    S.map.easeTo({center: P.toLL(q.x, q.y), zoom: VIEW3D.zoom, pitch: VIEW3D.pitch,
-                  bearing: Math.atan2(q.tx, q.ty) / NG.DEG, duration: 1600});
+    S.map.easeTo({...eyeLevelCamera(), duration: 1600});
   } else {
     (S.hiddenFor3D || []).forEach(id => S.map.getLayer(id) && S.map.setLayoutProperty(id, 'visibility', 'visible'));
     for (const id of ['buildings-3d', 'trees-3d-existing', 'trees-3d-planted']) if (S.map.getLayer(id)) S.map.removeLayer(id);
@@ -892,6 +890,20 @@ function set3D(on) {
     S.map.once('moveend', () => { if (!S.view3d) S.map.setMaxPitch(60); });
   }
   update();
+}
+
+// Camera standing at the start of the section at eye height, looking along it. MapLibre places
+// the camera from zoom and pitch, so solve the zoom for the wanted height above the street:
+//   height = cameraToCenterDistance · metresPerPixel(zoom) · cos(pitch)
+function eyeLevelCamera() {
+  const st = S.street, P = NG.projection(...S.cfg.center), eye = alongXY(st, Math.min(st.b, st.a + 3));
+  const [eyeLon, eyeLat] = P.toLL(eye.x, eye.y), pitch = VIEW3D.pitch * NG.DEG;
+  const toCentre = S.map.transform.cameraToCenterDistance;  // in CSS pixels, fixed by viewport and field of view
+  const mppAtZ0 = 78271.517 * Math.cos(eyeLat * NG.DEG);       // metres per pixel at zoom 0 (512 px tiles)
+  const zoom = Math.min(S.map.getMaxZoom(), Math.log2((mppAtZ0 * toCentre * Math.cos(pitch)) / VIEW3D.eye_height_m));
+  const ahead = toCentre * (mppAtZ0 / 2 ** zoom) * Math.sin(pitch);  // the camera looks at a point this far ahead
+  const [lon, lat] = P.toLL(eye.x + eye.tx * ahead, eye.y + eye.ty * ahead);
+  return {center: [lon, lat], zoom, pitch: VIEW3D.pitch, bearing: Math.atan2(eye.tx, eye.ty) / NG.DEG};
 }
 
 function add3DLayers() {

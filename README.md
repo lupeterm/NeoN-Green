@@ -34,7 +34,7 @@ SunCalc load from unpkg, and the basemap is CARTO Positron.
    plus the strongest local cooling and the shaded area.
 
 **3D street view (prototype).** With a street selected, "3D street view" in the right panel
-tilts the camera into the street, looking along the section. Buildings are extruded from the
+puts the camera at eye height (1.8 m) at the start of the section, looking along it. Buildings are extruded from the
 basemap (real height where known, otherwise 10 m), and planted and nearby existing trees appear
 as 3D models scaled to their real crown and height: leafy trees, crooked pines (with a pumpkin
 at each new tree for Halloween) or decorated and snowy firs, following the tree style. Heights of
@@ -42,7 +42,9 @@ existing trees are estimated from their crown, as the inventory has none. The mo
 with deck.gl, which loads only when 3D is first opened; if it cannot load, simple trunk-and-crown
 blocks are shown instead. Models are set per style in `iconThemes.<style>.models3d` in
 `config/overlays.json` (`size` = the model's extent in model units, y up). Drag with the right
-mouse button to look around; "Back to top-down map" returns to the plan view.
+mouse button to look around; zooming moves the camera up or down. "Back to top-down map" returns
+to the plan view. Buildings without a height in the basemap (most of them) are drawn 10 m high,
+so trees behind taller real buildings can still show over the roofs.
 
 The sun/moon button under the zoom controls switches between a light and a dark map, and the
 three buttons below it switch the tree icons between normal, Halloween and Christmas. It starts
