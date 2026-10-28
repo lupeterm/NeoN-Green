@@ -40,6 +40,19 @@
     "dense_point_threshold": 300,
     "idw_radius_m": 60
   },
+  "street_view": {
+    "_about": "Before/after panel of the street view (street.js). Temperature as on the map: the tree model above applied to a base temperature within street_corridor_m of the centre line. Pollution: a background value plus, per car placed, a plume along its lane, lowered a little under tree crowns. Illustrative estimates, not measurements; trees can also trap pollutants in narrow street canyons, which is not modelled.",
+    "air_temperature_C": 30,
+    "no2_background_ugm3": 22,
+    "no2_per_car_ugm3": 8,
+    "pm25_background_ugm3": 10,
+    "pm25_per_car_ugm3": 0.8,
+    "plume_sigma_across_m": 3,
+    "plume_sigma_along_m": 12,
+    "tree_deposition": 0.12,
+    "_tree_deposition": "Fraction of the traffic pollution removed under one crown (Gaussian, crown radius as sigma); overlapping crowns add up to at most half.",
+    "area_along_m": [3, 60]
+  },
   "street_corridor_m": 10,
   "placement": {
     "_about": "Where trees may go. Road half widths (m) by OSM class; footways and pedestrian zones are not obstacles.",

@@ -18,6 +18,8 @@ const STITCH_TOLERANCE_M = 2;
 const MIN_SELECT_ZOOM = 14.5;
 const HOTSPOT_ZOOM = 17;
 const HOTSPOT_SECTION_M = 200;  // section preselected around a hotspot
+const STREET_HANDOFF_KEY = 'ng-street-handoff';  // trees planted in street.html
+const STREET_VIEW_CFG = 'config/street.json';     // photo views of street.html
 
 const $ = id => document.getElementById(id);
 const S = {
@@ -42,6 +44,7 @@ async function main() {
   S.map.addControl(new maplibregl.NavigationControl({showCompass: false}), 'top-right');
   S.map.addControl(new ThemeControl(), 'top-right');
   if (Object.keys(iconThemes()).length) S.map.addControl(new SeasonControl(), 'top-right');
+  setupGeolocate();
   S.map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
   await S.map.once('style.load');  // don't wait for every basemap tile
   await loadIcons();
@@ -49,7 +52,33 @@ async function main() {
   setupUi();
   setupDataLayers();
   loadHotspots();
+  setupStreetView();
   await loadOverlay(S.cfg.overlays[0]);
+  await applyStreetHandoff();
+}
+
+// Trees planted in the street view (street.html) arrive through localStorage: select that
+// street around them and plant them by hand, with the street view's date and time.
+async function applyStreetHandoff() {
+  if (!new URLSearchParams(location.search).has('from')) return;
+  let h = null;
+  try { h = JSON.parse(localStorage.getItem(STREET_HANDOFF_KEY)); } catch { /* nothing handed over */ }
+  history.replaceState(null, '', location.pathname + location.hash);
+  if (!h || !h.trees || !h.trees.length) return;
+  if (h.date) $('date').value = h.date;
+  if (h.time != null) $('time').value = h.time;
+  if (S.model.presets[h.preset]) $('preset').value = h.preset;
+  S.map.jumpTo({center: h.at, zoom: 18});
+  await new Promise(r => S.map.once('idle', r));
+  const found = streetAt(S.map.project(h.at), h.at, 40, h.street);
+  if (!found) return setStatus(`${h.street} not found on the map, the trees were not placed.`, true);
+  const P = NG.projection(...S.cfg.center), g = measure(found.line, P);
+  const at = h.trees.map(t => { const {x, y} = P.toXY(t.lon, t.lat); return locate(g, x, y); });
+  selectStreet(found.hit, found.line, Math.min(...at) - 15, Math.max(...at) + 15);
+  document.querySelector('input[name=mode][value=manual]').checked = true;
+  setMode('manual');
+  S.manual = h.trees.map(({lon, lat}) => ({lon, lat}));
+  update();
 }
 
 // ------------------------------------------------------------------ map setup
@@ -193,6 +222,47 @@ class ThemeControl {
     return div;
   }
   onRemove() {}
+}
+
+// ------------------------------------------------------------------ your location
+// Browsers only allow it on https or localhost and after permission; say why when it fails,
+// instead of the control's silent grey button. Wi-Fi positioning is enough and much faster on laptops.
+
+function setupGeolocate() {
+  const ctl = new maplibregl.GeolocateControl({positionOptions: {enableHighAccuracy: false, timeout: 15000, maximumAge: 60000},
+                                              fitBoundsOptions: {maxZoom: 17}});
+  S.map.addControl(ctl, 'top-right');
+  ctl.on('geolocate', e => setStatus(`Your location: ±${Math.round(e.coords.accuracy)} m.`));
+  ctl.on('error', e => setStatus(
+    !isSecureContext ? 'Your location needs the page on https or localhost (e.g. http://localhost:8765), not a network address.'
+      : e.code === 1 ? 'Location access is blocked: allow it for this page in the browser (and for the browser in the system settings).'
+      : e.code === 3 ? 'Your location took too long to find. Try again.'
+      : 'Your location is not available on this device right now.', true));
+  ctl.on('outofmaxbounds', () => setStatus('Your location is outside the map area.', true));
+  if (!isSecureContext) {
+    const b = document.querySelector('.maplibregl-ctrl-geolocate');
+    if (b) b.title = 'Your location needs the page on https or localhost';
+  }
+}
+
+// ------------------------------------------------------------------ street view (street.html)
+// A flag at the road centre where the street view stands; clicking it opens the street view.
+
+async function setupStreetView() {
+  try { S.streetView = await getJSON(STREET_VIEW_CFG); } catch { return; }
+  const cfg = S.streetView, views = cfg.centre_views;
+  const at = [views.reduce((a, v) => a + v.lon, 0) / views.length, views.reduce((a, v) => a + v.lat, 0) / views.length];
+  const el = document.createElement('button');
+  el.className = 'flag';
+  el.title = `Open the street view of ${cfg.street}`;
+  el.innerHTML = '<svg viewBox="0 0 24 32" width="24" height="32"><path d="M4 2v28" stroke="#1d2329" stroke-width="2.5" stroke-linecap="round"/>' +
+                 '<path d="M5 3h15l-4 5 4 5H5z" fill="#1c7ed6" stroke="#fff" stroke-width="1"/></svg><span>Street view</span>';
+  el.addEventListener('click', e => { e.stopPropagation(); location.href = 'street.html'; });
+  S.flag = new maplibregl.Marker({element: el, anchor: 'bottom-left', offset: [-4, 0]}).setLngLat(at).addTo(S.map);
+  $('findStreetView').onclick = e => {
+    e.preventDefault();
+    S.map.flyTo({center: at, zoom: Math.max(S.map.getZoom(), 17.5)});
+  };
 }
 
 // ------------------------------------------------------------------ street selection: click
@@ -342,6 +412,7 @@ function selectStreet(hit, line, a, b) {
   S.manual = [];
   S.placement.key = null;
   $('street').textContent = S.street.name;
+  $('streetViewLink').hidden = !S.streetView || S.street.name !== S.streetView.street;
   $('scenario').hidden = false;
   setStatus('');
   const sec = sectionLine(P);

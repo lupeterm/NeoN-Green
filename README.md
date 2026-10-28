@@ -81,6 +81,13 @@ scripts/fetch_atrai.py    regenerates data/atrai_bike.csv for any period
 scripts/find_hotspots.py  regenerates data/hotspots.geojson
 scripts/fetch_opendata.py    mirrors the portal's environment datasets into opendata/ (git-ignored)
 scripts/prepare_opendata.py  builds the environment layers and the tree file from that mirror
+street.html, street.js    street view: place trees and cars on Weipertstraße
+config/street.json        photo views, their camera calibration and the centre views
+data/street/*.jpg         the photos, 1200 x 1600
+data/street/centre/       AI views of the street from the centre of the road
+scripts/centre_view.py    makes them on a GPU
+data/street/sprites/      AI cut-outs of trees and cars for the street view
+scripts/make_sprites.py   makes them on a GPU
 ```
 
 ## Plugging in data
@@ -259,6 +266,74 @@ python3 scripts/find_hotspots.py /tmp/atrai_jun_oct.csv
 The effects are small (+0.2 to +0.7 °C, standard error 0.1 to 0.3 °C) and come from mobile
 low-cost sensors: treat the list as candidates to look at, not as measured heat islands.
 
+## Street view (Weipertstraße)
+
+`street.html` (linked from the map's left panel and its flag on Weipertstraße) shows the street
+in front of the Open Space from the centre of the road, looking north and looking south. Click
+the footpath to plant a small, medium or large tree, or the road to place a car; with **Remove**,
+click a tree's trunk or a car to take it away. Trees only go behind the kerb, cars only between the
+kerbs, and neither too close to its own kind: crowns may overlap by at most
+`placement.crown_overlap` of their radii (as on the map), and cars keep 1 m in front and behind and
+0.5 m beside. Objects get the size and position the perspective gives at that spot and
+nearer objects cover farther ones; cars keep to the right, so they are seen from behind, from
+the front or from the side. Tree shadows follow the sun for the chosen date and time (the panel
+says where the sun stands and where shadows fall), and so does the light: warm low sun around
+sunrise and sunset, blue dusk, and night with car head- and tail lights once the sun is 8° below
+the horizon (the time slider covers the whole day). **Save
+image** downloads the view, **Show trees on the map** hands the planted trees to the map, which
+selects Weipertstraße there, plants them by hand and computes the cooling.
+
+Both views share one street: what you place is stored in metres from the common camera point,
+so it shows in whichever view looks its way, counts for spacing in both, and **Remove all** clears
+the street. As on the map, a panel on the right (once something is placed) gives the mean
+temperature before and with the trees within
+`street_corridor_m` of the centre line, 3–60 m in both directions, so both views show the same
+numbers (the map's tree model: shade by date and time, plus
+evaporation, on a base temperature), the strongest cooling and the shaded area, and below it NO₂
+and PM2.5 before and with the cars and trees: a background value plus a plume per car along its
+lane, lowered a little under tree crowns. All numbers are in `street_view` in `config/model.json`;
+they are illustrative estimates, not measurements.
+
+The views and the trees and cars are AI images (see below). Each view's calibration in
+`centre_views` in `config/street.json`: `horizon_y` and `vanishing_x` are where the street's
+lines meet, the camera stands on the centre line 2 m above the road at `lat`/`lon`, and
+`focal_px` assumes a 70° horizontal field of view, and `kerbs` marks one point on each kerb,
+which sets where the footpath begins. Open `street.html?debug` to see a ground grid
+(1 m lines along the street, 5 m across) and check it against the kerbs.
+
+### Trees and cars
+
+`scripts/make_sprites.py` makes the cut-outs in `data/street/sprites/` with the same open model:
+two trees per size (the presets in `config/model.json`) and three cars each from behind, the
+front and the side, painted on magenta and keyed out. `sprites.json` gives each one's ground
+point and pixels per metre.
+
+```bash
+python scripts/make_sprites.py                 # all 15, about 30 s each
+python scripts/make_sprites.py car-side-2 --seed 4   # redo one
+```
+
+### The views
+
+The two views show Weipertstraße looking north and looking south from the centre line, as it is
+today: the same buildings, trees, bus stop and markings, on
+the same overcast autumn day, nothing added. The photos were taken from the pavement, so
+`scripts/centre_view.py` has the open model
+[Qwen-Image-Edit-2511](https://huggingface.co/Qwen/Qwen-Image-Edit-2511) (Apache 2.0) reconstruct
+that viewpoint from the north and south photos in `data/street/`. The brief is in the script; what
+each direction shows (which side has the bus stop, where there are no trees) is in `centre_views`
+in `config/street.json`. The street is recognisable, small details are the model's: an AI image,
+not a photo. It needs a GPU with about 60 GB:
+
+```bash
+pip install torch torchvision diffusers transformers accelerate pillow
+python scripts/centre_view.py                 # both views, about 70 s each
+python scripts/centre_view.py north --seed 7  # another take of one
+```
+
+On a GH200 (ARM) load the model from a local disk (`--model /local/copy`): the script reads the
+weight files whole, because moving memory-mapped weights to the GPU is extremely slow there.
+
 ## Data and licences
 
 | Data | Source | Licence |
@@ -269,6 +344,8 @@ low-cost sensors: treat the list as candidates to look at, not as measured heat 
 | `data/atrai_bike.csv` | [openSenseMap](https://opensensemap.org) archive, grouptag `heilbronn` | PDDL |
 | `data/hotspots.geojson` | derived from the above, 11 Jun – 22 Oct 2026; street names © OpenStreetMap contributors via [Nominatim](https://nominatim.org) | ODbL |
 | 3D tree models (`assets/models/`) | [Kenney](https://kenney.nl): Nature Kit, Graveyard Kit, Holiday Kit | CC0 |
+| `data/street/*.jpg` | own photos of Weipertstraße, 28 Oct 2026 | the team's |
+| `data/street/centre/*.jpg`, `data/street/sprites/*.png` | generated with Qwen-Image-Edit-2511, the views from those photos | model: Apache 2.0 |
 | Basemap | © OpenStreetMap contributors, © CARTO | ODbL / CARTO terms |
 
 Citizen temperature sensors are often unshaded and read several degrees above the
