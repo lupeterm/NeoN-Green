@@ -9,6 +9,16 @@
   ],
   "px_per_m": 404.0
  },
+ "bicycle-front-quarter-1": {
+  "kind": "bicycle",
+  "side": "front-quarter",
+  "image": "data/street/sprites/bicycle-front-quarter-1.png",
+  "ground": [
+   158.5,
+   758
+  ],
+  "px_per_m": 433.71
+ },
  "bicycle-rear-1": {
   "kind": "bicycle",
   "side": "rear",
@@ -18,6 +28,17 @@
    695
   ],
   "px_per_m": 397.71
+ },
+ "bicycle-rear-quarter-1": {
+  "kind": "bicycle",
+  "side": "rear-quarter",
+  "image": "data/street/sprites/bicycle-rear-quarter-1.png",
+  "ground": [
+   151.5,
+   709
+  ],
+  "px_per_m": 405.71,
+  "faces": "left"
  },
  "bicycle-side-1": {
   "kind": "bicycle",

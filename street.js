@@ -395,7 +395,7 @@ function drawObject(o) {
   ctx.globalAlpha = o.ghost ? 0.55 : 1;
   ctx.filter = `contrast(${(1 - 0.35 * haze).toFixed(2)}) saturate(${(1 - 0.4 * haze).toFixed(2)}) brightness(${(1 + 0.25 * haze).toFixed(2)})`;
   ctx.imageSmoothingQuality = 'high';
-  const mirrored = !!(o.pose && o.pose.side === 'side' && o.pose.flip !== (sp.faces === 'left'));  // side views face right unless marked
+  const mirrored = !!(o.pose && 'flip' in o.pose && o.pose.flip !== (sp.faces === 'left'));  // side and quarter views face right unless marked
   if (mirrored) {
     ctx.translate(p.u, 0); ctx.scale(-1, 1); ctx.translate(-p.u, 0);
   }
@@ -462,7 +462,10 @@ function vehicleLights(o, p) {
   const front = '255, 244, 214', tail = '255, 40, 30', r = Math.max(2, (o.kind === 'bicycle' ? 0.08 : 0.14) * s);
   if (side === 'front') for (const [d, h] of v.front) S.lights.push({u: p.u + d * s, v: p.v - h * s, colour: front, r});
   else if (side === 'rear') for (const [d, h] of v.rear) S.lights.push({u: p.u + d * s, v: p.v - h * s, colour: tail, r: r * 0.8});
-  else {
+  else if (side.endsWith('-quarter')) {  // the lamp at the near end, a little towards where it points
+    const dir = o.pose.flip ? -1 : 1, rear = side === 'rear-quarter', [, h] = (rear ? v.rear : v.front)[0];
+    S.lights.push({u: p.u + (rear ? -1 : 1) * dir * 0.3 * half * s, v: p.v - h * s, colour: rear ? tail : front, r: rear ? r * 0.8 : r});
+  } else {
     const dir = o.pose.flip ? -1 : 1;
     S.lights.push({u: p.u + dir * 0.96 * half * s, v: p.v - v.front[0][1] * s, colour: front, r});
     S.lights.push({u: p.u - dir * 0.97 * half * s, v: p.v - v.rear[0][1] * s, colour: tail, r: r * 0.7});
@@ -502,17 +505,20 @@ function destination(o, [bx0, by0, bx1, by1], k, x0, y0, u, mirrored) {
 }
 
 // Vehicles drive on the right: east of the centre line towards the street axis bearing, west of it the other way.
-// Seen from the camera that is a rear, front or side view.
+// Seen from the camera that is a rear, front or side view; bicycles on the footpath, seen at an angle,
+// also get three-quarter views (rear-quarter, front-quarter) where there are cut-outs for them.
 function vehiclePose(o) {
   const {cam} = S, A = S.cfg.street_axis_bearing_deg * DEG;
   const {east, north} = cam.toEN(o), lateral = east * Math.cos(A) - north * Math.sin(A);
   const heading = lateral > 0 ? A : A + Math.PI;  // the camera stands on the centre line
   const r = Math.hypot(east, north), along = (east * Math.sin(heading) + north * Math.cos(heading)) / r;
-  if (along > 0.72) return {heading, side: 'rear'};
-  if (along < -0.72) return {heading, side: 'front'};
+  const quarters = Object.values(S.sprites).some(sp => sp.kind === o.kind && sp.side === 'rear-quarter');
+  const end = along > 0 ? 'rear' : 'front';
+  if (Math.abs(along) > (quarters ? 0.92 : 0.72)) return {heading, side: end};   // within 23° (quarters) or 44° of head-on
+  // which way it points on screen: side and quarter views face right, mirrored to face left
   const ahead = cam.fromEN(east + Math.sin(heading), north + Math.cos(heading));
-  const p0 = cam.project(o.x, 0, o.z), p1 = cam.project(ahead.x, 0, ahead.z);
-  return {heading, side: 'side', flip: !!(p0 && p1 && p1.u < p0.u)};
+  const p0 = cam.project(o.x, 0, o.z), p1 = cam.project(ahead.x, 0, ahead.z), flip = !!(p0 && p1 && p1.u < p0.u);
+  return {heading, side: quarters && Math.abs(along) > 0.38 ? `${end}-quarter` : 'side', flip};
 }
 
 function label(text, u, v) {
@@ -662,7 +668,8 @@ const signed = (v, digits) => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v)
 
 // ------------------------------------------------------------------ sprites
 // Realistic cut-outs from scripts/make_sprites.py: trees per size, vehicles from behind, the front and
-// the side (facing right, or left if marked "faces"). The object's seed picks one of the variants.
+// the side, bicycles also three-quarter (facing right, or left if marked "faces"). The object's seed
+// picks one of the variants.
 
 function sprite(o) {
   const ids = Object.keys(S.sprites).filter(id => {

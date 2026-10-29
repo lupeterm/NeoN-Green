@@ -411,7 +411,8 @@ by at most `placement.crown_overlap` of their radii (as on the map), vehicles ke
 vehicle sharing their road or footpath (1-1.5 m in front and behind, about 0.5 m beside), and
 bicycles keep 1 m from trunks. Objects get the size and position the perspective gives at that spot
 and nearer objects cover farther ones; vehicles keep to the right, so they are seen from behind,
-from the front or from the side. The bus runs as SWH line 32, which uses Weipertstraße (OpenStreetMap
+from the front or from the side; cyclists on the footpath, seen at an angle, from diagonally behind or
+in front, riding along it. The bus runs as SWH line 32, which uses Weipertstraße (OpenStreetMap
 route relations): its destination display reads "32 Frankenbach Maihalde" northbound and "32
 Sontheim Güldensteinstr." southbound (`bus` in `config/street.json`). The app writes it onto the
 display, since the image model cannot be trusted with lettering. For the same reason the app draws
