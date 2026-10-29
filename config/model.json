@@ -238,10 +238,11 @@
     }
   },
   "sources": {
-    "_about": "Shown under 'Model sources' in the scenario panel. {a.b} is replaced by that parameter's value. 'measure' shows a part only for that measure.",
+    "_about": "Shown in the ⓘ tooltips of the scenario panel; 'id' is what app.js asks for (SOURCE_IDS). {a.b} is replaced by that parameter's value.",
     "note": "The parameters are rough estimates, checked against these studies, not fitted to measurements.",
     "parts": [
       {
+        "id": "shade",
         "part": "Crown shade (felt temperature)",
         "model": "up to −{shade.max_cooling_C} °C in full shade, full effect from a sun height of {shade.full_effect_sun_altitude_deg}°",
         "observed": "Tree shade lowers the felt temperature (PET) by 7–15 °C on hot days.",
@@ -250,10 +251,10 @@
             "title": "Rahman & Ennos (2016): What we know and don't know about the cooling benefits of urban trees. Trees & Design Action Group",
             "url": "https://www.tdag.org.uk/uploads/4/2/8/0/4280686/what_is_known_and_not_know_cooling_benefits_of_urban_trees.pdf"
           }
-        ],
-        "measure": "trees"
+        ]
       },
       {
+        "id": "et",
         "part": "Air cooling (evapotranspiration)",
         "model": "−{evapotranspiration.per_tree_C} °C per tree, at most −{evapotranspiration.max_total_C} °C, fading over about {evapotranspiration.sigma_m} m, × {evapotranspiration.night_factor} at night",
         "observed": "Air under a canopy measured 0.5–1.8 °C cooler than outside in Munich; other cities 0.1–2.8 °C. At night, green areas can cool more than by day.",
@@ -266,11 +267,10 @@
             "title": "Rahman & Ennos (2016): What we know and don't know about the cooling benefits of urban trees. Trees & Design Action Group",
             "url": "https://www.tdag.org.uk/uploads/4/2/8/0/4280686/what_is_known_and_not_know_cooling_benefits_of_urban_trees.pdf"
           }
-        ],
-        "measure": "trees"
+        ]
       },
       {
-        "measure": "sails",
+        "id": "sails",
         "part": "Shade sails",
         "model": "{measures.sails.shade_factor} × the tree shade: up to −{shade.max_cooling_C} °C felt in full shade, shadow projected from the sail height along the sun ray; no air cooling",
         "observed": "In Tempe, Arizona, people in shade felt about one point cooler on a 9-point scale, and a shade canopy worked as well as tree shade. Tree shade lowers the felt temperature (PET) by 7–15 °C on hot days.",
@@ -286,7 +286,7 @@
         ]
       },
       {
-        "measure": "beds",
+        "id": "beds",
         "part": "Grass & flower beds",
         "model": "−{measures.beds.per_m2_C} °C per m² of bed nearby, at most −{measures.beds.max_total_C} °C air cooling; −{measures.beds.felt_on_bed_C} °C felt on the bed in full sun",
         "observed": "In Manchester, grass lowered the ground temperature by up to 24 °C but hardly changed globe (felt) or air temperature; tree shade lowered globe temperature by 5–7 °C.",
@@ -298,7 +298,7 @@
         ]
       },
       {
-        "measure": "pavement",
+        "id": "pavement",
         "part": "Reflective road surface",
         "model": "−{measures.pavement.air_C_per_0_1_albedo} °C air per +0.1 albedo in full sun (× {measures.pavement.night_factor} at night), +{measures.pavement.reflected_felt_C_per_0_1_albedo} °C felt per +0.1 albedo on road and pavement",
         "observed": "Coated streets in Los Angeles were 4–6 °C cooler at the surface, the air only 0.5 °C cooler in the afternoon and about 0.1 °C at night, while the radiant heat on pedestrians was 4 °C higher at midday.",
@@ -310,7 +310,7 @@
         ]
       },
       {
-        "measure": "misting",
+        "id": "misting",
         "part": "Misting poles",
         "model": "−{measures.misting.per_pole_C} °C per pole, at most −{measures.misting.max_total_C} °C, fading over about {measures.misting.sigma_m} m, switched on {measures.misting.operating_hours.0}–{measures.misting.operating_hours.1} h",
         "observed": "Field studies measured roughly 2–5 °C cooler air near misting systems, more in dry heat and still air, less in humid or windy weather; humidity rises.",
@@ -326,7 +326,7 @@
         ]
       },
       {
-        "measure": "traffic",
+        "id": "traffic",
         "part": "Speed limit & less traffic",
         "model": "engine heat {measures.traffic.heat_MJ_per_vehicle_km} MJ per vehicle-km over the roadway, {measures.traffic.C_per_W_m2} °C per W/m²; Tempo 30: fuel × {measures.traffic.fuel_factor_30}, noise {measures.traffic.noise_30_dB} dB(A)",
         "observed": "Tempo 30 on main roads lowered noise by 1–4 dB(A) in follow-up measurements. Vehicle heat warms street air mostly at night and by a few tenths of a degree at most.",
@@ -342,7 +342,7 @@
         ]
       },
       {
-        "measure": "traffic",
+        "id": "traffic_pm",
         "part": "Less traffic and particulate matter",
         "model": "the street's own traffic adds {measures.traffic.pm_traffic_share.pm10} of PM10 and {measures.traffic.pm_traffic_share.pm25} of PM2.5 on a main road, fewer on quieter roads; that part falls with the traffic; Tempo 30 × {measures.traffic.pm_factor_30}",
         "observed": "Heilbronn, annual means 2022–2025: Weinsberger Straße (traffic) 15–17 µg/m³ PM10 against 13–16 at the urban background station, i.e. 1–2 µg/m³ (6–13 %) more; PM2.5 0.4–0.7 µg/m³ (4–8 %) more. In 2016–2018 the difference was still 4–5 µg/m³ PM10. In Berlin around 2000, main streets had up to 40 % more PM10 than the background, half of it from exhaust and tyres, half from stirred-up road dust. Today most traffic PM is not from exhausts but from brakes, tyres and road dust.",
@@ -362,6 +362,7 @@
         ]
       },
       {
+        "id": "pm",
         "part": "Particulate matter (PM10, PM2.5)",
         "model": "street canyon: +{pollution.canyon_increase_pct} % with full crown cover; open street: −{pollution.deposition_pct_full_cover} %; scaled by the crown cover of the street (linear scaling is an assumption)",
         "observed": "Trees in street canyons raised pollutant concentrations by 26–96 % on average; hedges lowered them by 24–61 % at the footpath; on open roads, dense vegetation barriers lowered them by 15–60 %. City-wide, trees improve PM10 by about 0.7 % (Atlanta, 33 % tree cover).",
@@ -377,6 +378,7 @@
         ]
       },
       {
+        "id": "noise",
         "part": "Road traffic noise",
         "model": "{noise.tree_row_dB} dB for rows of street trees",
         "observed": "Measured attenuation by 35 tree belts 20 m deep: below 3, 3–6 or 6–9 dB(A); a 15 m deep optimised belt can match a 1–2 m noise wall. Single rows of trees are not reported to reduce noise.",
@@ -388,6 +390,7 @@
         ]
       },
       {
+        "id": "sun",
         "part": "Sun position and shadows",
         "model": "computed for the chosen date, time and the city's location",
         "observed": "",

@@ -88,8 +88,8 @@ Beds are strips behind both kerbs (they move outward past tram tracks or other r
 Sails over the pavements alternate sides like trees (4 m high); across the street they span road
 and pavements 6 m high. Traffic volumes and current
 speed limits are not known per street and are assumed from the road class. All parameters, with
-notes, are under `measures` in `config/model.json`; "Model sources" shows the studies for the
-selected measure. In the 3D street view trees and sails are drawn in the air; beds show as
+notes, are under `measures` in `config/model.json`; the ⓘ buttons show the studies behind each
+number. In the 3D street view trees and sails are drawn in the air; beds show as
 flat areas on the ground.
 
 A reflective road surface and misting poles are implemented too but hidden for now: they are left
@@ -302,10 +302,12 @@ temperatures. The default values are rough estimates, not fitted to measurements
 them in `config/model.json`, or replace `model.js` with a better model behind the same
 `treeEffect()` function.
 
-"Model sources" in the scenario panel lists, for each part of the model, the values it uses
-next to what studies measured, with links to the studies. The list is `sources` in
-`config/model.json`; `{shade.max_cooling_C}` and similar placeholders show current parameter
-values. Current references:
+The ⓘ buttons next to the numbers in the scenario panel (and next to the sun position and each
+measure's description) show, for the parts of the model behind that number, the values it uses
+next to what studies measured, with links to the studies. Hover or focus shows the tooltip, a click
+keeps it open. The parts are `sources` in `config/model.json`, each with an `id`; which ids belong
+to which number is `SOURCE_IDS` in `app.js`. `{shade.max_cooling_C}` and similar placeholders show
+current parameter values. Current references:
 
 * Rahman & Ennos (2016), [What we know and don't know about the cooling benefits of urban trees](https://www.tdag.org.uk/uploads/4/2/8/0/4280686/what_is_known_and_not_know_cooling_benefits_of_urban_trees.pdf):
   tree shade lowers PET by 7–15 °C on hot days; green areas can cool more at night than by day.

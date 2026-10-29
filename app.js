@@ -172,6 +172,7 @@ function setupUi() {
   range('sails', [ms.sails.sails[0], 0, ms.sails.sails[1]]);
   for (const r of document.querySelectorAll('input[name=sailSpan]')) r.onchange = update;
   for (const id of ['date', 'time', 'trees', 'preset', 'sails', 'bedWidth', 'bedShare', 'albedo', 'poles', 'speed', 'volume']) $(id).oninput = update;
+  setupSourceTips();
   setMeasure(S.measure);
   for (const r of document.querySelectorAll('input[name=mode]')) r.onchange = () => setMode(r.value);
   $('clearTrees').onclick = () => { S.manual = []; update(); };
@@ -515,16 +516,58 @@ function selectStreet(hit, line, a, b) {
   update();
 }
 
-// "Model sources" in the scenario panel: what the model assumes next to what studies measured.
-function renderSources() {
-  const src = S.model.sources;
-  if (!src) return ($('sources').hidden = true);
+// ------------------------------------------------------------------ source tooltips
+// An ⓘ button next to a number opens what the model assumes for it next to what studies measured
+// (config/model.json "sources", by part id), with links. Hover or focus shows it, a click pins it.
+
+const SOURCE_IDS = {  // per measure: the parts behind its result, by data quantity
+  trees: {temperature: ['shade', 'et'], pm: ['pm'], noise: ['noise']},
+  sails: {temperature: ['sails']}, beds: {temperature: ['beds']},
+  pavement: {temperature: ['pavement']}, misting: {temperature: ['misting']},
+  traffic: {temperature: ['traffic'], pm: ['traffic_pm'], noise: ['traffic']},
+};
+
+const srcButton = ids => ids?.length ? `<button type="button" class="src" data-src="${ids.join(' ')}" aria-label="Sources">i</button>` : '';
+
+function sourceHtml(ids) {
   const param = path => path.split('.').reduce((o, k) => o?.[k], S.model) ?? `{${path}}`;
   const fill = text => esc(text).replace(/\{([\w.]+)\}/g, (_, path) => esc(String(param(path))));
-  $('sourceList').innerHTML = src.parts.filter(p => !p.measure || p.measure === S.measure).map(p => `<h3>${esc(p.part)}</h3>
+  const parts = ids.map(id => S.model.sources?.parts.find(p => p.id === id)).filter(Boolean);
+  return parts.map(p => `<h3>${esc(p.part)}</h3>
     <p><b>Model:</b> ${fill(p.model)}</p>${p.observed ? `<p><b>Studies:</b> ${esc(p.observed)}</p>` : ''}
     <ol>${p.refs.map(r => `<li><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a></li>`).join('')}</ol>`).join('') +
-    (src.note ? `<p>${esc(src.note)}</p>` : '');
+    (parts.length && S.model.sources.note ? `<p class="note">${esc(S.model.sources.note)}</p>` : '');
+}
+
+function setupSourceTips() {
+  const tip = $('srcTip');
+  let owner = null, pinned = false, timer = null;
+  const hide = () => { tip.hidden = true; owner?.classList.remove('active'); owner = null; pinned = false; };
+  const show = btn => {
+    clearTimeout(timer);
+    if (owner === btn) return;
+    owner?.classList.remove('active');
+    owner = btn;
+    btn.classList.add('active');
+    tip.innerHTML = sourceHtml(btn.dataset.src.split(' '));
+    tip.hidden = false;
+    const r = btn.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, r.right - w))}px`;
+    tip.style.top = `${r.bottom + 6 + h > innerHeight - 8 ? Math.max(8, r.top - h - 6) : r.bottom + 6}px`;
+  };
+  const later = () => { if (!pinned) timer = setTimeout(hide, 250); };
+  document.addEventListener('mouseover', e => { const b = e.target.closest?.('.src'); if (b) show(b); });
+  document.addEventListener('mouseout', e => { if (e.target.closest?.('.src')) later(); });
+  document.addEventListener('focusin', e => { const b = e.target.closest?.('.src'); if (b) show(b); });
+  tip.addEventListener('mouseenter', () => clearTimeout(timer));
+  tip.addEventListener('mouseleave', later);
+  document.addEventListener('click', e => {
+    const b = e.target.closest?.('.src');
+    if (b) { if (owner === b && pinned) hide(); else { show(b); pinned = true; } return; }
+    if (!tip.contains(e.target)) hide();
+  });
+  addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
+  $('scenario').addEventListener('scroll', hide);
 }
 
 function closeScenario() {
@@ -663,11 +706,10 @@ function placeEvenly(n, r, P, avoidTrees = true) {
 function setMeasure(kind) {
   S.measure = kind;
   $('measure').value = kind;
-  $('measureNote').textContent = S.model.measures[kind].note || '';
+  $('measureNote').innerHTML = esc(S.model.measures[kind].note || '') + '&nbsp;' + srcButton(Object.values(SOURCE_IDS[kind] || {}).flat().filter((id, i, a) => a.indexOf(id) === i));
   for (const el of document.querySelectorAll('[data-measure]')) el.hidden = el.dataset.measure !== kind;
   layoutView();
   hint('');
-  renderSources();
   update();
 }
 
@@ -746,9 +788,9 @@ function buildMeasure(P, trees, sun) {
   // on a noise map: car-free is capped at −20 dB (what remains is background noise)
   return {measure: {kind, line: section, halfWidth: st.halfWidth, dFlux: flux - after, dNoise: noise == null ? -20 : noise, pmPct},
           features: [roadway({color: '#fab005', outline: '#e67700', opacity: 0.3}), ...(label ? [turf.point(mid, {label})] : [])],
-          rows: [['Engine heat', `${flux.toFixed(1)} → ${after.toFixed(1)} W/m²`],
-                 ['Noise', noise == null ? 'none' : `${signed(noise)} dB(A)`],
-                 ...(S.overlay.quantity === 'pm' ? [['Particles from this street', `~${Math.round(pmShare * 100)} % (est.)`]] : []),
+          rows: [['Engine heat', `${flux.toFixed(1)} → ${after.toFixed(1)} W/m²`, '', ['traffic']],
+                 ['Noise', noise == null ? 'none' : `${signed(noise)} dB(A)`, '', ['traffic']],
+                 ...(S.overlay.quantity === 'pm' ? [['Particles from this street', `~${Math.round(pmShare * 100)} % (est.)`, '', ['traffic_pm']]] : []),
                  [`Assumed today: ${limit} km/h, ${vehicles.toLocaleString('en')} vehicles a day (from the road class).` +
                   ($('speed').value === '30' && !to30 ? ' The limit is probably 30 km/h or less already.' : ''), null, 'note']]};
 }
@@ -1191,6 +1233,7 @@ function showResult(st) {
   layoutView();
   const trees = S.measure === 'trees', label = S.model.measures[S.measure].label;
   const m2 = v => Math.round(v).toLocaleString('en');
+  const src = SOURCE_IDS[S.measure]?.[quantity];  // ⓘ next to the change: the parts behind this result
   let rows, note = '';
   if (!st) {
     rows = [['No values along the street', '']];
@@ -1199,7 +1242,7 @@ function showResult(st) {
       ['Mean before', `${st.before.toFixed(1)} ${unit}`],
       [`Mean with ${trees ? 'trees' : 'measure'}`, `${st.after.toFixed(1)} ${unit}`],
       ['Change', `${signed(st.after - st.before)} ${quantity === 'temperature' ? '°C' : unit}` +
-                 (quantity === 'pm' && st.pct != null ? ` (${signed(st.pct)} %)` : ''), 'big'],
+                 (quantity === 'pm' && st.pct != null ? ` (${signed(st.pct)} %)` : ''), 'big', src],
     ];
     if (quantity === 'pm' && trees) {
       const share = S.canyonShare?.share ?? 0;
@@ -1214,14 +1257,14 @@ function showResult(st) {
     } else if (quantity !== 'temperature' && S.measure !== 'traffic') {
       note = `${label}: no effect on ${quantity === 'pm' ? 'particulate matter' : 'noise'} in this model.`;
     } else if (quantity === 'temperature') {
-      rows.push(['Strongest cooling', `${signed(st.maxCooling)} °C`],
+      rows.push(['Strongest cooling', `${signed(st.maxCooling)} °C`, '', trees ? ['shade'] : src],
                 ...(st.maxWarming > 0.05 ? [['Strongest warming', `${signed(st.maxWarming)} °C`]] : []),
-                ...(trees || S.measure === 'sails' ? [['Shaded', `${m2(st.shadedArea)} of ${m2(st.area)} m²`]] : []));
+                ...(trees || S.measure === 'sails' ? [['Shaded', `${m2(st.shadedArea)} of ${m2(st.area)} m²`, '', [trees ? 'shade' : 'sails', 'sun']]] : []));
     }
   }
   rows.push(...(S.resultRows || []));
-  $('result').innerHTML = rows.map(([k, v, cls]) => cls === 'note' ? `<dt class="muted" style="grid-column:1/-1">${k}</dt>`
-                                                    : `<dt>${k}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
+  $('result').innerHTML = rows.map(([k, v, cls, ids]) => cls === 'note' ? `<dt class="muted" style="grid-column:1/-1">${k}</dt>`
+                                                         : `<dt>${k}${ids ? '&nbsp;' + srcButton(ids) : ''}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
     `<dt class="muted" style="grid-column:1/-1">Mean within ${S.model.street_corridor_m} m on both sides of the section</dt>` +
     (note ? `<dt class="muted" style="grid-column:1/-1">${note}</dt>` : '');
 }
