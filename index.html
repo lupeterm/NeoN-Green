@@ -86,6 +86,15 @@
     #streetViewLink { display: block; margin-top: 8px; text-align: center; padding: 5px; border: 1px solid var(--cool); border-radius: 6px; color: var(--cool); text-decoration: none; font-weight: 600; }
     #streetViewLink[hidden] { display: none; }
     #canyonBox { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+    #canyonBox summary { display: flex; align-items: baseline; gap: 6px; cursor: pointer; list-style: none; }
+    #canyonBox summary::-webkit-details-marker { display: none; }
+    #canyonBox summary::before { content: '▸'; color: var(--muted); }
+    #canyonBox[open] summary::before { content: '▾'; }
+    #canyonBox summary h2 { margin: 0; }
+    #canyonBox summary .toggle { margin-left: auto; font-size: 12px; color: var(--cool); font-weight: 600; }
+    #canyonBox summary .toggle::after { content: 'Show'; }
+    #canyonBox[open] summary .toggle::after { content: 'Hide'; }
+    #canyonBox[open] summary { margin-bottom: 8px; }
     #canyonBox dl { margin-top: 6px; padding-top: 0; border-top: 0; }
     #canyonBox dd.big.warm { color: var(--err); }
     .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
@@ -185,9 +194,10 @@
     </div>
     <p id="hint" class="muted"></p>
     <dl id="result"></dl>
-    <p class="muted">Simplified teaching model, one measure at a time. Parameters in <code>config/model.json</code>.</p>
-    <section id="canyonBox" hidden>
-      <h2>Canyon air temperature</h2>
+    <p class="muted">Simplified teaching model: crown shadows from the sun position plus evaporative cooling.
+      Parameters in <code>config/model.json</code>.</p>
+    <details id="canyonBox" hidden>
+      <summary><h2>Canyon air temperature</h2><span class="toggle"></span></summary>
       <label for="canyonScenario">Scenario <span>peak hour, box model</span></label>
       <select id="canyonScenario"></select>
       <p id="canyonChanges" class="muted"></p>
@@ -196,7 +206,7 @@
       <div id="canyonChart"></div>
       <p class="muted"><i class="swatch net-key"></i>net effect · click a row to choose it</p>
       <p id="canyonNote" class="muted"></p>
-    </section>
+    </details>
     <details id="sources" class="sources">
       <summary>Model sources</summary>
       <div id="sourceList"></div>
