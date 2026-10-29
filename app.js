@@ -1370,6 +1370,13 @@ async function ensureDeck() {
   try {
     S.deckLoading ??= DECK_JS.reduce((p, src) => p.then(() => loadScript(src)), Promise.resolve());
     await S.deckLoading;
+    // deck.gl 9.3 reads the camera's near/far planes from transform._nearZ/_farZ, which MapLibre 4 calls
+    // nearZ/farZ. Without them deck.gl uses its own planes, its depth values no longer match MapLibre's and
+    // trees behind buildings show through. Alias the old names (on the prototype, so clones have them too).
+    const proto = Object.getPrototypeOf(S.map.transform);
+    for (const k of ['nearZ', 'farZ']) {
+      if (!(`_${k}` in proto)) Object.defineProperty(proto, `_${k}`, {get() { return this[k]; }, configurable: true});
+    }
     S.deck = new deck.MapboxOverlay({interleaved: true, layers: []});  // shares the depth buffer: buildings hide trees
     S.map.addControl(S.deck);
     return true;
