@@ -77,7 +77,8 @@
       "vanishing_x": 806,
       "street_bearing_deg": 22,
       "ground": [[0, 1024], [0, 592], [300, 553], [690, 503], [806, 498], [1000, 503], [1300, 530], [1536, 545], [1536, 1024]],
-      "kerbs": {"left": [0, 745], "right": [1536, 688]}
+      "kerbs": {"left": [0, 745], "right": [1536, 688]},
+      "stop": {"sign": [1215, 552], "pole": [1250, 548]}
     },
     {
       "id": "south",
@@ -96,7 +97,20 @@
       "vanishing_x": 800,
       "street_bearing_deg": 202,
       "ground": [[0, 1024], [0, 552], [230, 548], [500, 515], [800, 493], [1000, 500], [1200, 545], [1536, 560], [1536, 1024]],
-      "kerbs": {"left": [0, 595], "right": [1536, 668]}
+      "kerbs": {"left": [0, 595], "right": [1536, 668]},
+      "stop": {"sign": [1450, 592], "pole": [1165, 562]},
+      "edit": {
+        "_about": "Lane layout: the lane next to the centre line is for all traffic, the strip along the kerb by the stop (beyond the solid line) is the bus lane. The model removes the BUS lettering from the general lane ('instruction'; only the area around the bright pixels in 'remove.box', not near 'keep_line', the bus lane's edge, is kept); the script paints BUS into the bus lane ('quad', image pixels).",
+        "remove": {
+          "box": [880, 690, 1536, 1000],
+          "keep_line": [[1120, 625], [1536, 832]],
+          "keep_width": 34,
+          "brightness": 150
+        },
+        "seed": 2,
+        "instruction": "Remove the large white BUS letters painted on the road surface, leaving plain wet asphalt there. Keep everything else exactly the same: all lane lines, the bus shelter, the trees, buildings, light and camera.",
+        "text": {"text": "BUS", "quad": [[1112, 614], [1262, 614], [1428, 664], [1222, 664]]}
+      }
     }
   ],
   "bus": {
@@ -106,5 +120,9 @@
       "south": "Sontheim Güldensteinstr."
     },
     "_about": "SWH line 32 along Weipertstraße (OpenStreetMap route relations 2176648, 2176650, 2186099): northbound via Industrieplatz and Salzstraße to Frankenbach Maihalde, southbound via Europaplatz and Mannheimer Straße to Sontheim Güldensteinstraße."
+  },
+  "stop": {
+    "name": "Etzelstraße",
+    "_about": "Bus stop at the shelter in each view (OpenStreetMap: stop 'Etzelstraße', about 30 m south of the camera point, platforms on both sides). sign: ground point (image pixels) of the blue name board beside the shelter, as at many stops in Heilbronn; pole: ground point of the H stop sign."
   }
 }

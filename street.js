@@ -249,6 +249,7 @@ function render(opts = {}) {
 
   ctx.globalAlpha = 1;
   ctx.drawImage(img, 0, 0);
+  busStop();
   ctx.save();
   ctx.clip(S.ground);
   for (const o of objs) groundMarks(o, sun);
@@ -270,6 +271,64 @@ function render(opts = {}) {
   if (S.debug) debugGrid();
   updateCount();
   showResult(sun);
+}
+
+// ------------------------------------------------------------------ bus stop
+// The stop's blue name board beside the shelter and a stop sign (green H on yellow, as in Germany),
+// drawn into the view at the image positions in config/street.json ("stop" per view).
+
+const STOP_YELLOW = '#f7d117', STOP_GREEN = '#0b6b3a', STOP_BLUE = '#1f4e96';
+
+function busStop() {
+  const stop = S.view.stop, name = S.cfg.stop && S.cfg.stop.name;
+  if (!stop || !name) return;
+  const {ctx} = S;
+  const at = px => { const g = S.cam.toGround(...px); return g && S.cam.project(g.x, 0, g.z); };
+  // name board beside the shelter: blue with a white border and white lettering, on two posts,
+  // standing across the footpath so it faces the traffic (and the camera), 1.5 x 0.45 m, top at 2.6 m
+  const b = at(stop.sign);
+  if (b) {
+    const s = b.scale, w = 1.5 * s, h = 0.45 * s, x = b.u - w / 2, y = b.v - 2.6 * s;
+    ctx.save();
+    ctx.fillStyle = '#6c7378';
+    for (const dx of [-0.55, 0.55]) ctx.fillRect(b.u + (dx - 0.03) * s, y + h, 0.06 * s, 2.6 * s - h);
+    ctx.fillStyle = STOP_BLUE;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = Math.max(1, 0.03 * s);
+    ctx.strokeRect(x + 0.04 * s, y + 0.04 * s, w - 0.08 * s, h - 0.08 * s);
+    ctx.fillStyle = '#fff';
+    ctx.font = `700 ${(0.22 * s).toFixed(1)}px "DejaVu Sans", system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(name, b.u, y + h / 2 + 0.01 * s, w - 0.2 * s);
+    ctx.restore();
+  }
+  // stop sign (H) on its pole, at the size the perspective gives
+  const p = at(stop.pole);
+  if (!p) return;
+  const s = p.scale;
+  ctx.save();
+  ctx.fillStyle = '#6c7378';
+  ctx.fillRect(p.u - 0.035 * s, p.v - 2.6 * s, 0.07 * s, 2.6 * s);
+  stopH(ctx, p.u, p.v - 2.35 * s, 0.22 * s);
+  ctx.restore();
+}
+
+// The German stop symbol: a green H on a yellow disc with a green ring.
+function stopH(ctx, x, y, r) {
+  ctx.save();
+  ctx.fillStyle = STOP_YELLOW;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI); ctx.fill();
+  ctx.strokeStyle = STOP_GREEN;
+  ctx.lineWidth = r * 0.16;
+  ctx.beginPath(); ctx.arc(x, y, r * 0.9, 0, 2 * Math.PI); ctx.stroke();
+  ctx.fillStyle = STOP_GREEN;
+  ctx.font = `700 ${(r * 1.25).toFixed(1)}px "DejaVu Sans", system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('H', x, y + r * 0.06);
+  ctx.restore();
 }
 
 // Contact shadows and sun shadows on the ground (drawn under every object).

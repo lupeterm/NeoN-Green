@@ -414,7 +414,10 @@ and nearer objects cover farther ones; vehicles keep to the right, so they are s
 from the front or from the side. The bus runs as SWH line 32, which uses Weipertstraße (OpenStreetMap
 route relations): its destination display reads "32 Frankenbach Maihalde" northbound and "32
 Sontheim Güldensteinstr." southbound (`bus` in `config/street.json`). The app writes it onto the
-display, since the image model cannot be trusted with lettering. Tree shadows follow the sun for the chosen date and time (the panel
+display, since the image model cannot be trusted with lettering. For the same reason the app draws
+the stop's name, "Etzelstraße" (the stop at the Open Space), on a blue-and-white board beside the
+shelter in both views, as at many stops in Heilbronn, with a stop pole and its H sign (`stop` in
+`config/street.json`; ground points in pixels per view). Tree shadows follow the sun for the chosen date and time (the panel
 says where the sun stands and where shadows fall), and so does the light: warm low sun around
 sunrise and sunset, blue dusk, and night with head- and tail lights (and the bus's lit line number) once the sun is 8° below
 the horizon (the time slider covers the whole day). **Save
@@ -485,6 +488,17 @@ not a photo. It needs a GPU with about 60 GB:
 pip install torch torchvision diffusers transformers accelerate pillow
 python scripts/centre_view.py                 # both views, about 70 s each
 python scripts/centre_view.py north --seed 7  # another take of one
+```
+
+The south view is edited afterwards for its lanes: one lane each way, plus a bus lane along the
+kerb at the stop. The model removes the BUS lettering from the general lane by instruction (only
+that area of its result is kept), then the script paints BUS into the kerb strip in perspective
+(`edit` of the south view in `config/street.json`; the image before the edit is kept next to it).
+The positions are in image pixels, so after a new take of the south view check them again:
+
+```bash
+python scripts/centre_view.py south --edit-only --seeds 3  # 3 takes of the edit, to choose a seed
+python scripts/centre_view.py south --edit-only            # the edit with its chosen seed
 ```
 
 On a GH200 (ARM) load the model from a local disk (`--model /local/copy`): the script reads the
