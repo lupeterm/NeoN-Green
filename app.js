@@ -353,10 +353,10 @@ function goToHotspot(f) {
 // canyon-average air temperature at peak hour), shown in the scenario panel. Pick a scenario
 // in the dropdown or click its bar; the notebook regenerates the file.
 
-const CANYON_PARTS = [  // same colours as the notebook's chart
-  ['dT_shade', 'Shade', '#2b8cbe'],
-  ['dT_crown', 'Crown heat', '#fdae6b'],
-  ['dT_ventilation', 'Less ventilation', '#e6550d'],
+const CANYON_PARTS = [  // same colours as the notebook's chart; sources: config/model.json parts, as in the notebook's section 1
+  ['dT_shade', 'Shade', '#2b8cbe', ['canyon_shade', 'canyon_box']],
+  ['dT_crown', 'Crown heat', '#fdae6b', ['canyon_crown', 'canyon_box']],
+  ['dT_ventilation', 'Less ventilation', '#e6550d', ['canyon_ventilation', 'canyon_box']],
 ];
 const INPUT_LABELS = {U: ['wind', 'm/s'], LE_crown: ['transpiration', 'W/m²'], c_d: ['drag c_d', ''],
                       spacing: ['tree spacing', 'm'], d_crown: ['crown', 'm'], W: ['street width', 'm']};
@@ -388,7 +388,8 @@ function renderCanyon(id) {
   $('canyonChanges').textContent = changes.length ? `Changed: ${changes.join(', ')}` : 'Base case, nothing changed';
   $('canyonResult').innerHTML = [
     ['Crown cover', `${Math.round(o.crown_cover * 100)} % of width`],
-    ...CANYON_PARTS.map(([k, label, colour]) => [`<i class="swatch" style="background:${colour}"></i>${label}`, degC(o[k])]),
+    ...CANYON_PARTS.map(([k, label, colour, ids]) => [`<i class="swatch" style="background:${colour}"></i>` +
+      `<button type="button" class="src srclabel" data-src="${ids.join(' ')}" aria-label="${label}: sources">${label}<span class="srcicon">i</span></button>`, degC(o[k])]),
     ['Net tree effect', degC(o.dT_total), o.dT_total > 0 ? 'big warm' : 'big'],
     ['Canyon air', `${o.T_can_no_trees.toFixed(1)} → ${o.T_can_trees.toFixed(1)} °C`],
   ].map(([k, v, cls]) => `<dt>${k}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
