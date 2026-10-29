@@ -123,6 +123,36 @@
   ],
   "px_per_m": 198.89
  },
+ "car-front-quarter-1": {
+  "kind": "car",
+  "side": "front-quarter",
+  "image": "data/street/sprites/car-front-quarter-1.png",
+  "ground": [
+   375.5,
+   326
+  ],
+  "px_per_m": 218.0
+ },
+ "car-front-quarter-2": {
+  "kind": "car",
+  "side": "front-quarter",
+  "image": "data/street/sprites/car-front-quarter-2.png",
+  "ground": [
+   377.5,
+   387
+  ],
+  "px_per_m": 258.67
+ },
+ "car-front-quarter-3": {
+  "kind": "car",
+  "side": "front-quarter",
+  "image": "data/street/sprites/car-front-quarter-3.png",
+  "ground": [
+   360.5,
+   388
+  ],
+  "px_per_m": 259.33
+ },
  "car-rear-1": {
   "kind": "car",
   "side": "rear",
@@ -152,6 +182,36 @@
    320
   ],
   "px_per_m": 194.44
+ },
+ "car-rear-quarter-1": {
+  "kind": "car",
+  "side": "rear-quarter",
+  "image": "data/street/sprites/car-rear-quarter-1.png",
+  "ground": [
+   371.0,
+   315
+  ],
+  "px_per_m": 210.67
+ },
+ "car-rear-quarter-2": {
+  "kind": "car",
+  "side": "rear-quarter",
+  "image": "data/street/sprites/car-rear-quarter-2.png",
+  "ground": [
+   370.0,
+   315
+  ],
+  "px_per_m": 210.67
+ },
+ "car-rear-quarter-3": {
+  "kind": "car",
+  "side": "rear-quarter",
+  "image": "data/street/sprites/car-rear-quarter-3.png",
+  "ground": [
+   331.0,
+   318
+  ],
+  "px_per_m": 212.67
  },
  "car-side-1": {
   "kind": "car",
@@ -193,6 +253,16 @@
   ],
   "px_per_m": 416.55
  },
+ "motorbike-front-quarter-1": {
+  "kind": "motorbike",
+  "side": "front-quarter",
+  "image": "data/street/sprites/motorbike-front-quarter-1.png",
+  "ground": [
+   269.5,
+   715
+  ],
+  "px_per_m": 493.79
+ },
  "motorbike-rear-1": {
   "kind": "motorbike",
   "side": "rear",
@@ -202,6 +272,16 @@
    597
   ],
   "px_per_m": 412.41
+ },
+ "motorbike-rear-quarter-1": {
+  "kind": "motorbike",
+  "side": "rear-quarter",
+  "image": "data/street/sprites/motorbike-rear-quarter-1.png",
+  "ground": [
+   241.0,
+   713
+  ],
+  "px_per_m": 492.41
  },
  "motorbike-side-1": {
   "kind": "motorbike",

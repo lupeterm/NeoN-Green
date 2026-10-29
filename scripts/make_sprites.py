@@ -9,7 +9,7 @@ object alone on a plain magenta canvas; the magenta is keyed out to transparency
 records, per cut-out, the ground point (bottom centre, in pixels) and pixels per metre, so
 street.js can draw it at the right size for its distance. Sizes are the tree presets of
 config/model.json, typical car dimensions and the heights in VEHICLES (bus, motorbike, bicycle).
-Bicycles also get three-quarter views, as they are seen at an angle on the footpath.
+Bicycles, cars and motorbikes also get three-quarter views, for where they are seen at an angle.
 """
 import argparse
 import json
@@ -41,8 +41,13 @@ SPECIES = ["a lime tree (linden)", "a plane tree"]
 CAR_COLOURS = ["dark grey", "silver", "white"]
 CAR_VIEW = {"rear": "seen straight from behind, at eye level", "front": "seen straight from the front, at eye level",
             "side": "seen exactly from the left side, at eye level, the front pointing to the right"}
-# three-quarter views (bicycles, seen from the footpath at an angle): the viewer stands diagonally
+# three-quarter views (seen at an angle, off to the side of the camera): the viewer stands diagonally
 # behind or in front of it on its right, so it points to the right; street.js mirrors as for side views
+CAR_QUARTER_VIEW = {"rear-quarter": "seen diagonally from behind and from its right side (a three-quarter rear view, about 45 degrees), "
+                                    "at eye level, driving away from the viewer, its front pointing away and to the right",
+                    "front-quarter": "seen diagonally from the front and from its right side (a three-quarter front view, about 45 degrees), "
+                                     "at eye level, driving towards the viewer, its front pointing towards the viewer and to the right"}
+CAR_HEIGHT_M = 1.5   # quarter views are scaled by the height, their width on the picture not being the car's
 QUARTER_VIEW = {"rear-quarter": "seen diagonally from behind and from its right side (a three-quarter rear view, about 45 degrees), "
                                 "at eye level, riding away from the viewer, the front wheel pointing away and to the right",
                 "front-quarter": "seen diagonally from the front and from its right side (a three-quarter front view, about 45 degrees), "
@@ -57,7 +62,7 @@ VEHICLES = {
     "bus": {"height_m": 3.1, "sizes": {"side": (1536, 640), "front": (768, 1024), "rear": (768, 1024)},
             "what": "a modern 12-metre low-floor city bus, white with a red stripe, its orange LED destination display showing "
                     "the route number 32 (no other text, no logos)"},
-    "motorbike": {"height_m": 1.45, "sizes": {"side": (1024, 768), "front": (640, 1024), "rear": (640, 1024)},
+    "motorbike": {"height_m": 1.45, "sizes": {"side": (1024, 768), "front": (640, 1024), "rear": (640, 1024)}, "quarters": (768, 1024),
                   "what": "a person riding a black mid-size motorcycle, wearing a dark helmet, dark jacket and jeans"},
     "bicycle": {"height_m": 1.75, "sizes": {"side": (1024, 768), "front": (640, 1024), "rear": (640, 1024)},
                 "quarters": (768, 1024), "what": "a person riding a city bicycle, wearing a bicycle helmet, a light jacket and jeans"},
@@ -70,6 +75,10 @@ def jobs():
             yield {"id": f"tree-{preset}-{i}", "kind": "tree", "preset": preset, "size": (768, 1024),
                    "prompt": f"A photo of {desc}, {species}, in green summer leaf with the first yellow leaves. {LIGHT}"}
     for side, view in CAR_VIEW.items():
+        for i, colour in enumerate(CAR_COLOURS, 1):
+            yield {"id": f"car-{side}-{i}", "kind": "car", "side": side, "size": (1024, 768),
+                   "prompt": f"A photo of a {colour} modern compact family car (hatchback), {view}. {LIGHT}"}
+    for side, view in CAR_QUARTER_VIEW.items():
         for i, colour in enumerate(CAR_COLOURS, 1):
             yield {"id": f"car-{side}-{i}", "kind": "car", "side": side, "size": (1024, 768),
                    "prompt": f"A photo of a {colour} modern compact family car (hatchback), {view}. {LIGHT}"}
@@ -113,6 +122,8 @@ def ground(sprite, job, model):
         px_per_m = (bottom + 1 - rows[0]) / model["presets"][job["preset"]]["height_m"]
     elif job["kind"] in VEHICLES:
         px_per_m = (bottom + 1 - rows[0]) / VEHICLES[job["kind"]]["height_m"]
+    elif job["side"].endswith("-quarter"):
+        px_per_m = (bottom + 1 - rows[0]) / CAR_HEIGHT_M
     else:
         px_per_m = w / (4.4 if job["side"] == "side" else 1.8)
     return [round(gx, 1), int(bottom)], round(float(px_per_m), 2)

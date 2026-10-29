@@ -251,7 +251,6 @@ function render(opts = {}) {
 
   ctx.globalAlpha = 1;
   ctx.drawImage(img, 0, 0);
-  busStop();
   ctx.save();
   ctx.clip(S.ground);
   for (const o of objs) groundMarks(o, sun);
@@ -259,10 +258,15 @@ function render(opts = {}) {
 
   S.rects = [];
   S.lights = [];
+  // the stop sign takes its place among the objects by distance, so a tree behind it does not cover it
+  const pole = S.view.stop && cam.toGround(...S.view.stop.pole), poleDepth = pole ? Math.hypot(pole.x, pole.z) : Infinity;
+  let stopDrawn = false;
   for (const o of objs.sort((a, b) => b.depth - a.depth)) {
+    if (!stopDrawn && o.depth < poleDepth) { busStop(); stopDrawn = true; }
     const r = drawObject(o);
     if (r && !o.ghost) S.rects.push({...r, depth: o.depth, item: o.item});
   }
+  if (!stopDrawn) busStop();
   for (const fg of S.foreground) { ctx.save(); ctx.clip(fg); ctx.drawImage(img, 0, 0); ctx.restore(); }
   daylight(sun, W, H);
 
@@ -558,9 +562,9 @@ function vehicleLights(o, p) {
   const front = '255, 244, 214', tail = '255, 40, 30', r = Math.max(2, (o.kind === 'bicycle' ? 0.08 : 0.14) * s);
   if (side === 'front') for (const [d, h] of v.front) S.lights.push({u: p.u + d * s, v: p.v - h * s, colour: front, r});
   else if (side === 'rear') for (const [d, h] of v.rear) S.lights.push({u: p.u + d * s, v: p.v - h * s, colour: tail, r: r * 0.8});
-  else if (side.endsWith('-quarter')) {  // the lamp at the near end, a little towards where it points
-    const dir = o.pose.flip ? -1 : 1, rear = side === 'rear-quarter', [, h] = (rear ? v.rear : v.front)[0];
-    S.lights.push({u: p.u + (rear ? -1 : 1) * dir * 0.3 * half * s, v: p.v - h * s, colour: rear ? tail : front, r: rear ? r * 0.8 : r});
+  else if (side.endsWith('-quarter')) {  // the lamps at the near end, a little towards where it points, closer together
+    const dir = o.pose.flip ? -1 : 1, rear = side === 'rear-quarter', shift = (rear ? -1 : 1) * dir * 0.3 * half;
+    for (const [d, h] of rear ? v.rear : v.front) S.lights.push({u: p.u + (shift + 0.6 * d) * s, v: p.v - h * s, colour: rear ? tail : front, r: rear ? r * 0.8 : r});
   } else {
     const dir = o.pose.flip ? -1 : 1;
     S.lights.push({u: p.u + dir * 0.96 * half * s, v: p.v - v.front[0][1] * s, colour: front, r});
@@ -601,8 +605,9 @@ function destination(o, [bx0, by0, bx1, by1], k, x0, y0, u, mirrored, ctx = S.ct
 }
 
 // Vehicles drive on the right: east of the centre line towards the street axis bearing, west of it the other way.
-// Seen from the camera that is a rear, front or side view; bicycles on the footpath, seen at an angle,
-// also get three-quarter views (rear-quarter, front-quarter) where there are cut-outs for them.
+// Seen from the camera that is a rear, front or side view; seen at an angle (off to the side of the
+// camera, on the footpath or near it) a three-quarter view (rear-quarter, front-quarter) where there
+// are cut-outs for them: cars, motorbikes and bicycles. The bus is drawn in perspective (drawBox).
 function vehiclePose(o) {
   const {cam} = S, A = S.cfg.street_axis_bearing_deg * DEG;
   const {east, north} = cam.toEN(o), lateral = east * Math.cos(A) - north * Math.sin(A);
@@ -764,8 +769,8 @@ const signed = (v, digits) => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v)
 
 // ------------------------------------------------------------------ sprites
 // Realistic cut-outs from scripts/make_sprites.py: trees per size, vehicles from behind, the front and
-// the side, bicycles also three-quarter (facing right, or left if marked "faces"). The object's seed
-// picks one of the variants.
+// the side, and (except the bus) three-quarter (facing right, or left if marked "faces"). The object's
+// seed picks one of the variants.
 
 function sprite(o) {
   const ids = Object.keys(S.sprites).filter(id => {

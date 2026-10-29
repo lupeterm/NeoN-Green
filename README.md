@@ -411,8 +411,8 @@ by at most `placement.crown_overlap` of their radii (as on the map), vehicles ke
 vehicle sharing their road or footpath (1-1.5 m in front and behind, about 0.5 m beside), and
 bicycles keep 1 m from trunks. Objects get the size and position the perspective gives at that spot
 and nearer objects cover farther ones; vehicles keep to the right, so they are seen from behind,
-from the front or from the side; cyclists on the footpath, seen at an angle, from diagonally behind or
-in front, riding along it. The bus, being long, is drawn in perspective as its near end and its long
+from the front or from the side; cars, motorbikes and cyclists seen at an angle (beside the camera or
+on the footpath) from diagonally behind or in front, so they point along the street. The bus, being long, is drawn in perspective as its near end and its long
 side laid along its lane, so it points along the lane wherever it stands (also in the bus lane by
 the stop). The bus runs as SWH line 32, which uses Weipertstraße (OpenStreetMap
 route relations): its destination display reads "32 Frankenbach Maihalde" northbound and "32
