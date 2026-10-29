@@ -400,6 +400,98 @@
             "url": "https://github.com/mourner/suncalc"
           }
         ]
+      },
+      {
+        "id": "canyon_shade",
+        "part": "Shade (canyon model)",
+        "model": "The road under the crowns absorbs less direct sun: the crown lets through e^(−k·LAI) of it (Beer–Lambert law), and asphalt gives off a share f_H ≈ 0.4–0.6 of absorbed sun as heat to the air (empirical, no single study).",
+        "observed": "",
+        "refs": [
+          {
+            "title": "Monsi & Saeki (1953): On the factor light in plant communities and its importance for matter production. English translation in Annals of Botany 95 (2005), 549–567",
+            "url": "https://doi.org/10.1093/aob/mci052"
+          },
+          {
+            "title": "Oke (1982): The energetic basis of the urban heat island. Quarterly Journal of the Royal Meteorological Society 108, 1–24",
+            "url": "https://doi.org/10.1002/qj.49710845502"
+          },
+          {
+            "title": "Oke, Mills, Christen & Voogt (2017): Urban Climates. Cambridge University Press",
+            "url": "https://doi.org/10.1017/9781139016476"
+          }
+        ]
+      },
+      {
+        "id": "canyon_crown",
+        "part": "Crown heat (canyon model)",
+        "model": "The crown is one 'big leaf': it heats the air with the sun and longwave radiation it absorbs, minus what transpiration uses (LE: 380 W/m² well watered, 100 W/m² in drought; from sap flow or Priestley–Taylor).",
+        "observed": "",
+        "refs": [
+          {
+            "title": "Monsi & Saeki (1953): On the factor light in plant communities and its importance for matter production. English translation in Annals of Botany 95 (2005), 549–567",
+            "url": "https://doi.org/10.1093/aob/mci052"
+          },
+          {
+            "title": "Priestley & Taylor (1972): On the assessment of surface heat flux and evaporation using large-scale parameters. Monthly Weather Review 100, 81–92",
+            "url": "https://doi.org/10.1175/1520-0493(1972)100<0081:OTAOSH>2.3.CO;2"
+          },
+          {
+            "title": "Oke (1982): The energetic basis of the urban heat island. Quarterly Journal of the Royal Meteorological Society 108, 1–24",
+            "url": "https://doi.org/10.1002/qj.49710845502"
+          },
+          {
+            "title": "Oke, Mills, Christen & Voogt (2017): Urban Climates. Cambridge University Press",
+            "url": "https://doi.org/10.1017/9781139016476"
+          }
+        ]
+      },
+      {
+        "id": "canyon_ventilation",
+        "part": "Less ventilation (canyon model)",
+        "model": "Crowns slow the air exchange at roof level: w_e1 = w_e0 · (1 − c_d · crown cover), c_d = 0.3. The studies show the slowing; the formula is the notebook's own simple parameterisation.",
+        "observed": "",
+        "refs": [
+          {
+            "title": "Gromke & Ruck (2007): Influence of trees on the dispersion of pollutants in an urban street canyon – experimental investigation of the flow and concentration field. Atmospheric Environment 41, 3287–3302",
+            "url": "https://doi.org/10.1016/j.atmosenv.2006.12.043"
+          },
+          {
+            "title": "Gromke & Ruck (2009): On the impact of trees on dispersion processes of traffic emissions in street canyons. Boundary-Layer Meteorology 131, 19–34",
+            "url": "https://doi.org/10.1007/s10546-008-9301-2"
+          },
+          {
+            "title": "Krayenhoff, Santiago, Martilli, Christen & Oke (2015): Parametrization of drag and turbulence for urban neighbourhoods with trees. Boundary-Layer Meteorology 156, 157–189",
+            "url": "https://doi.org/10.1007/s10546-015-0028-6"
+          }
+        ]
+      },
+      {
+        "id": "canyon_box",
+        "part": "Street air as one well-mixed box (all three parts)",
+        "model": "Each part becomes a temperature change by dividing by the heat the street air exports through the roof level, ρ·c_p·w_e·W, with exchange velocity w_e = c_e·U (c_e ≈ 0.1).",
+        "observed": "",
+        "refs": [
+          {
+            "title": "Barlow & Belcher (2002): A wind tunnel model for quantifying fluxes in the urban boundary layer. Boundary-Layer Meteorology 104, 131–150",
+            "url": "https://doi.org/10.1023/A:1015555613672"
+          },
+          {
+            "title": "Bentham & Britter (2003): Spatially averaged flow within obstacle arrays. Atmospheric Environment 37, 2037–2043",
+            "url": "https://doi.org/10.1016/S1352-2310(03)00123-7"
+          },
+          {
+            "title": "Hamlyn & Britter (2005): A numerical study of the flow field and exchange processes within a canopy of urban-type roughness. Atmospheric Environment 39, 3243–3254",
+            "url": "https://doi.org/10.1016/j.atmosenv.2005.02.020"
+          },
+          {
+            "title": "Masson (2000): A physically-based scheme for the urban energy budget in atmospheric models (TEB). Boundary-Layer Meteorology 94, 357–397",
+            "url": "https://doi.org/10.1023/A:1002463829265"
+          },
+          {
+            "title": "Kusaka, Kondo, Kikegawa & Kimura (2001): A simple single-layer urban canopy model for atmospheric models (SLUCM). Boundary-Layer Meteorology 101, 329–358",
+            "url": "https://doi.org/10.1023/A:1019207923078"
+          }
+        ]
       }
     ]
   }

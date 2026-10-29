@@ -307,7 +307,14 @@ measure's description) show, for the parts of the model behind that number, the 
 next to what studies measured, with links to the studies. Hover or focus shows the tooltip, a click
 keeps it open. The parts are `sources` in `config/model.json`, each with an `id`; which ids belong
 to which number is `SOURCE_IDS` in `app.js`. `{shade.max_cooling_C}` and similar placeholders show
-current parameter values. Current references:
+current parameter values.
+
+In the physics-inspired model, the labels Shade, Crown heat and Less ventilation work the same way.
+Each shows the studies the notebook cites for that effect (parts `canyon_shade`, `canyon_crown` and
+`canyon_ventilation`, from its section 1), followed by those behind the street-as-a-box step that
+all three share (`canyon_box`). The links are DOIs checked against Crossref.
+
+Current references:
 
 * Rahman & Ennos (2016), [What we know and don't know about the cooling benefits of urban trees](https://www.tdag.org.uk/uploads/4/2/8/0/4280686/what_is_known_and_not_know_cooling_benefits_of_urban_trees.pdf):
   tree shade lowers PET by 7–15 °C on hot days; green areas can cool more at night than by day.
