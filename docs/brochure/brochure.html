@@ -76,7 +76,7 @@
   <div class="text">
     <div class="kicker">NeoN-Green · Green City Hackathon Heilbronn 2026</div>
     <h1>UrbanFlow <span>Twin</span></h1>
-    <div class="sub">What if we planted trees on our street? Find the hot spots, plant trees on the map, see the street – and how much cooler it gets.</div>
+    <div class="sub">What if we planted trees on our street – and took the bus? Find the hot spots, plant trees on the map, see the street – and how much cooler and cleaner it gets.</div>
     <div class="tags"><span class="tag">Real Heilbronn data</span><span class="tag">Interactive map</span><span class="tag">Street view</span><span class="tag">Open source</span></div>
   </div>
 </header>
@@ -92,21 +92,21 @@
     <div class="card step"><div class="img" style="background-image:url(img/map-street.jpg); background-position: 45% 50%"></div><div class="body">
       <h3><span class="num">2</span>Plant trees on the map</h3>
       <p>Draw a stretch of street and plant trees. Shadows follow the sun; the panel shows the cooling, e.g. −3.7 °C on Weipertstraße.</p></div></div>
-    <div class="card step"><div class="img" style="background-image:url(img/street-tool.jpg); background-position: 70% 20%"></div><div class="body">
+    <div class="card step"><div class="img" style="background-image:url(img/street-tool.jpg); background-position: 100% 18%"></div><div class="body">
       <h3><span class="num">3</span>See it in the street</h3>
-      <p>Look along Weipertstraße from the road centre, place trees and cars, and read the effect.</p></div></div>
+      <p>Look along Weipertstraße from the road centre, place trees, cars, the bus, motorbikes and bicycles, and read the effect.</p></div></div>
   </div>
 
   <div class="street">
-    <div class="shot" style="background-image:url(img/street-before.jpg)"><span class="label">Today</span><span class="note">Weipertstraße, looking north past the Open Space</span></div>
-    <div class="shot" style="background-image:url(img/street-after.jpg)"><span class="label after">With 7 trees and 3 cars</span><span class="note">Same view: trees and cars placed in the app</span></div>
+    <div class="shot" style="background-image:url(img/street-before.jpg)"><span class="label">Today</span><span class="note">Weipertstraße, looking south to the Etzelstraße stop</span></div>
+    <div class="shot" style="background-image:url(img/street-after.jpg)"><span class="label after">With 6 trees and 6 vehicles</span><span class="note">Same view: trees and vehicles placed in the app</span></div>
     <div class="card effect">
       <h3>Effect on the street</h3>
-      <div><div class="big cool">−2.6 °C</div><div class="k">mean felt temperature, 15:00 in July</div></div>
-      <div><div class="big cool" style="font-size:22px">−12.0 °C</div><div class="k">in the shade of a crown · 406 m² shaded</div></div>
+      <div><div class="big cool">−1.2 °C</div><div class="k">mean, 15:00 on a July day</div></div>
+      <div><div class="big cool" style="font-size:22px">−11.5 °C</div><div class="k">under a crown · 161 m² shaded</div></div>
       <hr>
-      <div><div class="big warm" style="font-size:22px">+2.1 µg/m³ NO₂</div><div class="k">from 3 cars, background 22 µg/m³</div></div>
-      <div class="k" style="margin-top:auto">Mean within 10 m of the centre line, 3–60 m both ways. Illustrative estimates from a teaching model.</div>
+      <div><div class="big warm" style="font-size:22px">+0.82 µg/m³ NO₂</div><div class="k">from 2 cars, the bus and a motorbike</div></div>
+      <div class="k"><b>Per person carried, a car adds 4× the NO₂ of the bus</b>; bicycles none. Background 18 µg/m³; within 10 m of the centre line; estimates.</div>
     </div>
   </div>
 
@@ -114,18 +114,18 @@
     <div class="card box">
       <h2>Real data from Heilbronn</h2>
       <div class="data">
-        <b>384</b><span>senseBox:bike rides of the Heilbronn campaign (openSenseMap)</span>
-        <b>43,031</b><span>street trees in the city's 2026 inventory (opendata.heilbronn.de)</span>
-        <b>5</b><span>heat hotspots on named streets, from ride-relative temperatures</span>
-        <b>1 hot day</b><span>of citizen temperature sensors (sensor.community, 2 Jul 2025) as the city-wide heat map</span>
+        <b>384</b><span>senseBox:bike rides, Heilbronn campaign (openSenseMap)</span>
+        <b>43,031</b><span>street trees, 2026 inventory (opendata.heilbronn.de)</span>
+        <b>5</b><span>heat hotspots on named streets, from the rides</span>
+        <b>1 hot day</b><span>of citizen sensors as the heat map (sensor.community)</span>
+        <b>27 µg/m³</b><span>NO₂ at the traffic station 2025, 18 background (UBA)</span>
       </div>
     </div>
     <div class="card box">
       <h2>How it works – honestly</h2>
       <ul>
-        <li><b>Shade</b> from each crown, projected with the real sun position for date and time.</li>
-        <li><b>Evaporative cooling</b> around trees, saturating for many trees.</li>
-        <li><b>Pollution</b>: background plus a plume per car; crowns remove a little.</li>
+        <li><b>Shade</b> from each crown with the real sun position; <b>evaporative cooling</b> around trees.</li>
+        <li><b>Traffic</b>: each vehicle = 200 trips a day, scaled from the traffic station by its emission factor.</li>
         <li>Street views and cut-outs are <b>AI images</b> from our photos (open model, Apache 2.0).</li>
         <li>A transparent teaching model – every number is editable – <b>not a simulation</b>.</li>
       </ul>
@@ -175,7 +175,7 @@
         go – that needs computational fluid dynamics.</p>
       <ul>
         <li><b>CFD with OpenFOAM / NeoFOAM</b> on GPU systems: resolve airflow around buildings, trees as porous drag, and heat and pollutant transport.</li>
-        <li><b>Same scenarios:</b> export the trees and cars placed in the app as CFD cases for the street.</li>
+        <li><b>Same scenarios:</b> export the trees and vehicles placed in the app as CFD cases for the street.</li>
         <li><b>Validate</b> against senseBox:bike and station measurements, then replace the estimates with physics-based predictions.</li>
       </ul>
     </div>
@@ -184,7 +184,7 @@
 
 <footer>
   <div class="claim">Real data. Real streets. <span>A cooler Heilbronn.</span></div>
-  <div class="right">Open source · github.com/lupeterm/NeoN-Green<br>Data: openSenseMap (PDDL), sensor.community (ODbL), Stadt Heilbronn, © OpenStreetMap contributors</div>
+  <div class="right">Open source · github.com/lupeterm/NeoN-Green<br>Data: openSenseMap (PDDL), sensor.community (ODbL), Stadt Heilbronn, Umweltbundesamt, © OpenStreetMap contributors</div>
 </footer>
 </body>
 </html>

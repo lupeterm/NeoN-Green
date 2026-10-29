@@ -55,20 +55,35 @@
     "idw_radius_m": 60
   },
   "street_view": {
-    "_about": "Before/after panel of the street view (street.js). Temperature as on the map: the tree model above applied to a base temperature within street_corridor_m of the centre line. Pollution: a background value plus, per car placed, a plume along its lane, lowered a little under tree crowns. Illustrative estimates, not measurements; trees can also trap pollutants in narrow street canyons, which is not modelled.",
+    "_about": "Before/after panel of the street view (street.js). Temperature: the tree model above on a hot afternoon (air_temperature_C), plus the waste heat of the vehicles placed, as for the map's traffic measure (measures.traffic.C_per_W_m2). Pollution: the urban background plus the traffic placed, scaled from the measured traffic share at Heilbronn's traffic station by each vehicle type's emission factor; trees then change the street's concentration as in 'pollution' (street canyon: higher). Each vehicle placed stands for trips_per_day of its type. Estimates with typical values, not measurements.",
     "air_temperature_C": 30,
-    "no2_background_ugm3": 22,
-    "no2_per_car_ugm3": 8,
-    "pm25_background_ugm3": 10,
-    "pm25_per_car_ugm3": 0.8,
-    "plume_sigma_across_m": 3,
-    "plume_sigma_along_m": 12,
-    "tree_deposition": 0.12,
-    "_tree_deposition": "Fraction of the traffic pollution removed under one crown (Gaussian, crown radius as sigma); overlapping crowns add up to at most half.",
-    "area_along_m": [
-      3,
-      60
-    ]
+    "no2_background_ugm3": 18,
+    "_no2_background_ugm3": "Urban background station DEBW015 Heilbronn, NO2 annual means 2022-2025: 19, 17, 16, 18 µg/m³ (UBA air data).",
+    "pm25_background_ugm3": 9,
+    "_pm25_background_ugm3": "Urban background PM2.5 in Heilbronn, rounded; the traffic station adds 0.4-0.7 µg/m³ (measures.traffic._pm).",
+    "reference": {"vehicles_per_day": 15000, "no2_ugm3": 12, "pm25_ugm3": 0.55, "nox_g_per_km": 0.40, "pm25_g_per_km": 0.025},
+    "_reference": "What the traffic adds at the traffic station DEBW152 Weinsberger Straße-Ost (a primary road, about 15,000 vehicles a day assumed, as in measures.traffic): NO2 traffic minus background 13, 12, 14, 9 µg/m³ in 2022-2025 (UBA), PM2.5 0.4-0.7 µg/m³. The emission factors are those of its fleet: mostly cars, a few per cent buses and lorries.",
+    "trips_per_day": 200,
+    "_trips_per_day": "Each vehicle placed stands for this many trips a day of its type along the street, about one every 5 minutes in the daytime, like a frequent bus line.",
+    "roadway_width_m": 14,
+    "canyon": true,
+    "_canyon": "Weipertstraße has buildings close on both sides, so trees count as in a street canyon (pollution.canyon_increase_pct).",
+    "vehicles": {
+      "car": {"label": "car", "nox_g_per_km": 0.30, "pm25_g_per_km": 0.020, "energy_MJ_per_km": 2.0, "people": 1.4},
+      "bus": {"label": "bus", "nox_g_per_km": 1.0, "pm25_g_per_km": 0.050, "energy_MJ_per_km": 14, "people": 20},
+      "motorbike": {"label": "motorbike", "nox_g_per_km": 0.12, "pm25_g_per_km": 0.010, "energy_MJ_per_km": 1.2, "people": 1.1},
+      "bicycle": {"label": "bicycle", "nox_g_per_km": 0, "pm25_g_per_km": 0, "energy_MJ_per_km": 0.1, "people": 1}
+    },
+    "_vehicles": "Typical urban values for the German fleet, rounded, order of magnitude as in HBEFA 4.2 / UBA TREMOD: NOx per km (car: mix of petrol and diesel, Euro 4-6; bus: 12 m Euro VI diesel city bus, real-world urban 0.3-1.5 g/km), PM2.5 per km including brake, tyre and road wear, energy per km = fuel (car 6 l/100 km, bus 40 l/100 km, motorbike 4 l/100 km); a bicycle's is the rider's body heat. People per vehicle: car 1.4 (MiD 2017), bus 20 (average load of a German city bus), motorbike 1.1.",
+    "area_along_m": [3, 60],
+    "area_lateral_m": [-14, 10],
+    "_area_lateral_m": "The street between its building fronts, metres from the centre line (east +): OpenStreetMap buildings at 13.5-14.6 m west (way 35710237) and 9.5-10.7 m east (ways 84722898, 84722906, 84722908, 84722910, 84722915) within 60 m of the camera point. Means and the shaded area are over this area in both directions.",
+    "tree_presets": {
+      "small": {"height_m": 6, "crown_diameter_m": 4},
+      "medium": {"height_m": 12, "crown_diameter_m": 8},
+      "large": {"height_m": 18, "crown_diameter_m": 12}
+    },
+    "_tree_presets": "The street view's own tree sizes, apart from the map's presets: its tree cut-outs are drawn at these heights (scripts/make_sprites.py), and its shade, cooling and crown spacing use them, so what is seen and what is calculated match. Change them only together with new cut-outs."
   },
   "street_corridor_m": 10,
   "placement": {

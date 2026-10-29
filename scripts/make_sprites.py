@@ -7,8 +7,10 @@
 The open model Qwen-Image-Edit-2511 (Apache 2.0, loaded as in centre_view.py) paints each
 object alone on a plain magenta canvas; the magenta is keyed out to transparency. sprites.json
 records, per cut-out, the ground point (bottom centre, in pixels) and pixels per metre, so
-street.js can draw it at the right size for its distance. Sizes are the tree presets of
-config/model.json and typical car dimensions.
+street.js can draw it at the right size for its distance. Sizes are the street view's tree
+presets (street_view.tree_presets in config/model.json, apart from the map's), typical car
+dimensions and the heights in VEHICLES (bus, motorbike, bicycle).
+Bicycles, cars and motorbikes also get three-quarter views, for where they are seen at an angle.
 """
 import argparse
 import json
@@ -40,6 +42,32 @@ SPECIES = ["a lime tree (linden)", "a plane tree"]
 CAR_COLOURS = ["dark grey", "silver", "white"]
 CAR_VIEW = {"rear": "seen straight from behind, at eye level", "front": "seen straight from the front, at eye level",
             "side": "seen exactly from the left side, at eye level, the front pointing to the right"}
+# three-quarter views (seen at an angle, off to the side of the camera): the viewer stands diagonally
+# behind or in front of it on its right, so it points to the right; street.js mirrors as for side views
+CAR_QUARTER_VIEW = {"rear-quarter": "seen diagonally from behind and from its right side (a three-quarter rear view, about 45 degrees), "
+                                    "at eye level, driving away from the viewer, its front pointing away and to the right",
+                    "front-quarter": "seen diagonally from the front and from its right side (a three-quarter front view, about 45 degrees), "
+                                     "at eye level, driving towards the viewer, its front pointing towards the viewer and to the right"}
+CAR_HEIGHT_M = 1.5   # quarter views are scaled by the height, their width on the picture not being the car's
+QUARTER_VIEW = {"rear-quarter": "seen diagonally from behind and from its right side (a three-quarter rear view, about 45 degrees), "
+                                "at eye level, riding away from the viewer, the front wheel pointing away and to the right",
+                "front-quarter": "seen diagonally from the front and from its right side (a three-quarter front view, about 45 degrees), "
+                                 "at eye level, riding towards the viewer, the front wheel pointing towards the viewer and to the right"}
+# side and quarter views that came out facing left although the prompt asks for right (checked by eye); street.js mirrors these
+FACING_LEFT = {"bus-side-1", "bicycle-rear-quarter-1"}
+# destination display of the bus (x0, y0, x1, y1 in cut-out pixels, found by eye); street.js writes
+# the destination into it, since the model cannot be trusted with lettering
+DISPLAYS = {"bus-front-1": [98, 38, 368, 88], "bus-side-1": [210, 86, 298, 113]}
+# vehicles scaled by their height (m), since mirrors and handlebars make widths unreliable
+VEHICLES = {
+    "bus": {"height_m": 3.1, "sizes": {"side": (1536, 640), "front": (768, 1024), "rear": (768, 1024)},
+            "what": "a modern 12-metre low-floor city bus, white with a red stripe, its orange LED destination display showing "
+                    "the route number 32 (no other text, no logos)"},
+    "motorbike": {"height_m": 1.45, "sizes": {"side": (1024, 768), "front": (640, 1024), "rear": (640, 1024)}, "quarters": (768, 1024),
+                  "what": "a person riding a black mid-size motorcycle, wearing a dark helmet, dark jacket and jeans"},
+    "bicycle": {"height_m": 1.75, "sizes": {"side": (1024, 768), "front": (640, 1024), "rear": (640, 1024)},
+                "quarters": (768, 1024), "what": "a person riding a city bicycle, wearing a bicycle helmet, a light jacket and jeans"},
+}
 
 
 def jobs():
@@ -51,6 +79,17 @@ def jobs():
         for i, colour in enumerate(CAR_COLOURS, 1):
             yield {"id": f"car-{side}-{i}", "kind": "car", "side": side, "size": (1024, 768),
                    "prompt": f"A photo of a {colour} modern compact family car (hatchback), {view}. {LIGHT}"}
+    for side, view in CAR_QUARTER_VIEW.items():
+        for i, colour in enumerate(CAR_COLOURS, 1):
+            yield {"id": f"car-{side}-{i}", "kind": "car", "side": side, "size": (1024, 768),
+                   "prompt": f"A photo of a {colour} modern compact family car (hatchback), {view}. {LIGHT}"}
+    for kind, v in VEHICLES.items():
+        for side, view in CAR_VIEW.items():
+            yield {"id": f"{kind}-{side}-1", "kind": kind, "side": side, "size": v["sizes"][side],
+                   "prompt": f"A photo of {v['what']}, {view}. {LIGHT}"}
+        for side, view in QUARTER_VIEW.items() if "quarters" in v else ():
+            yield {"id": f"{kind}-{side}-1", "kind": kind, "side": side, "size": v["quarters"],
+                   "prompt": f"A photo of {v['what']}, {view}. {LIGHT}"}
 
 
 def cut_out(img):
@@ -81,7 +120,11 @@ def ground(sprite, job, model):
     base = np.where(alpha[max(0, bottom - max(4, h // 40)):bottom + 1].any(axis=0))[0]
     gx = float((base[0] + base[-1]) / 2) if job["kind"] == "tree" else w / 2
     if job["kind"] == "tree":
-        px_per_m = (bottom + 1 - rows[0]) / model["presets"][job["preset"]]["height_m"]
+        px_per_m = (bottom + 1 - rows[0]) / model["street_view"]["tree_presets"][job["preset"]]["height_m"]
+    elif job["kind"] in VEHICLES:
+        px_per_m = (bottom + 1 - rows[0]) / VEHICLES[job["kind"]]["height_m"]
+    elif job["side"].endswith("-quarter"):
+        px_per_m = (bottom + 1 - rows[0]) / CAR_HEIGHT_M
     else:
         px_per_m = w / (4.4 if job["side"] == "side" else 1.8)
     return [round(gx, 1), int(bottom)], round(float(px_per_m), 2)
@@ -116,7 +159,9 @@ def main():
         sprite.save(OUT / f"{job['id']}.png", optimize=True)
         anchor, ppm = ground(sprite, job, model)
         index[job["id"]] = {k: job[k] for k in ("kind", "preset", "side") if k in job} | {
-            "image": f"data/street/sprites/{job['id']}.png", "ground": anchor, "px_per_m": ppm}
+            "image": f"data/street/sprites/{job['id']}.png", "ground": anchor, "px_per_m": ppm} | (
+            {"faces": "left"} if job["id"] in FACING_LEFT else {}) | (
+            {"display": DISPLAYS[job["id"]]} if job["id"] in DISPLAYS else {})
         print(f"{job['id']}: {sprite.size[0]}x{sprite.size[1]} px in {time.time() - t:.0f} s", flush=True)
     index_path.write_text(json.dumps(dict(sorted(index.items())), indent=1) + "\n")
 
