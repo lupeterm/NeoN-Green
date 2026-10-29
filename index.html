@@ -53,7 +53,7 @@
     button.primary.active { background: var(--field); color: var(--accent); }
     label.check { display: flex; gap: 6px; align-items: center; font-weight: 400; color: var(--fg); font-size: 13px; }
     .seg { display: flex; margin-top: 10px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
-    .seg label { flex: 1; margin: 0; text-align: center; padding: 5px 0; cursor: pointer; color: var(--fg); font-weight: 400; font-size: 13px; }
+    .seg label { flex: 1; min-width: 0; margin: 0; text-align: center; padding: 5px 0; cursor: pointer; color: var(--fg); font-weight: 400; font-size: 13px; }
     .seg input { display: none; }
     .seg label:has(input:checked) { background: var(--accent); color: #fff; font-weight: 600; }
     #layers { margin-top: 4px; border-top: 1px solid var(--line); }
@@ -64,12 +64,18 @@
     .data-table th { color: var(--muted); font-weight: 600; }
     .maplibregl-popup-content dl { margin: 6px 0 0; padding: 0; border: 0; font-size: 12px; }
     #hint { color: var(--err); min-height: 0; }
-    .sources { margin-top: 8px; font-size: 12px; }
-    .sources summary { cursor: pointer; color: var(--cool); font-weight: 600; }
-    .sources h3 { font-size: 12px; margin: 8px 0 2px; }
-    .sources p { margin: 2px 0; color: var(--muted); }
-    .sources ol { margin: 2px 0 0; padding-left: 18px; }
-    .sources a { color: var(--cool); }
+    button.src { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+                 width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--cool); color: var(--cool);
+                 font: italic 600 10px/1 Georgia, serif; cursor: pointer; vertical-align: 1px; margin-left: 2px; }
+    button.src:hover, button.src:focus-visible, button.src.active { background: var(--cool); color: var(--field); }
+    .srctip { position: fixed; z-index: 10; width: 300px; max-width: calc(100vw - 16px); max-height: 60vh; overflow-y: auto;
+              box-sizing: border-box; padding: 8px 10px; background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+              border-radius: 8px; box-shadow: 0 4px 16px #0003; font-size: 12px; backdrop-filter: blur(4px); }
+    .srctip h3 { font-size: 12px; margin: 6px 0 2px; } .srctip h3:first-child { margin-top: 0; }
+    .srctip p { margin: 2px 0; color: var(--muted); } .srctip p b { color: var(--fg); }
+    .srctip p.note { margin-top: 6px; font-style: italic; }
+    .srctip ol { margin: 2px 0 0; padding-left: 18px; }
+    .srctip a { color: var(--cool); }
     .ticks { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
     header { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
     #close { border: 0; background: none; font-size: 20px; line-height: 1; cursor: pointer; color: var(--muted); padding: 0; }
@@ -85,16 +91,15 @@
     .flag span { margin-top: 3px; background: #1c7ed6; color: #fff; font: 600 11px system-ui, sans-serif; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
     #streetViewLink { display: block; margin-top: 8px; text-align: center; padding: 5px; border: 1px solid var(--cool); border-radius: 6px; color: var(--cool); text-decoration: none; font-weight: 600; }
     #streetViewLink[hidden] { display: none; }
-    #canyonBox { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
-    #canyonBox summary { display: flex; align-items: baseline; gap: 6px; cursor: pointer; list-style: none; }
-    #canyonBox summary::-webkit-details-marker { display: none; }
-    #canyonBox summary::before { content: '▸'; color: var(--muted); }
-    #canyonBox[open] summary::before { content: '▾'; }
-    #canyonBox summary h2 { margin: 0; }
-    #canyonBox summary .toggle { margin-left: auto; font-size: 12px; color: var(--cool); font-weight: 600; }
-    #canyonBox summary .toggle::after { content: 'Show'; }
-    #canyonBox[open] summary .toggle::after { content: 'Hide'; }
-    #canyonBox[open] summary { margin-bottom: 8px; }
+    details.model { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+    details.model > summary { cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    details.model > summary::before { content: "▸"; color: var(--muted); margin-right: -2px; }
+    details.model[open] > summary::before { content: "▾"; }
+    details.model > summary span { flex: 1; }
+    details.model > summary b { color: var(--cool); font-variant-numeric: tabular-nums; }
+    details.model > summary b.warm { color: var(--err); }
+    details.model > summary::-webkit-details-marker { display: none; }
+    details.model > summary { list-style: none; }
     #canyonBox dl { margin-top: 6px; padding-top: 0; border-top: 0; }
     #canyonBox dd.big.warm { color: var(--err); }
     .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
@@ -124,7 +129,7 @@
     <input type="date" id="date">
     <label>Time of day <span id="timeLabel"></span></label>
     <input type="range" id="time" min="300" max="1320" step="10" value="900">
-    <p id="sun" class="muted"></p>
+    <p class="muted"><span id="sun"></span> <button type="button" class="src" data-src="sun" aria-label="Sources">i</button></p>
     <div id="ramp"></div>
     <div class="ticks"><span id="dmin"></span><span id="unit"></span><span id="dmax"></span></div>
     <div id="hotspotBox" hidden>
@@ -193,11 +198,16 @@
       <input type="range" id="volume" min="0" max="100" step="10" value="100">
     </div>
     <p id="hint" class="muted"></p>
-    <dl id="result"></dl>
-    <p class="muted">Simplified teaching model: crown shadows from the sun position plus evaporative cooling.
-      Parameters in <code>config/model.json</code>.</p>
-    <details id="canyonBox" hidden>
-      <summary><h2>Canyon air temperature</h2><span class="toggle"></span></summary>
+    <details id="empiricalBox" class="model" open>
+      <summary><span>Empirical model</span><b id="sumEmpirical"></b></summary>
+      <p class="muted">What people feel on this street: crown shade from the sun position plus evaporative cooling,
+        with values from studies. One measure at a time; parameters in <code>config/model.json</code>.</p>
+      <dl id="result"></dl>
+    </details>
+    <details id="canyonBox" class="model" hidden>
+      <summary><span>Physics-inspired model</span><b id="sumCanyon"></b></summary>
+      <p class="muted">Air temperature averaged over a generic street canyon at the hottest hour, from an energy balance.
+        Air mixes through the whole street, so the numbers are much smaller than the felt temperature above.</p>
       <label for="canyonScenario">Scenario <span>peak hour, box model</span></label>
       <select id="canyonScenario"></select>
       <p id="canyonChanges" class="muted"></p>
@@ -207,12 +217,9 @@
       <p class="muted"><i class="swatch net-key"></i>net effect · click a row to choose it</p>
       <p id="canyonNote" class="muted"></p>
     </details>
-    <details id="sources" class="sources">
-      <summary>Model sources</summary>
-      <div id="sourceList"></div>
-    </details>
   </aside>
 
+  <div id="srcTip" class="srctip" role="tooltip" hidden></div>
   <script src="app.js"></script>
 </body>
 </html>

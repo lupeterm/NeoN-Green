@@ -2,10 +2,10 @@
 
 An interactive street map of Heilbronn with a heat overlay. Draw around part of a street
 and plant trees on it, evenly spaced or by hand, or try another measure instead: shade sails,
-grass and flower beds, a reflective road surface, misting poles, or a speed limit and less traffic. The overlay recalculates live, and the
+grass and flower beds, or a speed limit and less traffic. The overlay recalculates live, and the
 panel shows how much cooler the street gets on average. Tree shadows follow the sun for
-the chosen date and time of day. Existing trees and environment data from the city's open
-data portal can be shown as extra layers.
+the chosen date and time of day. Existing trees from the city's open data portal can be shown
+as an extra layer.
 
 Built for education and for cheaply comparing urban-planning options. It is not a
 microclimate simulation.
@@ -33,9 +33,12 @@ SunCalc load from unpkg, and the basemap is CARTO Positron.
 3. In the right panel, pick a **measure** (see "Measures" below). For trees, choose **evenly spaced** and set the number of trees, or **by hand** and
    click the map to plant trees and click a new tree to remove it. Switching to by hand starts
    from the current even layout.
-4. Read the result: the mean value within 10 m on both sides of the section, before and after,
-   plus the strongest local cooling and the shaded area.
-5. With the trees measure selected, under **Canyon air temperature**, pick one of the scenarios from the cooling notebook (calm or
+4. Read the result in two collapsible sections, each showing its headline number in the header:
+   **Empirical model** (the map model below: felt temperature on the selected street; the mean value
+   within 10 m on both sides of the section, before and after, plus the strongest local cooling and
+   the shaded area) and, for trees, **Physics-inspired model** (the canyon box model, see "Canyon
+   scenarios").
+5. In the **Physics-inspired model** section, pick one of the scenarios from the cooling notebook (calm or
    windy day, drought, denser row, smaller trees, narrow street …) in the dropdown or by clicking its
    row. It shows how shade, crown heat and reduced ventilation add up to the net change of the
    canyon-average air temperature at peak hour, next to the net effect of all other scenarios
@@ -79,17 +82,19 @@ street in Heilbronn. Each changes the same heat map, and the panel adds what mat
 | Street trees | number or by hand, size | crown shade (felt) and evaporation (air) | shaded area |
 | Shade sails | number, over the pavements or across the street | shade like a crown (× `shade_factor`), no air cooling | shaded area, sail area |
 | Grass & flower beds | bed width, share of the section | a little air cooling around the beds, slightly lower felt temperature on them | bed area |
-| Reflective road surface | albedo after coating | a little air cooling over the road, but reflected sun raises the felt temperature on road and pavements | both parts separately |
-| Misting poles | number of poles | strong, very local air cooling, only during operating hours | water use |
 | Speed limit & less traffic | 30 km/h, share of motor traffic | less engine heat over the road: almost nothing | engine heat in W/m², noise in dB(A) |
 
 Beds are strips behind both kerbs (they move outward past tram tracks or other roads, never into a building).
 Sails over the pavements alternate sides like trees (4 m high); across the street they span road
-and pavements 6 m high. Misting poles are spaced like trees but ignore existing trees. Traffic volumes and current
+and pavements 6 m high. Traffic volumes and current
 speed limits are not known per street and are assumed from the road class. All parameters, with
-notes, are under `measures` in `config/model.json`; "Model sources" shows the studies for the
-selected measure. In the 3D street view trees and sails are drawn in the air; beds, coating
-and mist reach show as flat areas on the ground.
+notes, are under `measures` in `config/model.json`; the ⓘ buttons show the studies behind each
+number. In the 3D street view trees and sails are drawn in the air; beds show as
+flat areas on the ground.
+
+A reflective road surface and misting poles are implemented too but hidden for now: they are left
+out of `measures.order` in `config/model.json`. Add `"pavement"` or `"misting"` back to the list to
+show them again.
 
 ## Files
 
@@ -297,10 +302,12 @@ temperatures. The default values are rough estimates, not fitted to measurements
 them in `config/model.json`, or replace `model.js` with a better model behind the same
 `treeEffect()` function.
 
-"Model sources" in the scenario panel lists, for each part of the model, the values it uses
-next to what studies measured, with links to the studies. The list is `sources` in
-`config/model.json`; `{shade.max_cooling_C}` and similar placeholders show current parameter
-values. Current references:
+The ⓘ buttons next to the numbers in the scenario panel (and next to the sun position and each
+measure's description) show, for the parts of the model behind that number, the values it uses
+next to what studies measured, with links to the studies. Hover or focus shows the tooltip, a click
+keeps it open. The parts are `sources` in `config/model.json`, each with an `id`; which ids belong
+to which number is `SOURCE_IDS` in `app.js`. `{shade.max_cooling_C}` and similar placeholders show
+current parameter values. Current references:
 
 * Rahman & Ennos (2016), [What we know and don't know about the cooling benefits of urban trees](https://www.tdag.org.uk/uploads/4/2/8/0/4280686/what_is_known_and_not_know_cooling_benefits_of_urban_trees.pdf):
   tree shade lowers PET by 7–15 °C on hot days; green areas can cool more at night than by day.
@@ -324,8 +331,8 @@ of the canyon-average **air** temperature at the hottest hour (surface energy ba
 ventilation, big-leaf crown). It splits the tree effect into shade (cooling), crown sensible heat
 (warming, reduced by transpiration) and reduced ventilation (warming). Its results are much smaller
 than the felt-temperature change of the map model above, because air mixes through the whole street.
-Section 7 of the notebook runs eight scenarios against a base case (20 m wide street, 8 m crowns every
-10 m, 1 m/s wind) and writes them to `data/canyon_scenarios.json` (path in `canyonScenarios` in
+Section 7 of the notebook runs nine scenarios against a base case (20 m wide street, 17 m crowns every
+20 m like the map's medium tree, 1 m/s wind; small and large trees use the map's 6 and 24 m crowns) and writes them to `data/canyon_scenarios.json` (path in `canyonScenarios` in
 `config/overlays.json`), which the scenario panel shows. The scenarios describe a generic street, not
 the selected one. After changing the model or the `scenarios` dictionary, re-run the notebook
 (needs `numpy`, `matplotlib` and Jupyter):
@@ -336,7 +343,9 @@ jupyter nbconvert --to notebook --execute --inplace street_tree_cooling_model.ip
 
 ## Environment data
 
-The group "Environment data (opendata.heilbronn.de)" holds the portal's datasets on pollution,
+The "Environment data" dropdown is switched off for now (commented out at the end of
+`setupDataLayers()` in `app.js`); the layers stay configured. The group
+"Environment data (opendata.heilbronn.de)" holds the portal's datasets on pollution,
 climate and related topics that come with files:
 
 | Option | Data | How it is placed |
