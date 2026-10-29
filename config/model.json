@@ -75,7 +75,9 @@
       "bicycle": {"label": "bicycle", "nox_g_per_km": 0, "pm25_g_per_km": 0, "energy_MJ_per_km": 0.1, "people": 1}
     },
     "_vehicles": "Typical urban values for the German fleet, rounded, order of magnitude as in HBEFA 4.2 / UBA TREMOD: NOx per km (car: mix of petrol and diesel, Euro 4-6; bus: 12 m Euro VI diesel city bus, real-world urban 0.3-1.5 g/km), PM2.5 per km including brake, tyre and road wear, energy per km = fuel (car 6 l/100 km, bus 40 l/100 km, motorbike 4 l/100 km); a bicycle's is the rider's body heat. People per vehicle: car 1.4 (MiD 2017), bus 20 (average load of a German city bus), motorbike 1.1.",
-    "area_along_m": [3, 60]
+    "area_along_m": [3, 60],
+    "area_lateral_m": [-14, 10],
+    "_area_lateral_m": "The street between its building fronts, metres from the centre line (east +): OpenStreetMap buildings at 13.5-14.6 m west (way 35710237) and 9.5-10.7 m east (ways 84722898, 84722906, 84722908, 84722910, 84722915) within 60 m of the camera point. Means and the shaded area are over this area in both directions."
   },
   "street_corridor_m": 10,
   "placement": {

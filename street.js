@@ -664,7 +664,7 @@ function debugGrid() {
 }
 
 // ------------------------------------------------------------------ before / after
-// As the map's scenario panel: means within street_corridor_m of the centre line, area_along_m
+// As the map's scenario panel: means over the street between its building fronts (area_lateral_m), area_along_m
 // ahead in both directions, without and with everything placed on the street, so both views
 // show the same numbers. All numbers in config/model.json ("street_view"):
 //   temperature: the map's tree model (model.js) + vehicle waste heat over the roadway
@@ -680,7 +680,7 @@ function showResult(sun) {
   S.resultKey = key;
   $('resultPanel').hidden = !placed.length;  // only once something is placed
   if (!placed.length) return;
-  const p = S.model.street_view, ref = p.reference, corridor = S.model.street_corridor_m, [s0, s1] = p.area_along_m, cell = 1;
+  const p = S.model.street_view, ref = p.reference, [w0, w1] = p.area_lateral_m, [s0, s1] = p.area_along_m, cell = 1;
   const A = S.cfg.street_axis_bearing_deg * DEG, sa = Math.sin(A), ca = Math.cos(A);
   const toEN = (l, s) => ({east: s * sa + l * ca, north: s * ca - l * sa});
   const trees = placed.filter(o => o.kind === 'tree').map(o => {
@@ -691,13 +691,13 @@ function showResult(sun) {
   let n = 0, dT = 0, shaded = 0, covered = 0;
   for (const dir of [1, -1]) {
     for (let a0 = s0 + cell / 2; a0 < s1; a0 += cell) {
-      for (let l = -corridor + cell / 2; l < corridor; l += cell) {
+      for (let l = w0 + cell / 2; l < w1; l += cell) {
         const {east, north} = toEN(l, dir * a0);
         n++;
         if (!trees.length) continue;
         const e = NG.treeEffect(east, north, trees, shadows, sun, S.model);
         dT += e.dT;
-        if (e.shade > 0.5) shaded += cell * cell;
+        if (e.shade >= 1) shaded += cell * cell;   // inside a crown's shadow (not its soft edge)
         if (trees.some(t => Math.hypot(east - t.x, north - t.y) < t.crown_diameter_m / 2)) covered++;
       }
     }
@@ -757,7 +757,7 @@ function showResult(sun) {
     }
   }
   $('result').innerHTML = html +
-    `<dt class="muted" style="grid-column:1/-1">The whole street in both views, within ${corridor} m of the centre line, ${s0}–${s1} m both ways. ` +
+    `<dt class="muted" style="grid-column:1/-1">The whole street in both views, between the building fronts (${-w0} m west and ${w1} m east of the centre line), ${s0}–${s1} m both ways. ` +
     `Each vehicle placed stands for ${p.trips_per_day} trips a day. Traffic scaled from Heilbronn's traffic station (NO₂ +${ref.no2_ugm3} µg/m³ ` +
     `from about ${ref.vehicles_per_day.toLocaleString('en')} vehicles a day) by each type's emission factor; vehicle heat as on the map; ` +
     `${p.canyon ? 'in a street canyon, trees slightly raise pollution' : 'trees remove a little pollution'}.</dt>`;

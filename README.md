@@ -433,9 +433,10 @@ selects Weipertstraße there, plants them by hand and computes the cooling.
 Both views share one street: what you place is stored in metres from the common camera point,
 so it shows in whichever view looks its way, counts for spacing in both, and **Remove all** clears
 the street. As on the map, a panel on the right (once something is placed) gives the mean
-temperature before and after within
-`street_corridor_m` of the centre line, 3–60 m in both directions, so both views show the same
-numbers, and below it NO₂ and PM2.5. All numbers are in `street_view` in `config/model.json`:
+temperature before and after over the street between its building fronts (14 m west and 10 m
+east of the centre line, from OpenStreetMap; `area_lateral_m`), 3–60 m in both directions, so both
+views show the same numbers, the area in a crown's shadow (the shadow itself, not its soft edge),
+and below it NO₂ and PM2.5. All numbers are in `street_view` in `config/model.json`:
 
 * **Each vehicle placed stands for 200 trips a day** of its type (about one every 5 minutes in
   the daytime, like a frequent bus line).
