@@ -384,13 +384,12 @@ function renderCanyon(id) {
     const [name, unit] = INPUT_LABELS[k] || [k, ''];
     return `${name} ${v}${unit ? ' ' + unit : ''} (base ${S.canyon.base[k]})`;
   });
-  const K = v => `${signed(v, 2)} °C`;
+  const degC = v => `${signed(v, 2)} °C`;  // differences: 1 K = 1 °C
   $('canyonChanges').textContent = changes.length ? `Changed: ${changes.join(', ')}` : 'Base case, nothing changed';
   $('canyonResult').innerHTML = [
     ['Crown cover', `${Math.round(o.crown_cover * 100)} % of width`],
-    ...CANYON_PARTS.map(([k, label, colour]) => [`<i class="swatch" style="background:${colour}"></i>${label}`, K(o[k])]),
-    ['&nbsp; ↳ transpiration', K(o.dT_transpiration)],
-    ['Net tree effect', K(o.dT_total), o.dT_total > 0 ? 'big warm' : 'big'],
+    ...CANYON_PARTS.map(([k, label, colour]) => [`<i class="swatch" style="background:${colour}"></i>${label}`, degC(o[k])]),
+    ['Net tree effect', degC(o.dT_total), o.dT_total > 0 ? 'big warm' : 'big'],
     ['Canyon air', `${o.T_can_no_trees.toFixed(1)} → ${o.T_can_trees.toFixed(1)} °C`],
   ].map(([k, v, cls]) => `<dt>${k}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
     o.warnings.map(w => `<dt class="err" style="grid-column:1/-1">${esc(w)}</dt>`).join('');
@@ -402,7 +401,7 @@ function renderCanyon(id) {
   $('canyonChart').replaceChildren(...all.map(s => {
     const q = s.outputs, row = document.createElement('button');
     row.className = s.id === id ? 'active' : '';
-    row.title = `${s.label}: net ${K(q.dT_total)}`;
+    row.title = `${s.label}: net ${degC(q.dT_total)}`;
     row.innerHTML = `<span>${esc(s.label.split(' (')[0])}</span><span class="track">` +
       `<i class="zero" style="left:${pct(0)}%"></i>${bar(0, q.dT_shade, CANYON_PARTS[0][2])}${bar(0, q.dT_crown, CANYON_PARTS[1][2])}` +
       `${bar(q.dT_crown, q.dT_crown + q.dT_ventilation, CANYON_PARTS[2][2])}<i class="net" style="left:${pct(q.dT_total)}%"></i></span>` +
