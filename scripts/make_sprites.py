@@ -7,8 +7,9 @@
 The open model Qwen-Image-Edit-2511 (Apache 2.0, loaded as in centre_view.py) paints each
 object alone on a plain magenta canvas; the magenta is keyed out to transparency. sprites.json
 records, per cut-out, the ground point (bottom centre, in pixels) and pixels per metre, so
-street.js can draw it at the right size for its distance. Sizes are the tree presets of
-config/model.json, typical car dimensions and the heights in VEHICLES (bus, motorbike, bicycle).
+street.js can draw it at the right size for its distance. Sizes are the street view's tree
+presets (street_view.tree_presets in config/model.json, apart from the map's), typical car
+dimensions and the heights in VEHICLES (bus, motorbike, bicycle).
 Bicycles, cars and motorbikes also get three-quarter views, for where they are seen at an angle.
 """
 import argparse
@@ -119,7 +120,7 @@ def ground(sprite, job, model):
     base = np.where(alpha[max(0, bottom - max(4, h // 40)):bottom + 1].any(axis=0))[0]
     gx = float((base[0] + base[-1]) / 2) if job["kind"] == "tree" else w / 2
     if job["kind"] == "tree":
-        px_per_m = (bottom + 1 - rows[0]) / model["presets"][job["preset"]]["height_m"]
+        px_per_m = (bottom + 1 - rows[0]) / model["street_view"]["tree_presets"][job["preset"]]["height_m"]
     elif job["kind"] in VEHICLES:
         px_per_m = (bottom + 1 - rows[0]) / VEHICLES[job["kind"]]["height_m"]
     elif job["side"].endswith("-quarter"):

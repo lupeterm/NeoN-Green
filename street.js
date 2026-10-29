@@ -32,6 +32,8 @@ const TOOLS = [
   {id: 'remove', label: 'Remove', kind: null},
 ];
 const isVehicle = kind => kind in VEHICLES;
+// the street view's tree sizes (config/model.json street_view.tree_presets), those of its cut-outs
+const treeSize = preset => S.model.street_view.tree_presets[preset];
 
 const $ = id => document.getElementById(id);
 const DEG = Math.PI / 180;
@@ -167,8 +169,8 @@ function spot({u, v}) {
   if (tool.kind === 'tree') {
     if (!(l < left - TREE_KERB_M || l > right + TREE_KERB_M)) return {why: 'Trees can only be planted on the footpath.'};
     // crowns may overlap a little, as on the map (placement.crown_overlap in config/model.json)
-    const r = S.model.presets[tool.id].crown_diameter_m / 2, k = S.model.placement.crown_overlap;
-    if (trees.some(o => near(o, (r + S.model.presets[o.preset].crown_diameter_m / 2) * k))) return {why: 'Too close to another tree: their crowns would overlap.'};
+    const r = treeSize(tool.id).crown_diameter_m / 2, k = S.model.placement.crown_overlap;
+    if (trees.some(o => near(o, (r + treeSize(o.preset).crown_diameter_m / 2) * k))) return {why: 'Too close to another tree: their crowns would overlap.'};
     return bikes.some(o => near(o, TREE_BICYCLE_M)) ? {why: 'A bicycle is in the way.'} : {p};
   }
   const veh = VEHICLES[tool.kind], [len, wid] = veh.size, name = tool.kind;
@@ -387,7 +389,7 @@ function stopSign(ctx, nameLines, lines) {
 function groundMarks(o, sun) {
   const {ctx, cam} = S, alpha = o.ghost ? 0.5 : 1;
   if (o.kind === 'tree') {
-    const p = S.model.presets[o.preset];
+    const p = treeSize(o.preset);
     if ($('shadows').checked && sun.altitude > 0) {
       const {east, north} = cam.toEN(o);
       const e = NG.shadowEllipse({x: east, y: north, height_m: p.height_m, crown_diameter_m: p.crown_diameter_m}, sun, S.model);
@@ -696,7 +698,7 @@ function showResult(sun) {
   const A = S.cfg.street_axis_bearing_deg * DEG, sa = Math.sin(A), ca = Math.cos(A);
   const toEN = (l, s) => ({east: s * sa + l * ca, north: s * ca - l * sa});
   const trees = placed.filter(o => o.kind === 'tree').map(o => {
-    const t = S.model.presets[o.preset];
+    const t = treeSize(o.preset);
     return {x: o.east, y: o.north, height_m: t.height_m, crown_diameter_m: t.crown_diameter_m};
   });
   const shadows = trees.map(t => NG.shadowEllipse(t, sun, S.model));
