@@ -27,6 +27,7 @@ const S = {
   overlay: null, records: [], hasTime: false, extent: null, domain: null,   // heat overlay
   roadLayers: [], roadSource: null, theme: 'light', view3d: false,
   street: null,          // {name, kind, line, xy, cum, length, halfWidth, obstacles, a, b}
+  view: 'empirical',     // model shown: 'empirical' | 'canyon' (physics-inspired) | 'compare'
   measure: 'trees',      // config/model.json measures: 'trees' | 'beds' | 'pavement' | 'misting' | 'traffic'
   mode: 'even',          // tree placement: 'even' | 'manual'
   manual: [],            // [{lon, lat}] trees placed by hand
@@ -171,6 +172,7 @@ function setupUi() {
   range('poles', [ms.misting.poles[0], 0, ms.misting.poles[1]]);
   range('sails', [ms.sails.sails[0], 0, ms.sails.sails[1]]);
   for (const r of document.querySelectorAll('input[name=sailSpan]')) r.onchange = update;
+  for (const r of document.querySelectorAll('input[name=view]')) r.onchange = () => { S.view = r.value; layoutView(); update(); };
   for (const id of ['date', 'time', 'trees', 'preset', 'sails', 'bedWidth', 'bedShare', 'albedo', 'poles', 'speed', 'volume']) $(id).oninput = update;
   setMeasure(S.measure);
   for (const r of document.querySelectorAll('input[name=mode]')) r.onchange = () => setMode(r.value);
@@ -371,17 +373,19 @@ async function loadCanyonScenarios() {
     `${b.T_above} °C above the roofs; crowns ${b.d_crown} m every ${b.spacing} m. Each scenario changes one input. ` +
     'Canyon-average air temperature, so smaller than the felt-temperature change above. From street_tree_cooling_model.ipynb.';
   renderCanyon(S.canyon.scenarios[0].id);
-  $('canyonBox').hidden = S.measure !== 'trees';  // the box model is about trees
+  layoutView();
 }
 
 function renderCanyon(id) {
   const all = S.canyon.scenarios, sc = all.find(s => s.id === id), o = sc.outputs;
   $('canyonScenario').value = id;
+  S.canyonId = id;
+  renderCompare();
   const changes = Object.entries(sc.changes).map(([k, v]) => {
     const [name, unit] = INPUT_LABELS[k] || [k, ''];
     return `${name} ${v}${unit ? ' ' + unit : ''} (base ${S.canyon.base[k]})`;
   });
-  const K = v => `${signed(v, 2)} K`;
+  const K = v => `${signed(v, 2)} °C`;
   $('canyonChanges').textContent = changes.length ? `Changed: ${changes.join(', ')}` : 'Base case, nothing changed';
   $('canyonResult').innerHTML = [
     ['Crown cover', `${Math.round(o.crown_cover * 100)} % of width`],
@@ -663,7 +667,7 @@ function setMeasure(kind) {
   $('measure').value = kind;
   $('measureNote').textContent = S.model.measures[kind].note || '';
   for (const el of document.querySelectorAll('[data-measure]')) el.hidden = el.dataset.measure !== kind;
-  if (S.canyon) $('canyonBox').hidden = kind !== 'trees';
+  layoutView();
   hint('');
   renderSources();
   update();
@@ -903,15 +907,16 @@ function setupDataLayers() {
     $('layers').append(row, legendFor(l));
     if (l.visible) showLayer(l, true);
   }
-  for (const [group, list] of groups) {
-    const label = document.createElement('label');
-    label.textContent = group;
-    const sel = document.createElement('select');
-    sel.add(new Option('– off –', ''));
-    for (const l of list) sel.add(new Option(l.label, l.id));
-    sel.onchange = () => list.forEach(l => showLayer(l, l.id === sel.value));
-    $('layers').append(label, sel, ...list.map(legendFor));
-  }
+  // Grouped layers (the "Environment data" dropdown) are switched off for the demo; uncomment to bring them back.
+  // for (const [group, list] of groups) {
+  //   const label = document.createElement('label');
+  //   label.textContent = group;
+  //   const sel = document.createElement('select');
+  //   sel.add(new Option('– off –', ''));
+  //   for (const l of list) sel.add(new Option(l.label, l.id));
+  //   sel.onchange = () => list.forEach(l => showLayer(l, l.id === sel.value));
+  //   $('layers').append(label, sel, ...list.map(legendFor));
+  // }
 }
 
 async function showLayer(l, on) {
@@ -949,7 +954,7 @@ async function showTable(l, on) {
     S.map.addLayer({id: 'city-outline', type: 'line', source: 'city-outline',
                     paint: {'line-color': '#1c7ed6', 'line-width': 2.5, 'line-dasharray': [3, 2]}}, 'section');
   }
-  const anyTable = (S.cfg.layers || []).some(x => x.type === 'table' && !$(`legend-${x.id}`).hidden);
+  const anyTable = (S.cfg.layers || []).some(x => x.type === 'table' && $(`legend-${x.id}`)?.hidden === false);
   if (S.map.getLayer('city-outline')) S.map.setLayoutProperty('city-outline', 'visibility', anyTable ? 'visible' : 'none');
   if (!on || box.dataset.loaded) return;
   try {
@@ -1126,7 +1131,9 @@ function run() {
       : trees.length === n ? `${n} · every ${Math.round(len / n)} m`
       : `${trees.length} of ${n}` + (treed ? ` · ${treed} spot${treed > 1 ? 's' : ''} already treed` : ' fit');
     $('manualCount').textContent = `${S.manual.length} ${S.manual.length === 1 ? 'tree' : 'trees'} placed`;
-    scenario = {measure: built.measure, section: section.geometry.coordinates, sun, minute,
+    // physics-inspired view of trees: the map shows the measured data, without the empirical model's effect
+    const measure = canyonShown() && !empiricalShown() ? {kind: 'none'} : built.measure;
+    scenario = {measure, section: section.geometry.coordinates, sun, minute,
                 quantity: S.overlay.quantity || 'temperature', canyonShare: canyonShare()};
   } else {
     for (const id of ['section', 'measure', 'planted', 'shadows']) setData(id, fc([]));
@@ -1159,10 +1166,46 @@ function onWorkerResult({data}) {
   showResult(data.stats);
 }
 
+// ------------------------------------------------------------------ model view
+// Empirical: the map model (felt temperature from shade plus evaporation, values from studies) on the
+// selected street. Physics-inspired: the canyon box model of street_tree_cooling_model.ipynb (air
+// temperature of a generic street, trees only). Compare: both, with their headline numbers side by side.
+
+const canyonAvailable = () => !!S.canyon && S.measure === 'trees';
+const canyonShown = () => S.view !== 'empirical' && canyonAvailable();
+const empiricalShown = () => S.view !== 'canyon' || !canyonAvailable();
+
+function layoutView() {
+  const temperature = (S.overlay?.quantity || 'temperature') === 'temperature';
+  $('result').hidden = $('empiricalNote').hidden = !empiricalShown();
+  $('canyonBox').hidden = !canyonShown();
+  $('compare').hidden = !(S.view === 'compare' && canyonAvailable() && temperature);
+  $('viewNote').textContent = S.view !== 'empirical' && !canyonAvailable()
+    ? 'The physics-inspired model only covers street trees, so this shows the empirical model.'
+    : S.view === 'canyon' ? 'Air temperature averaged over a generic street canyon at the hottest hour, from an energy balance. ' +
+                            'The map shows the measured data without the trees\' effect.'
+    : S.view === 'compare' ? 'They answer different questions: what people feel in sun or shade on this street, and how warm ' +
+                             'the air mixed through a whole street gets. So the empirical numbers are much larger.' +
+                             (temperature ? '' : ' The physics-inspired model covers air temperature only.')
+    : 'Felt temperature on this street: crown shade from the sun position plus evaporative cooling, with values from studies.';
+  renderCompare();
+}
+
+function renderCompare() {
+  if ($('compare').hidden) return;
+  const st = S.lastStats, sc = S.canyon?.scenarios.find(s => s.id === S.canyonId);
+  const show = (el, v) => { el.textContent = v == null ? '–' : `${signed(v, 2)} °C`; el.classList.toggle('warm', v > 0); };
+  show($('cmpEmpirical'), st ? st.after - st.before : null);
+  show($('cmpCanyon'), sc?.outputs.dT_total);
+  $('cmpCanyonWhat').textContent = sc ? `canyon air, generic street: ${sc.label}` : '';
+}
+
 function showResult(st) {
   if (!S.street) return;
   const unit = S.overlay.unit || '', quantity = S.overlay.quantity || 'temperature';
   if (st && (st.quantity || 'temperature') !== quantity) return;  // computed for other data; the right one follows
+  S.lastStats = st;
+  layoutView();
   const trees = S.measure === 'trees', label = S.model.measures[S.measure].label;
   const m2 = v => Math.round(v).toLocaleString('en');
   let rows, note = '';

@@ -2,19 +2,19 @@
   "_about": "Simplified, illustrative model for education, not a microclimate simulation (see ENVI-met or PALM-4U for that). Edit any value and reload.",
   "presets": {
     "small": {
-      "label": "small – 6 m, crown 4 m",
-      "height_m": 6,
-      "crown_diameter_m": 4
+      "label": "small – 10 m, crown 6 m",
+      "height_m": 10,
+      "crown_diameter_m": 6
     },
     "medium": {
-      "label": "medium – 12 m, crown 8 m",
-      "height_m": 12,
-      "crown_diameter_m": 8
+      "label": "medium – 20 m, crown 17 m",
+      "height_m": 20,
+      "crown_diameter_m": 17
     },
     "large": {
-      "label": "large – 18 m, crown 12 m",
-      "height_m": 18,
-      "crown_diameter_m": 12
+      "label": "large – 25 m, crown 24 m",
+      "height_m": 25,
+      "crown_diameter_m": 24
     }
   },
   "default_preset": "medium",
@@ -65,7 +65,10 @@
     "plume_sigma_along_m": 12,
     "tree_deposition": 0.12,
     "_tree_deposition": "Fraction of the traffic pollution removed under one crown (Gaussian, crown radius as sigma); overlapping crowns add up to at most half.",
-    "area_along_m": [3, 60]
+    "area_along_m": [
+      3,
+      60
+    ]
   },
   "street_corridor_m": 10,
   "placement": {
@@ -100,13 +103,11 @@
     }
   },
   "measures": {
-    "_about": "Measures selectable in the scenario panel, one at a time, listed in 'order' (by how well they fit a street in Heilbronn). 'note' is shown under the selector.",
+    "_about": "Measures selectable in the scenario panel, one at a time, listed in 'order' (by how well they fit a street in Heilbronn). 'note' is shown under the selector. 'pavement' and 'misting' are kept below but left out of 'order' for now (not shown).",
     "order": [
       "trees",
       "sails",
       "beds",
-      "pavement",
-      "misting",
       "traffic"
     ],
     "trees": {
