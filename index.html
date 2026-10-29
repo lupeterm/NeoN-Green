@@ -55,7 +55,6 @@
     .seg { display: flex; margin-top: 10px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
     .seg label { flex: 1; min-width: 0; margin: 0; text-align: center; padding: 5px 0; cursor: pointer; color: var(--fg); font-weight: 400; font-size: 13px; }
     .seg input { display: none; }
-    .seg.views label { flex: 1 1 auto; padding: 5px 6px; font-size: 12px; white-space: nowrap; }
     .seg label:has(input:checked) { background: var(--accent); color: #fff; font-weight: 600; }
     #layers { margin-top: 4px; border-top: 1px solid var(--line); }
     .table-wrap { overflow-x: auto; margin-top: 4px; }
@@ -86,13 +85,15 @@
     .flag span { margin-top: 3px; background: #1c7ed6; color: #fff; font: 600 11px system-ui, sans-serif; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
     #streetViewLink { display: block; margin-top: 8px; text-align: center; padding: 5px; border: 1px solid var(--cool); border-radius: 6px; color: var(--cool); text-decoration: none; font-weight: 600; }
     #streetViewLink[hidden] { display: none; }
-    .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-    .compare > div { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
-    .compare h3 { font-size: 12px; margin: 0; color: var(--muted); }
-    .compare b { font-size: 18px; color: var(--cool); font-variant-numeric: tabular-nums; }
-    .compare b.warm { color: var(--err); }
-    .compare span { font-size: 11px; color: var(--muted); }
-    #canyonBox { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+    details.model { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+    details.model > summary { cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    details.model > summary::before { content: "▸"; color: var(--muted); margin-right: -2px; }
+    details.model[open] > summary::before { content: "▾"; }
+    details.model > summary span { flex: 1; }
+    details.model > summary b { color: var(--cool); font-variant-numeric: tabular-nums; }
+    details.model > summary b.warm { color: var(--err); }
+    details.model > summary::-webkit-details-marker { display: none; }
+    details.model > summary { list-style: none; }
     #canyonBox dl { margin-top: 6px; padding-top: 0; border-top: 0; }
     #canyonBox dd.big.warm { color: var(--err); }
     .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
@@ -142,13 +143,6 @@
     <p id="secLabel" class="muted"></p>
     <button id="view3d" class="primary">3D street view</button>
     <a id="streetViewLink" href="street.html" hidden>Open street view →</a>
-    <label>Model</label>
-    <div class="seg views">
-      <label><input type="radio" name="view" value="empirical" checked>empirical</label>
-      <label><input type="radio" name="view" value="canyon">physics-inspired</label>
-      <label><input type="radio" name="view" value="compare">compare</label>
-    </div>
-    <p id="viewNote" class="muted"></p>
     <label>Measure</label>
     <select id="measure"></select>
     <p id="measureNote" class="muted"></p>
@@ -198,14 +192,16 @@
       <input type="range" id="volume" min="0" max="100" step="10" value="100">
     </div>
     <p id="hint" class="muted"></p>
-    <div id="compare" class="compare" hidden>
-      <div><h3>Empirical</h3><b id="cmpEmpirical"></b><span>felt temperature, mean along this street</span></div>
-      <div><h3>Physics-inspired</h3><b id="cmpCanyon"></b><span id="cmpCanyonWhat"></span></div>
-    </div>
-    <dl id="result"></dl>
-    <p id="empiricalNote" class="muted">Empirical teaching model, one measure at a time. Parameters in <code>config/model.json</code>.</p>
-    <section id="canyonBox" hidden>
-      <h2>Canyon air temperature</h2>
+    <details id="empiricalBox" class="model" open>
+      <summary><span>Empirical model</span><b id="sumEmpirical"></b></summary>
+      <p class="muted">What people feel on this street: crown shade from the sun position plus evaporative cooling,
+        with values from studies. One measure at a time; parameters in <code>config/model.json</code>.</p>
+      <dl id="result"></dl>
+    </details>
+    <details id="canyonBox" class="model" hidden>
+      <summary><span>Physics-inspired model</span><b id="sumCanyon"></b></summary>
+      <p class="muted">Air temperature averaged over a generic street canyon at the hottest hour, from an energy balance.
+        Air mixes through the whole street, so the numbers are much smaller than the felt temperature above.</p>
       <label for="canyonScenario">Scenario <span>peak hour, box model</span></label>
       <select id="canyonScenario"></select>
       <p id="canyonChanges" class="muted"></p>
@@ -214,7 +210,7 @@
       <div id="canyonChart"></div>
       <p class="muted"><i class="swatch net-key"></i>net effect · click a row to choose it</p>
       <p id="canyonNote" class="muted"></p>
-    </section>
+    </details>
     <details id="sources" class="sources">
       <summary>Model sources</summary>
       <div id="sourceList"></div>

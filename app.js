@@ -27,7 +27,6 @@ const S = {
   overlay: null, records: [], hasTime: false, extent: null, domain: null,   // heat overlay
   roadLayers: [], roadSource: null, theme: 'light', view3d: false,
   street: null,          // {name, kind, line, xy, cum, length, halfWidth, obstacles, a, b}
-  view: 'empirical',     // model shown: 'empirical' | 'canyon' (physics-inspired) | 'compare'
   measure: 'trees',      // config/model.json measures: 'trees' | 'beds' | 'pavement' | 'misting' | 'traffic'
   mode: 'even',          // tree placement: 'even' | 'manual'
   manual: [],            // [{lon, lat}] trees placed by hand
@@ -122,8 +121,8 @@ function setupMap() {
   m.addLayer({id: 'measure', type: 'fill', source: 'measure', filter: ['==', ['geometry-type'], 'Polygon'],
               paint: {'fill-color': ['get', 'color'], 'fill-opacity': ['get', 'opacity'], 'fill-outline-color': ['get', 'outline']}}, firstLabel);
   m.addLayer({id: 'shadows', type: 'fill', source: 'shadows', paint: {...THEME_PAINT[S.theme].shadows}}, firstLabel);
-  m.addLayer(S.icons.planted
-    ? iconLayer('planted', 'planted', ['*', 2, ['get', 'r']], 22, 1)
+  m.addLayer(S.icons.planted  // same scale and minimum size as the existing trees, so both compare 1:1
+    ? iconLayer('planted', 'planted', ['*', 2, ['get', 'r']], 10, 1)
     : {id: 'planted', type: 'circle', source: 'planted', paint: {
         'circle-color': '#2f9e44', 'circle-opacity': 0.9, 'circle-stroke-color': '#0b3d16', 'circle-stroke-width': 1.5,
         'circle-radius': metres(['get', 'r'], 4)}}, firstLabel);
@@ -172,7 +171,6 @@ function setupUi() {
   range('poles', [ms.misting.poles[0], 0, ms.misting.poles[1]]);
   range('sails', [ms.sails.sails[0], 0, ms.sails.sails[1]]);
   for (const r of document.querySelectorAll('input[name=sailSpan]')) r.onchange = update;
-  for (const r of document.querySelectorAll('input[name=view]')) r.onchange = () => { S.view = r.value; layoutView(); update(); };
   for (const id of ['date', 'time', 'trees', 'preset', 'sails', 'bedWidth', 'bedShare', 'albedo', 'poles', 'speed', 'volume']) $(id).oninput = update;
   setMeasure(S.measure);
   for (const r of document.querySelectorAll('input[name=mode]')) r.onchange = () => setMode(r.value);
@@ -380,7 +378,7 @@ function renderCanyon(id) {
   const all = S.canyon.scenarios, sc = all.find(s => s.id === id), o = sc.outputs;
   $('canyonScenario').value = id;
   S.canyonId = id;
-  renderCompare();
+  renderSummaries();
   const changes = Object.entries(sc.changes).map(([k, v]) => {
     const [name, unit] = INPUT_LABELS[k] || [k, ''];
     return `${name} ${v}${unit ? ' ' + unit : ''} (base ${S.canyon.base[k]})`;
@@ -1131,9 +1129,7 @@ function run() {
       : trees.length === n ? `${n} · every ${Math.round(len / n)} m`
       : `${trees.length} of ${n}` + (treed ? ` · ${treed} spot${treed > 1 ? 's' : ''} already treed` : ' fit');
     $('manualCount').textContent = `${S.manual.length} ${S.manual.length === 1 ? 'tree' : 'trees'} placed`;
-    // physics-inspired view of trees: the map shows the measured data, without the empirical model's effect
-    const measure = canyonShown() && !empiricalShown() ? {kind: 'none'} : built.measure;
-    scenario = {measure, section: section.geometry.coordinates, sun, minute,
+    scenario = {measure: built.measure, section: section.geometry.coordinates, sun, minute,
                 quantity: S.overlay.quantity || 'temperature', canyonShare: canyonShare()};
   } else {
     for (const id of ['section', 'measure', 'planted', 'shadows']) setData(id, fc([]));
@@ -1166,38 +1162,25 @@ function onWorkerResult({data}) {
   showResult(data.stats);
 }
 
-// ------------------------------------------------------------------ model view
-// Empirical: the map model (felt temperature from shade plus evaporation, values from studies) on the
-// selected street. Physics-inspired: the canyon box model of street_tree_cooling_model.ipynb (air
-// temperature of a generic street, trees only). Compare: both, with their headline numbers side by side.
+// ------------------------------------------------------------------ model sections
+// Two collapsible sections in the scenario panel. Empirical: the map model (felt temperature from
+// shade plus evaporation, values from studies) on the selected street. Physics-inspired: the canyon
+// box model of street_tree_cooling_model.ipynb (air temperature of a generic street, trees only).
+// Each header shows its headline number, so both can be compared while collapsed.
 
 const canyonAvailable = () => !!S.canyon && S.measure === 'trees';
-const canyonShown = () => S.view !== 'empirical' && canyonAvailable();
-const empiricalShown = () => S.view !== 'canyon' || !canyonAvailable();
 
 function layoutView() {
-  const temperature = (S.overlay?.quantity || 'temperature') === 'temperature';
-  $('result').hidden = $('empiricalNote').hidden = !empiricalShown();
-  $('canyonBox').hidden = !canyonShown();
-  $('compare').hidden = !(S.view === 'compare' && canyonAvailable() && temperature);
-  $('viewNote').textContent = S.view !== 'empirical' && !canyonAvailable()
-    ? 'The physics-inspired model only covers street trees, so this shows the empirical model.'
-    : S.view === 'canyon' ? 'Air temperature averaged over a generic street canyon at the hottest hour, from an energy balance. ' +
-                            'The map shows the measured data without the trees\' effect.'
-    : S.view === 'compare' ? 'They answer different questions: what people feel in sun or shade on this street, and how warm ' +
-                             'the air mixed through a whole street gets. So the empirical numbers are much larger.' +
-                             (temperature ? '' : ' The physics-inspired model covers air temperature only.')
-    : 'Felt temperature on this street: crown shade from the sun position plus evaporative cooling, with values from studies.';
-  renderCompare();
+  $('canyonBox').hidden = !canyonAvailable();
+  renderSummaries();
 }
 
-function renderCompare() {
-  if ($('compare').hidden) return;
+function renderSummaries() {
   const st = S.lastStats, sc = S.canyon?.scenarios.find(s => s.id === S.canyonId);
-  const show = (el, v) => { el.textContent = v == null ? '–' : `${signed(v, 2)} °C`; el.classList.toggle('warm', v > 0); };
-  show($('cmpEmpirical'), st ? st.after - st.before : null);
-  show($('cmpCanyon'), sc?.outputs.dT_total);
-  $('cmpCanyonWhat').textContent = sc ? `canyon air, generic street: ${sc.label}` : '';
+  const quantity = S.overlay?.quantity || 'temperature', unit = quantity === 'temperature' ? '°C' : S.overlay?.unit || '';
+  const show = (el, v, digits, u) => { el.textContent = v == null ? '' : `${signed(v, digits)} ${u}`; el.classList.toggle('warm', v > 0); };
+  show($('sumEmpirical'), st ? st.after - st.before : null, 1, unit);
+  show($('sumCanyon'), sc?.outputs.dT_total, 2, '°C');
 }
 
 function showResult(st) {

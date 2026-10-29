@@ -30,17 +30,15 @@ SunCalc load from unpkg, and the basemap is CARTO Positron.
    to exactly that stretch. Clicking a street instead selects all of it. Or click one of the heat
    hotspots listed under the colour scale: the map flies there, selects the street and preselects
    200 m around the hotspot.
-3. In the right panel, choose the **model**: **empirical** (the map model below: felt temperature
-   on the selected street), **physics-inspired** (the canyon box model, see "Canyon scenarios") or
-   **compare** (both, with their headline numbers side by side). The physics-inspired model only
-   covers trees; with another measure the panel falls back to the empirical one. With the
-   physics-inspired model alone, the map shows the measured data without the trees' effect.
-   Then pick a **measure** (see "Measures" below). For trees, choose **evenly spaced** and set the number of trees, or **by hand** and
+3. In the right panel, pick a **measure** (see "Measures" below). For trees, choose **evenly spaced** and set the number of trees, or **by hand** and
    click the map to plant trees and click a new tree to remove it. Switching to by hand starts
    from the current even layout.
-4. Read the result: the mean value within 10 m on both sides of the section, before and after,
-   plus the strongest local cooling and the shaded area.
-5. With the physics-inspired or compare model and trees, under **Canyon air temperature**, pick one of the scenarios from the cooling notebook (calm or
+4. Read the result in two collapsible sections, each showing its headline number in the header:
+   **Empirical model** (the map model below: felt temperature on the selected street; the mean value
+   within 10 m on both sides of the section, before and after, plus the strongest local cooling and
+   the shaded area) and, for trees, **Physics-inspired model** (the canyon box model, see "Canyon
+   scenarios").
+5. In the **Physics-inspired model** section, pick one of the scenarios from the cooling notebook (calm or
    windy day, drought, denser row, smaller trees, narrow street …) in the dropdown or by clicking its
    row. It shows how shade, crown heat and reduced ventilation add up to the net change of the
    canyon-average air temperature at peak hour, next to the net effect of all other scenarios
