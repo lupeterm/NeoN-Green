@@ -41,6 +41,12 @@
     dt.head { grid-column: 1 / -1; color: var(--fg); font-weight: 600; font-size: 12px; margin-top: 6px; }
     dd.big { font-size: 18px; font-weight: 700; color: var(--cool); }
     dd.up { color: #c92a2a; } dd.big.up { color: #c92a2a; }
+    #resultPanel { width: 330px; }
+    table.mix { grid-column: 1 / -1; width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+    table.mix th { font-weight: 600; color: var(--muted); text-align: right; padding: 2px 3px; border-bottom: 1px solid var(--line); }
+    table.mix td { text-align: right; padding: 2px 3px; }
+    table.mix th:first-child, table.mix td:first-child { text-align: left; }
+    #result .note { grid-column: 1 / -1; margin: 6px 0 0; font-size: 12px; color: var(--fg); background: #ebfbee; border-radius: 6px; padding: 6px 8px; }
     .row button { flex: 1; }
     @media (max-width: 760px) {
       body { flex-direction: column-reverse; height: auto; }
@@ -59,7 +65,7 @@
     <p class="muted" id="viewNote"></p>
     <label>Place</label>
     <div class="tools" id="tools"></div>
-    <p class="muted" id="hint">Trees go on the footpath, cars on the road, with room between them. Use Remove to take one away.</p>
+    <p class="muted" id="hint">Trees and bicycles go on the footpath; cars, the bus and motorbikes on the road, with room between them. Use Remove to take one away.</p>
     <p class="muted" id="count"></p>
     <label>Date</label>
     <input type="date" id="date">

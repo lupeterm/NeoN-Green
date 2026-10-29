@@ -98,5 +98,13 @@
       "ground": [[0, 1024], [0, 552], [230, 548], [500, 515], [800, 493], [1000, 500], [1200, 545], [1536, 560], [1536, 1024]],
       "kerbs": {"left": [0, 595], "right": [1536, 668]}
     }
-  ]
+  ],
+  "bus": {
+    "line": "32",
+    "towards": {
+      "north": "Frankenbach Maihalde",
+      "south": "Sontheim Güldensteinstr."
+    },
+    "_about": "SWH line 32 along Weipertstraße (OpenStreetMap route relations 2176648, 2176650, 2186099): northbound via Industrieplatz and Salzstraße to Frankenbach Maihalde, southbound via Europaplatz and Mannheimer Straße to Sontheim Güldensteinstraße."
+  }
 }

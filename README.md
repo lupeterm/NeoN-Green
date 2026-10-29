@@ -404,16 +404,19 @@ low-cost sensors: treat the list as candidates to look at, not as measured heat 
 ## Street view (Weipertstraße)
 
 `street.html` (linked from the map's left panel and its flag on Weipertstraße) shows the street
-in front of the Open Space from the centre of the road, looking north and looking south. Click
-the footpath to plant a small, medium or large tree, or the road to place a car; with **Remove**,
-click a tree's trunk or a car to take it away. Trees only go behind the kerb, cars only between the
-kerbs, and neither too close to its own kind: crowns may overlap by at most
-`placement.crown_overlap` of their radii (as on the map), and cars keep 1 m in front and behind and
-0.5 m beside. Objects get the size and position the perspective gives at that spot and
-nearer objects cover farther ones; cars keep to the right, so they are seen from behind, from
-the front or from the side. Tree shadows follow the sun for the chosen date and time (the panel
+in front of the Open Space from the centre of the road, looking north and looking south. Place
+small, medium or large trees and bicycles on the footpath, cars, the bus (line 32) and motorbikes
+on the road; with **Remove**, click a tree's trunk or a vehicle to take it away. Crowns may overlap
+by at most `placement.crown_overlap` of their radii (as on the map), vehicles keep a gap to every
+vehicle sharing their road or footpath (1-1.5 m in front and behind, about 0.5 m beside), and
+bicycles keep 1 m from trunks. Objects get the size and position the perspective gives at that spot
+and nearer objects cover farther ones; vehicles keep to the right, so they are seen from behind,
+from the front or from the side. The bus runs as SWH line 32, which uses Weipertstraße (OpenStreetMap
+route relations): its destination display reads "32 Frankenbach Maihalde" northbound and "32
+Sontheim Güldensteinstr." southbound (`bus` in `config/street.json`). The app writes it onto the
+display, since the image model cannot be trusted with lettering. Tree shadows follow the sun for the chosen date and time (the panel
 says where the sun stands and where shadows fall), and so does the light: warm low sun around
-sunrise and sunset, blue dusk, and night with car head- and tail lights once the sun is 8° below
+sunrise and sunset, blue dusk, and night with head- and tail lights (and the bus's lit line number) once the sun is 8° below
 the horizon (the time slider covers the whole day). **Save
 image** downloads the view, **Show trees on the map** hands the planted trees to the map, which
 selects Weipertstraße there, plants them by hand and computes the cooling.
@@ -421,13 +424,30 @@ selects Weipertstraße there, plants them by hand and computes the cooling.
 Both views share one street: what you place is stored in metres from the common camera point,
 so it shows in whichever view looks its way, counts for spacing in both, and **Remove all** clears
 the street. As on the map, a panel on the right (once something is placed) gives the mean
-temperature before and with the trees within
+temperature before and after within
 `street_corridor_m` of the centre line, 3–60 m in both directions, so both views show the same
-numbers (the map's tree model: shade by date and time, plus
-evaporation, on a base temperature), the strongest cooling and the shaded area, and below it NO₂
-and PM2.5 before and with the cars and trees: a background value plus a plume per car along its
-lane, lowered a little under tree crowns. All numbers are in `street_view` in `config/model.json`;
-they are illustrative estimates, not measurements.
+numbers, and below it NO₂ and PM2.5. All numbers are in `street_view` in `config/model.json`:
+
+* **Each vehicle placed stands for 200 trips a day** of its type (about one every 5 minutes in
+  the daytime, like a frequent bus line).
+* **Pollution** starts from Heilbronn's urban background (DEBW015: NO₂ 16–19 µg/m³ in 2022–2025,
+  UBA). What traffic adds is scaled from the traffic station Weinsberger Straße (DEBW152): its own
+  traffic, about 15,000 vehicles a day, adds 9–14 µg/m³ NO₂ (2022–2025) and 0.4–0.7 µg/m³ PM2.5.
+  Each type counts with its trips × emission factor against that station's fleet: typical urban
+  values for Germany (order of magnitude as in HBEFA 4.2 / UBA TREMOD), NOₓ per km car 0.30 g,
+  Euro VI city bus 1.0 g, motorbike 0.12 g, bicycle 0; PM2.5 including brake, tyre and road wear.
+  Trees then change the street's concentration as on the map: in a street canyon such as
+  Weipertstraße they slightly raise it (`pollution.canyon_increase_pct`).
+* **Temperature** is the map's tree model (shade by date and time, plus evaporation) on a 30 °C
+  afternoon, plus the vehicles' waste heat over the roadway with the map's traffic factor
+  (`measures.traffic.C_per_W_m2`): energy per km car 2.0 MJ, bus 14 MJ, motorbike 1.2 MJ, a
+  cyclist's body heat 0.1 MJ.
+* **Per person carried** (car 1.4, bus 20, motorbike 1.1, bicycle 1), a table compares the types.
+  A bus adds about as much NO₂ as three cars but carries about 14 times as many people, so per
+  person a car adds about 4× the NO₂ and 2× the heat; bicycles add none. Vehicle heat is small
+  (hundredths of a degree), as measured studies find.
+
+These are estimates with typical values, not measurements.
 
 The views and the trees and cars are AI images (see below). Each view's calibration in
 `centre_views` in `config/street.json`: `horizon_y` and `vanishing_x` are where the street's
@@ -436,15 +456,16 @@ lines meet, the camera stands on the centre line 2 m above the road at `lat`/`lo
 which sets where the footpath begins. Open `street.html?debug` to see a ground grid
 (1 m lines along the street, 5 m across) and check it against the kerbs.
 
-### Trees and cars
+### Trees and vehicles
 
 `scripts/make_sprites.py` makes the cut-outs in `data/street/sprites/` with the same open model:
-two trees per size (the presets in `config/model.json`) and three cars each from behind, the
-front and the side, painted on magenta and keyed out. `sprites.json` gives each one's ground
-point and pixels per metre.
+two trees per size (the presets in `config/model.json`), three cars, and a city bus showing line 32,
+a motorbike and a bicycle with riders, each from behind, the front and the side, painted on magenta
+and keyed out. `sprites.json` gives each one's ground point and pixels per metre (bus, motorbike and
+bicycle are scaled by their height) and marks side views that face left.
 
 ```bash
-python scripts/make_sprites.py                 # all 15, about 30 s each
+python scripts/make_sprites.py                 # all 24, about 30 s each
 python scripts/make_sprites.py car-side-2 --seed 4   # redo one
 ```
 

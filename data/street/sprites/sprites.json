@@ -1,4 +1,77 @@
 {
+ "bicycle-front-1": {
+  "kind": "bicycle",
+  "side": "front",
+  "image": "data/street/sprites/bicycle-front-1.png",
+  "ground": [
+   115.0,
+   706
+  ],
+  "px_per_m": 404.0
+ },
+ "bicycle-rear-1": {
+  "kind": "bicycle",
+  "side": "rear",
+  "image": "data/street/sprites/bicycle-rear-1.png",
+  "ground": [
+   110.5,
+   695
+  ],
+  "px_per_m": 397.71
+ },
+ "bicycle-side-1": {
+  "kind": "bicycle",
+  "side": "side",
+  "image": "data/street/sprites/bicycle-side-1.png",
+  "ground": [
+   305.5,
+   586
+  ],
+  "px_per_m": 335.43
+ },
+ "bus-front-1": {
+  "kind": "bus",
+  "side": "front",
+  "image": "data/street/sprites/bus-front-1.png",
+  "ground": [
+   230.0,
+   470
+  ],
+  "px_per_m": 151.94,
+  "display": [
+   98,
+   38,
+   368,
+   88
+  ]
+ },
+ "bus-rear-1": {
+  "kind": "bus",
+  "side": "rear",
+  "image": "data/street/sprites/bus-rear-1.png",
+  "ground": [
+   205.0,
+   472
+  ],
+  "px_per_m": 152.58
+ },
+ "bus-side-1": {
+  "kind": "bus",
+  "side": "side",
+  "image": "data/street/sprites/bus-side-1.png",
+  "ground": [
+   587.5,
+   325
+  ],
+  "px_per_m": 105.16,
+  "faces": "left",
+  "display": [
+   210,
+   86,
+   298,
+   113
+  ]
+ },
  "car-front-1": {
   "kind": "car",
   "side": "front",
@@ -88,6 +161,36 @@
    299
   ],
   "px_per_m": 183.18
+ },
+ "motorbike-front-1": {
+  "kind": "motorbike",
+  "side": "front",
+  "image": "data/street/sprites/motorbike-front-1.png",
+  "ground": [
+   146.5,
+   603
+  ],
+  "px_per_m": 416.55
+ },
+ "motorbike-rear-1": {
+  "kind": "motorbike",
+  "side": "rear",
+  "image": "data/street/sprites/motorbike-rear-1.png",
+  "ground": [
+   153.5,
+   597
+  ],
+  "px_per_m": 412.41
+ },
+ "motorbike-side-1": {
+  "kind": "motorbike",
+  "side": "side",
+  "image": "data/street/sprites/motorbike-side-1.png",
+  "ground": [
+   370.5,
+   572
+  ],
+  "px_per_m": 395.17
  },
  "tree-large-1": {
   "kind": "tree",
