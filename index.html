@@ -68,6 +68,12 @@
                  width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--cool); color: var(--cool);
                  font: italic 600 10px/1 Georgia, serif; cursor: pointer; vertical-align: 1px; margin-left: 2px; }
     button.src:hover, button.src:focus-visible, button.src.active { background: var(--cool); color: var(--field); }
+    button.src.srclabel { width: auto; height: auto; border: 0; border-radius: 0; font: inherit; color: inherit; margin: 0;
+                          vertical-align: baseline; text-decoration: underline dotted var(--muted); text-underline-offset: 3px; }
+    button.src.srclabel:hover, button.src.srclabel:focus-visible, button.src.srclabel.active { background: none; color: var(--cool); }
+    .srcicon { display: inline-flex; align-items: center; justify-content: center; width: 12px; height: 12px; margin-left: 4px;
+               border-radius: 50%; border: 1px solid var(--cool); color: var(--cool); font: italic 600 9px/1 Georgia, serif; }
+    button.src.srclabel:hover .srcicon, button.src.srclabel:focus-visible .srcicon, button.src.srclabel.active .srcicon { background: var(--cool); color: var(--field); }
     .srctip { position: fixed; z-index: 10; width: 300px; max-width: calc(100vw - 16px); max-height: 60vh; overflow-y: auto;
               box-sizing: border-box; padding: 8px 10px; background: var(--bg); color: var(--fg); border: 1px solid var(--line);
               border-radius: 8px; box-shadow: 0 4px 16px #0003; font-size: 12px; backdrop-filter: blur(4px); }
