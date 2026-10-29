@@ -121,8 +121,8 @@ function setupMap() {
   m.addLayer({id: 'measure', type: 'fill', source: 'measure', filter: ['==', ['geometry-type'], 'Polygon'],
               paint: {'fill-color': ['get', 'color'], 'fill-opacity': ['get', 'opacity'], 'fill-outline-color': ['get', 'outline']}}, firstLabel);
   m.addLayer({id: 'shadows', type: 'fill', source: 'shadows', paint: {...THEME_PAINT[S.theme].shadows}}, firstLabel);
-  m.addLayer(S.icons.planted
-    ? iconLayer('planted', 'planted', ['*', 2, ['get', 'r']], 22, 1)
+  m.addLayer(S.icons.planted  // same scale and minimum size as the existing trees, so both compare 1:1
+    ? iconLayer('planted', 'planted', ['*', 2, ['get', 'r']], 10, 1)
     : {id: 'planted', type: 'circle', source: 'planted', paint: {
         'circle-color': '#2f9e44', 'circle-opacity': 0.9, 'circle-stroke-color': '#0b3d16', 'circle-stroke-width': 1.5,
         'circle-radius': metres(['get', 'r'], 4)}}, firstLabel);
@@ -172,6 +172,7 @@ function setupUi() {
   range('sails', [ms.sails.sails[0], 0, ms.sails.sails[1]]);
   for (const r of document.querySelectorAll('input[name=sailSpan]')) r.onchange = update;
   for (const id of ['date', 'time', 'trees', 'preset', 'sails', 'bedWidth', 'bedShare', 'albedo', 'poles', 'speed', 'volume']) $(id).oninput = update;
+  setupSourceTips();
   setMeasure(S.measure);
   for (const r of document.querySelectorAll('input[name=mode]')) r.onchange = () => setMode(r.value);
   $('clearTrees').onclick = () => { S.manual = []; update(); };
@@ -352,10 +353,10 @@ function goToHotspot(f) {
 // canyon-average air temperature at peak hour), shown in the scenario panel. Pick a scenario
 // in the dropdown or click its bar; the notebook regenerates the file.
 
-const CANYON_PARTS = [  // same colours as the notebook's chart
-  ['dT_shade', 'Shade', '#2b8cbe'],
-  ['dT_crown', 'Crown heat', '#fdae6b'],
-  ['dT_ventilation', 'Less ventilation', '#e6550d'],
+const CANYON_PARTS = [  // same colours as the notebook's chart; sources: config/model.json parts, as in the notebook's section 1
+  ['dT_shade', 'Shade', '#2b8cbe', ['canyon_shade', 'canyon_box']],
+  ['dT_crown', 'Crown heat', '#fdae6b', ['canyon_crown', 'canyon_box']],
+  ['dT_ventilation', 'Less ventilation', '#e6550d', ['canyon_ventilation', 'canyon_box']],
 ];
 const INPUT_LABELS = {U: ['wind', 'm/s'], LE_crown: ['transpiration', 'W/m²'], c_d: ['drag c_d', ''],
                       spacing: ['tree spacing', 'm'], d_crown: ['crown', 'm'], W: ['street width', 'm']};
@@ -368,26 +369,28 @@ async function loadCanyonScenarios() {
   sel.onchange = () => renderCanyon(sel.value);
   const b = S.canyon.base;
   $('canyonNote').textContent = `Base case: street ${b.W} m wide, ${b.H} m high, ${b.K_down} W/m² sun, wind ${b.U} m/s at roof level, ` +
-    `${b.T_above} °C above the roofs; crowns ${b.d_crown} m every ${b.spacing} m. Each scenario changes one input. ` +
+    `${b.T_above} °C above the roofs; crowns ${b.d_crown} m every ${b.spacing} m. Each scenario changes only the inputs it lists. ` +
     'Canyon-average air temperature, so smaller than the felt-temperature change above. From street_tree_cooling_model.ipynb.';
   renderCanyon(S.canyon.scenarios[0].id);
-  $('canyonBox').hidden = S.measure !== 'trees';  // the box model is about trees
+  layoutView();
 }
 
 function renderCanyon(id) {
   const all = S.canyon.scenarios, sc = all.find(s => s.id === id), o = sc.outputs;
   $('canyonScenario').value = id;
+  S.canyonId = id;
+  renderSummaries();
   const changes = Object.entries(sc.changes).map(([k, v]) => {
     const [name, unit] = INPUT_LABELS[k] || [k, ''];
     return `${name} ${v}${unit ? ' ' + unit : ''} (base ${S.canyon.base[k]})`;
   });
-  const K = v => `${signed(v, 2)} K`;
+  const degC = v => `${signed(v, 2)} °C`;  // differences: 1 K = 1 °C
   $('canyonChanges').textContent = changes.length ? `Changed: ${changes.join(', ')}` : 'Base case, nothing changed';
   $('canyonResult').innerHTML = [
     ['Crown cover', `${Math.round(o.crown_cover * 100)} % of width`],
-    ...CANYON_PARTS.map(([k, label, colour]) => [`<i class="swatch" style="background:${colour}"></i>${label}`, K(o[k])]),
-    ['&nbsp; ↳ transpiration', K(o.dT_transpiration)],
-    ['Net tree effect', K(o.dT_total), o.dT_total > 0 ? 'big warm' : 'big'],
+    ...CANYON_PARTS.map(([k, label, colour, ids]) => [`<i class="swatch" style="background:${colour}"></i>` +
+      `<button type="button" class="src srclabel" data-src="${ids.join(' ')}" aria-label="${label}: sources">${label}<span class="srcicon">i</span></button>`, degC(o[k])]),
+    ['Net tree effect', degC(o.dT_total), o.dT_total > 0 ? 'big warm' : 'big'],
     ['Canyon air', `${o.T_can_no_trees.toFixed(1)} → ${o.T_can_trees.toFixed(1)} °C`],
   ].map(([k, v, cls]) => `<dt>${k}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
     o.warnings.map(w => `<dt class="err" style="grid-column:1/-1">${esc(w)}</dt>`).join('');
@@ -399,7 +402,7 @@ function renderCanyon(id) {
   $('canyonChart').replaceChildren(...all.map(s => {
     const q = s.outputs, row = document.createElement('button');
     row.className = s.id === id ? 'active' : '';
-    row.title = `${s.label}: net ${K(q.dT_total)}`;
+    row.title = `${s.label}: net ${degC(q.dT_total)}`;
     row.innerHTML = `<span>${esc(s.label.split(' (')[0])}</span><span class="track">` +
       `<i class="zero" style="left:${pct(0)}%"></i>${bar(0, q.dT_shade, CANYON_PARTS[0][2])}${bar(0, q.dT_crown, CANYON_PARTS[1][2])}` +
       `${bar(q.dT_crown, q.dT_crown + q.dT_ventilation, CANYON_PARTS[2][2])}<i class="net" style="left:${pct(q.dT_total)}%"></i></span>` +
@@ -513,16 +516,58 @@ function selectStreet(hit, line, a, b) {
   update();
 }
 
-// "Model sources" in the scenario panel: what the model assumes next to what studies measured.
-function renderSources() {
-  const src = S.model.sources;
-  if (!src) return ($('sources').hidden = true);
+// ------------------------------------------------------------------ source tooltips
+// An ⓘ button next to a number opens what the model assumes for it next to what studies measured
+// (config/model.json "sources", by part id), with links. Hover or focus shows it, a click pins it.
+
+const SOURCE_IDS = {  // per measure: the parts behind its result, by data quantity
+  trees: {temperature: ['shade', 'et'], pm: ['pm'], noise: ['noise']},
+  sails: {temperature: ['sails']}, beds: {temperature: ['beds']},
+  pavement: {temperature: ['pavement']}, misting: {temperature: ['misting']},
+  traffic: {temperature: ['traffic'], pm: ['traffic_pm'], noise: ['traffic']},
+};
+
+const srcButton = ids => ids?.length ? `<button type="button" class="src" data-src="${ids.join(' ')}" aria-label="Sources">i</button>` : '';
+
+function sourceHtml(ids) {
   const param = path => path.split('.').reduce((o, k) => o?.[k], S.model) ?? `{${path}}`;
   const fill = text => esc(text).replace(/\{([\w.]+)\}/g, (_, path) => esc(String(param(path))));
-  $('sourceList').innerHTML = src.parts.filter(p => !p.measure || p.measure === S.measure).map(p => `<h3>${esc(p.part)}</h3>
+  const parts = ids.map(id => S.model.sources?.parts.find(p => p.id === id)).filter(Boolean);
+  return parts.map(p => `<h3>${esc(p.part)}</h3>
     <p><b>Model:</b> ${fill(p.model)}</p>${p.observed ? `<p><b>Studies:</b> ${esc(p.observed)}</p>` : ''}
     <ol>${p.refs.map(r => `<li><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a></li>`).join('')}</ol>`).join('') +
-    (src.note ? `<p>${esc(src.note)}</p>` : '');
+    (parts.length && S.model.sources.note ? `<p class="note">${esc(S.model.sources.note)}</p>` : '');
+}
+
+function setupSourceTips() {
+  const tip = $('srcTip');
+  let owner = null, pinned = false, timer = null;
+  const hide = () => { tip.hidden = true; owner?.classList.remove('active'); owner = null; pinned = false; };
+  const show = btn => {
+    clearTimeout(timer);
+    if (owner === btn) return;
+    owner?.classList.remove('active');
+    owner = btn;
+    btn.classList.add('active');
+    tip.innerHTML = sourceHtml(btn.dataset.src.split(' '));
+    tip.hidden = false;
+    const r = btn.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, r.right - w))}px`;
+    tip.style.top = `${r.bottom + 6 + h > innerHeight - 8 ? Math.max(8, r.top - h - 6) : r.bottom + 6}px`;
+  };
+  const later = () => { if (!pinned) timer = setTimeout(hide, 250); };
+  document.addEventListener('mouseover', e => { const b = e.target.closest?.('.src'); if (b) show(b); });
+  document.addEventListener('mouseout', e => { if (e.target.closest?.('.src')) later(); });
+  document.addEventListener('focusin', e => { const b = e.target.closest?.('.src'); if (b) show(b); });
+  tip.addEventListener('mouseenter', () => clearTimeout(timer));
+  tip.addEventListener('mouseleave', later);
+  document.addEventListener('click', e => {
+    const b = e.target.closest?.('.src');
+    if (b) { if (owner === b && pinned) hide(); else { show(b); pinned = true; } return; }
+    if (!tip.contains(e.target)) hide();
+  });
+  addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
+  $('scenario').addEventListener('scroll', hide);
 }
 
 function closeScenario() {
@@ -661,11 +706,10 @@ function placeEvenly(n, r, P, avoidTrees = true) {
 function setMeasure(kind) {
   S.measure = kind;
   $('measure').value = kind;
-  $('measureNote').textContent = S.model.measures[kind].note || '';
+  $('measureNote').innerHTML = esc(S.model.measures[kind].note || '') + '&nbsp;' + srcButton(Object.values(SOURCE_IDS[kind] || {}).flat().filter((id, i, a) => a.indexOf(id) === i));
   for (const el of document.querySelectorAll('[data-measure]')) el.hidden = el.dataset.measure !== kind;
-  if (S.canyon) $('canyonBox').hidden = kind !== 'trees';
+  layoutView();
   hint('');
-  renderSources();
   update();
 }
 
@@ -744,9 +788,9 @@ function buildMeasure(P, trees, sun) {
   // on a noise map: car-free is capped at −20 dB (what remains is background noise)
   return {measure: {kind, line: section, halfWidth: st.halfWidth, dFlux: flux - after, dNoise: noise == null ? -20 : noise, pmPct},
           features: [roadway({color: '#fab005', outline: '#e67700', opacity: 0.3}), ...(label ? [turf.point(mid, {label})] : [])],
-          rows: [['Engine heat', `${flux.toFixed(1)} → ${after.toFixed(1)} W/m²`],
-                 ['Noise', noise == null ? 'none' : `${signed(noise)} dB(A)`],
-                 ...(S.overlay.quantity === 'pm' ? [['Particles from this street', `~${Math.round(pmShare * 100)} % (est.)`]] : []),
+          rows: [['Engine heat', `${flux.toFixed(1)} → ${after.toFixed(1)} W/m²`, '', ['traffic']],
+                 ['Noise', noise == null ? 'none' : `${signed(noise)} dB(A)`, '', ['traffic']],
+                 ...(S.overlay.quantity === 'pm' ? [['Particles from this street', `~${Math.round(pmShare * 100)} % (est.)`, '', ['traffic_pm']]] : []),
                  [`Assumed today: ${limit} km/h, ${vehicles.toLocaleString('en')} vehicles a day (from the road class).` +
                   ($('speed').value === '30' && !to30 ? ' The limit is probably 30 km/h or less already.' : ''), null, 'note']]};
 }
@@ -903,15 +947,16 @@ function setupDataLayers() {
     $('layers').append(row, legendFor(l));
     if (l.visible) showLayer(l, true);
   }
-  for (const [group, list] of groups) {
-    const label = document.createElement('label');
-    label.textContent = group;
-    const sel = document.createElement('select');
-    sel.add(new Option('– off –', ''));
-    for (const l of list) sel.add(new Option(l.label, l.id));
-    sel.onchange = () => list.forEach(l => showLayer(l, l.id === sel.value));
-    $('layers').append(label, sel, ...list.map(legendFor));
-  }
+  // Grouped layers (the "Environment data" dropdown) are switched off for the demo; uncomment to bring them back.
+  // for (const [group, list] of groups) {
+  //   const label = document.createElement('label');
+  //   label.textContent = group;
+  //   const sel = document.createElement('select');
+  //   sel.add(new Option('– off –', ''));
+  //   for (const l of list) sel.add(new Option(l.label, l.id));
+  //   sel.onchange = () => list.forEach(l => showLayer(l, l.id === sel.value));
+  //   $('layers').append(label, sel, ...list.map(legendFor));
+  // }
 }
 
 async function showLayer(l, on) {
@@ -949,7 +994,7 @@ async function showTable(l, on) {
     S.map.addLayer({id: 'city-outline', type: 'line', source: 'city-outline',
                     paint: {'line-color': '#1c7ed6', 'line-width': 2.5, 'line-dasharray': [3, 2]}}, 'section');
   }
-  const anyTable = (S.cfg.layers || []).some(x => x.type === 'table' && !$(`legend-${x.id}`).hidden);
+  const anyTable = (S.cfg.layers || []).some(x => x.type === 'table' && $(`legend-${x.id}`)?.hidden === false);
   if (S.map.getLayer('city-outline')) S.map.setLayoutProperty('city-outline', 'visibility', anyTable ? 'visible' : 'none');
   if (!on || box.dataset.loaded) return;
   try {
@@ -1159,12 +1204,36 @@ function onWorkerResult({data}) {
   showResult(data.stats);
 }
 
+// ------------------------------------------------------------------ model sections
+// Two collapsible sections in the scenario panel. Empirical: the map model (felt temperature from
+// shade plus evaporation, values from studies) on the selected street. Physics-inspired: the canyon
+// box model of street_tree_cooling_model.ipynb (air temperature of a generic street, trees only).
+// Each header shows its headline number, so both can be compared while collapsed.
+
+const canyonAvailable = () => !!S.canyon && S.measure === 'trees';
+
+function layoutView() {
+  $('canyonBox').hidden = !canyonAvailable();
+  renderSummaries();
+}
+
+function renderSummaries() {
+  const st = S.lastStats, sc = S.canyon?.scenarios.find(s => s.id === S.canyonId);
+  const quantity = S.overlay?.quantity || 'temperature', unit = quantity === 'temperature' ? '°C' : S.overlay?.unit || '';
+  const show = (el, v, digits, u) => { el.textContent = v == null ? '' : `${signed(v, digits)} ${u}`; el.classList.toggle('warm', v > 0); };
+  show($('sumEmpirical'), st ? st.after - st.before : null, 1, unit);
+  show($('sumCanyon'), sc?.outputs.dT_total, 2, '°C');
+}
+
 function showResult(st) {
   if (!S.street) return;
   const unit = S.overlay.unit || '', quantity = S.overlay.quantity || 'temperature';
   if (st && (st.quantity || 'temperature') !== quantity) return;  // computed for other data; the right one follows
+  S.lastStats = st;
+  layoutView();
   const trees = S.measure === 'trees', label = S.model.measures[S.measure].label;
   const m2 = v => Math.round(v).toLocaleString('en');
+  const src = SOURCE_IDS[S.measure]?.[quantity];  // ⓘ next to the change: the parts behind this result
   let rows, note = '';
   if (!st) {
     rows = [['No values along the street', '']];
@@ -1173,7 +1242,7 @@ function showResult(st) {
       ['Mean before', `${st.before.toFixed(1)} ${unit}`],
       [`Mean with ${trees ? 'trees' : 'measure'}`, `${st.after.toFixed(1)} ${unit}`],
       ['Change', `${signed(st.after - st.before)} ${quantity === 'temperature' ? '°C' : unit}` +
-                 (quantity === 'pm' && st.pct != null ? ` (${signed(st.pct)} %)` : ''), 'big'],
+                 (quantity === 'pm' && st.pct != null ? ` (${signed(st.pct)} %)` : ''), 'big', src],
     ];
     if (quantity === 'pm' && trees) {
       const share = S.canyonShare?.share ?? 0;
@@ -1188,14 +1257,14 @@ function showResult(st) {
     } else if (quantity !== 'temperature' && S.measure !== 'traffic') {
       note = `${label}: no effect on ${quantity === 'pm' ? 'particulate matter' : 'noise'} in this model.`;
     } else if (quantity === 'temperature') {
-      rows.push(['Strongest cooling', `${signed(st.maxCooling)} °C`],
+      rows.push(['Strongest cooling', `${signed(st.maxCooling)} °C`, '', trees ? ['shade'] : src],
                 ...(st.maxWarming > 0.05 ? [['Strongest warming', `${signed(st.maxWarming)} °C`]] : []),
-                ...(trees || S.measure === 'sails' ? [['Shaded', `${m2(st.shadedArea)} of ${m2(st.area)} m²`]] : []));
+                ...(trees || S.measure === 'sails' ? [['Shaded', `${m2(st.shadedArea)} of ${m2(st.area)} m²`, '', [trees ? 'shade' : 'sails', 'sun']]] : []));
     }
   }
   rows.push(...(S.resultRows || []));
-  $('result').innerHTML = rows.map(([k, v, cls]) => cls === 'note' ? `<dt class="muted" style="grid-column:1/-1">${k}</dt>`
-                                                    : `<dt>${k}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
+  $('result').innerHTML = rows.map(([k, v, cls, ids]) => cls === 'note' ? `<dt class="muted" style="grid-column:1/-1">${k}</dt>`
+                                                         : `<dt>${k}${ids ? '&nbsp;' + srcButton(ids) : ''}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
     `<dt class="muted" style="grid-column:1/-1">Mean within ${S.model.street_corridor_m} m on both sides of the section</dt>` +
     (note ? `<dt class="muted" style="grid-column:1/-1">${note}</dt>` : '');
 }
@@ -1301,6 +1370,13 @@ async function ensureDeck() {
   try {
     S.deckLoading ??= DECK_JS.reduce((p, src) => p.then(() => loadScript(src)), Promise.resolve());
     await S.deckLoading;
+    // deck.gl 9.3 reads the camera's near/far planes from transform._nearZ/_farZ, which MapLibre 4 calls
+    // nearZ/farZ. Without them deck.gl uses its own planes, its depth values no longer match MapLibre's and
+    // trees behind buildings show through. Alias the old names (on the prototype, so clones have them too).
+    const proto = Object.getPrototypeOf(S.map.transform);
+    for (const k of ['nearZ', 'farZ']) {
+      if (!(`_${k}` in proto)) Object.defineProperty(proto, `_${k}`, {get() { return this[k]; }, configurable: true});
+    }
     S.deck = new deck.MapboxOverlay({interleaved: true, layers: []});  // shares the depth buffer: buildings hide trees
     S.map.addControl(S.deck);
     return true;
