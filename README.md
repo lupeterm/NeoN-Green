@@ -331,8 +331,8 @@ of the canyon-average **air** temperature at the hottest hour (surface energy ba
 ventilation, big-leaf crown). It splits the tree effect into shade (cooling), crown sensible heat
 (warming, reduced by transpiration) and reduced ventilation (warming). Its results are much smaller
 than the felt-temperature change of the map model above, because air mixes through the whole street.
-Section 7 of the notebook runs eight scenarios against a base case (20 m wide street, 8 m crowns every
-10 m, 1 m/s wind) and writes them to `data/canyon_scenarios.json` (path in `canyonScenarios` in
+Section 7 of the notebook runs nine scenarios against a base case (20 m wide street, 17 m crowns every
+20 m like the map's medium tree, 1 m/s wind; small and large trees use the map's 6 and 24 m crowns) and writes them to `data/canyon_scenarios.json` (path in `canyonScenarios` in
 `config/overlays.json`), which the scenario panel shows. The scenarios describe a generic street, not
 the selected one. After changing the model or the `scenarios` dictionary, re-run the notebook
 (needs `numpy`, `matplotlib` and Jupyter):

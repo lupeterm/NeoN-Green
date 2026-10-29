@@ -370,7 +370,7 @@ async function loadCanyonScenarios() {
   sel.onchange = () => renderCanyon(sel.value);
   const b = S.canyon.base;
   $('canyonNote').textContent = `Base case: street ${b.W} m wide, ${b.H} m high, ${b.K_down} W/m² sun, wind ${b.U} m/s at roof level, ` +
-    `${b.T_above} °C above the roofs; crowns ${b.d_crown} m every ${b.spacing} m. Each scenario changes one input. ` +
+    `${b.T_above} °C above the roofs; crowns ${b.d_crown} m every ${b.spacing} m. Each scenario changes only the inputs it lists. ` +
     'Canyon-average air temperature, so smaller than the felt-temperature change above. From street_tree_cooling_model.ipynb.';
   renderCanyon(S.canyon.scenarios[0].id);
   layoutView();
