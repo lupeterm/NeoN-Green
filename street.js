@@ -12,10 +12,12 @@ const TREE_KERB_M = 0.5;   // trunk at least this far behind the kerb, on the fo
 const KERB_GAP_M = 0.2;     // vehicles keep this far inside the kerb, bicycles this far behind it
 const TREE_BICYCLE_M = 1.0;  // a bicycle keeps this far from a trunk
 // size: length along the street and width (m); gap: to the next vehicle in front/behind and beside;
-// lamps: [across, height] in metres, front and rear, as seen from that end; place: road or footpath
+// lamps: [across, height] in metres, front and rear, as seen from that end; place: road or footpath;
+// box: drawn in perspective as its near end and its long side (see drawBox), as it is long enough
+// that a flat view from one end would point it off its lane wherever it is not straight ahead
 const VEHICLES = {
   car: {size: [4.4, 1.8], gap: [1.0, 0.5], place: 'road', front: [[-0.62, 0.68], [0.62, 0.68]], rear: [[-0.68, 0.72], [0.68, 0.72]]},
-  bus: {size: [12, 2.55], gap: [1.5, 0.5], place: 'road', front: [[-1.0, 0.9], [1.0, 0.9]], rear: [[-1.05, 1.05], [1.05, 1.05]]},
+  bus: {size: [12, 2.55], gap: [1.5, 0.5], place: 'road', box: true, front: [[-1.0, 0.9], [1.0, 0.9]], rear: [[-1.05, 1.05], [1.05, 1.05]]},
   motorbike: {size: [2.1, 0.8], gap: [1.0, 0.4], place: 'road', front: [[0, 0.95]], rear: [[0, 0.85]]},
   bicycle: {size: [1.8, 0.6], gap: [0.5, 0.3], place: 'footpath', front: [[0, 0.9]], rear: [[0, 0.75]]},
 };
@@ -418,6 +420,7 @@ function quad(a, b, w) {
 }
 
 function drawObject(o) {
+  if (VEHICLES[o.kind] && VEHICLES[o.kind].box && !o.face) return drawBox(o);
   const p = S.cam.project(o.x, 0, o.z);
   if (!p) return null;
   const sp = sprite(o);
@@ -441,6 +444,65 @@ function drawObject(o) {
   // a tree is picked by its trunk, so you can still plant behind a crown
   const half = Math.max(0.5 * p.scale, 8);
   return {x0: p.u - half, x1: p.u + half, y0: p.v - 2.5 * p.scale, y1: p.v + 0.4 * p.scale};
+}
+
+// A long vehicle as a box in perspective: its long side facing the camera, the side cut-out laid
+// along the street in thin vertical strips (each at the size of its distance), and in front of it
+// the end nearest the camera (rear when it drives away, front when it comes towards the camera).
+function drawBox(o) {
+  const {cam, ctx} = S, wid = VEHICLES[o.kind].size[1], a = o.pose.heading;
+  const side = sprite({...o, pose: {side: 'side'}});
+  if (!side) return null;
+  const c = cam.toEN(o), dir = [Math.sin(a), Math.cos(a)], left = [-Math.cos(a), Math.sin(a)];
+  const seesLeft = c.east * left[0] + c.north * left[1] < 0;          // the left side faces the camera
+  const n = seesLeft ? left : [-left[0], -left[1]];
+  const W = side.img.naturalWidth, L = W / side.px_per_m, Hm = side.ground[1] / side.px_per_m;
+  const at = (along, across) => cam.fromEN(c.east + dir[0] * along + n[0] * across, c.north + dir[1] * along + n[1] * across);
+  // the side cut-out shows the left side, front to the right unless marked; the right side is its mirror image
+  const mirrored = !seesLeft, frontRight = (side.faces !== 'left') !== mirrored;
+  const src = document.createElement('canvas');
+  src.width = W; src.height = side.img.naturalHeight;
+  const sc = src.getContext('2d');
+  if (mirrored) { sc.translate(W, 0); sc.scale(-1, 1); }
+  sc.drawImage(side.img, 0, 0);
+  sc.setTransform(1, 0, 0, 1, 0, 0);
+  if (side.display && !o.ghost) destination(o, side.display, 1, 0, 0, W / 2, mirrored, sc);
+  const haze = Math.min(1, o.depth / 120);
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  ctx.save();
+  ctx.globalAlpha = o.ghost ? 0.55 : 1;
+  ctx.filter = `contrast(${(1 - 0.35 * haze).toFixed(2)}) saturate(${(1 - 0.4 * haze).toFixed(2)}) brightness(${(1 + 0.25 * haze).toFixed(2)})`;
+  ctx.imageSmoothingQuality = 'high';
+  const edge = t => {   // image column t (0 left, 1 right) on the side: bottom and top on screen
+    const g = at((frontRight ? t - 0.5 : 0.5 - t) * L, wid / 2);
+    const b = cam.project(g.x, 0, g.z), u = cam.project(g.x, Hm, g.z);
+    return b && u ? {u: b.u, bottom: b.v, top: u.v} : null;
+  };
+  // strips about 1.5 screen pixels wide (so the steps of the top and bottom edges stay below a
+  // pixel), each the height of the side at its distance; a strip runs right to left on screen
+  // when the side does, which mirrors it
+  const first = edge(0), last = edge(1);
+  const N = Math.min(800, Math.max(24, Math.ceil(Math.abs(((last || first || {u: 0}).u) - ((first || last || {u: 0}).u)) / 1.5)));
+  const sw = W / N, sh = src.height;
+  let prev = first;
+  for (let i = 1; i <= N; i++) {
+    const cur = i === N ? last : edge(i / N);
+    if (prev && cur) {
+      const l = Math.min(prev.u, cur.u), w = Math.abs(cur.u - prev.u) + 0.5;
+      const top = (prev.top + cur.top) / 2, bottom = (prev.bottom + cur.bottom) / 2;
+      if (cur.u >= prev.u) ctx.drawImage(src, (i - 1) * sw, 0, sw, sh, l, top, w, bottom - top);
+      else { ctx.save(); ctx.translate(2 * l + w, 0); ctx.scale(-1, 1); ctx.drawImage(src, (i - 1) * sw, 0, sw, sh, l, top, w, bottom - top); ctx.restore(); }
+      x0 = Math.min(x0, l); x1 = Math.max(x1, l + w); y0 = Math.min(y0, top); y1 = Math.max(y1, bottom);
+    }
+    prev = cur;
+  }
+  ctx.restore();
+  // the near end, a flat end view at that end
+  const away = c.east * dir[0] + c.north * dir[1] > 0;
+  const e = at(away ? -L / 2 : L / 2, 0);
+  const r = e.z > 1 ? drawObject({...o, ...e, face: true, depth: Math.hypot(e.x, e.z), pose: {heading: a, side: away ? 'rear' : 'front'}}) : null;
+  if (r) { x0 = Math.min(x0, r.x0); y0 = Math.min(y0, r.y0); x1 = Math.max(x1, r.x1); y1 = Math.max(y1, r.y1); }
+  return x0 < x1 ? {x0, y0, x1, y1} : null;
 }
 
 // ------------------------------------------------------------------ day and night
@@ -512,14 +574,14 @@ function vehicleLights(o, p) {
 
 // The bus's destination display, written in by the app (readable, unlike AI lettering): line and
 // destination of the direction it drives (config/street.json "bus"), as LED text on dark glass.
-function destination(o, [bx0, by0, bx1, by1], k, x0, y0, u, mirrored) {
+function destination(o, [bx0, by0, bx1, by1], k, x0, y0, u, mirrored, ctx = S.ctx) {
   const bus = S.cfg.bus, A = S.cfg.street_axis_bearing_deg * DEG;
   const north = Math.cos(o.pose.heading - A) > 0, words = bus.towards[north ? 'north' : 'south'].split(' ');
   let x = x0 + bx0 * k;
   const y = y0 + by0 * k, w = (bx1 - bx0) * k, h = (by1 - by0) * k;
   if (mirrored) x = 2 * u - x - w;
   if (h < 5) return;  // too far away to read
-  const {ctx} = S, num = Math.min(h * 0.9, w * 0.22), pad = h * 0.08;
+  const num = Math.min(h * 0.9, w * 0.22), pad = h * 0.08;
   ctx.save();
   ctx.fillStyle = '#121212';
   ctx.fillRect(x, y, w, h);
