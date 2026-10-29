@@ -93,6 +93,7 @@
     }
   },
   "hotspots": "data/hotspots.geojson",
+  "canyonScenarios": "data/canyon_scenarios.json",
   "overlays": [
     {
       "id": "heat",

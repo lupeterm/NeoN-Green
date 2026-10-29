@@ -85,6 +85,21 @@
     .flag span { margin-top: 3px; background: #1c7ed6; color: #fff; font: 600 11px system-ui, sans-serif; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
     #streetViewLink { display: block; margin-top: 8px; text-align: center; padding: 5px; border: 1px solid var(--cool); border-radius: 6px; color: var(--cool); text-decoration: none; font-weight: 600; }
     #streetViewLink[hidden] { display: none; }
+    #canyonBox { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+    #canyonBox dl { margin-top: 6px; padding-top: 0; border-top: 0; }
+    #canyonBox dd.big.warm { color: var(--err); }
+    .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+    .swatch.net-key { width: 2px; height: 11px; border-radius: 0; background: var(--fg); margin: 0 5px 0 3px; }
+    #canyonChart button { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 82px 1fr 38px; gap: 6px;
+                          align-items: center; width: 100%; padding: 2px 4px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+    #canyonChart button:hover, #canyonChart button:focus-visible { background: var(--hover); }
+    #canyonChart button.active { background: var(--hover); box-shadow: inset 3px 0 0 var(--accent); font-weight: 600; }
+    #canyonChart .track { position: relative; height: 10px; }
+    #canyonChart .track i { position: absolute; top: 0; bottom: 0; }
+    #canyonChart .track i.zero { width: 1px; top: -2px; bottom: -2px; background: var(--muted); }
+    #canyonChart .track i.net { width: 2px; top: -2px; bottom: -2px; margin-left: -1px; background: var(--fg); }
+    #canyonChart b { text-align: right; font-variant-numeric: tabular-nums; }
+    #canyonChart b.cool { color: var(--cool); } #canyonChart b.warm { color: var(--err); }
     @media (max-width: 640px) { #scenario { top: auto; bottom: 30px; right: 10px; left: 10px; width: auto; max-width: none; } }
   </style>
 </head>
@@ -171,6 +186,17 @@
     <p id="hint" class="muted"></p>
     <dl id="result"></dl>
     <p class="muted">Simplified teaching model, one measure at a time. Parameters in <code>config/model.json</code>.</p>
+    <section id="canyonBox" hidden>
+      <h2>Canyon air temperature</h2>
+      <label for="canyonScenario">Scenario <span>peak hour, box model</span></label>
+      <select id="canyonScenario"></select>
+      <p id="canyonChanges" class="muted"></p>
+      <dl id="canyonResult"></dl>
+      <label>Net effect, all scenarios <span>K</span></label>
+      <div id="canyonChart"></div>
+      <p class="muted"><i class="swatch net-key"></i>net effect · click a row to choose it</p>
+      <p id="canyonNote" class="muted"></p>
+    </section>
     <details id="sources" class="sources">
       <summary>Model sources</summary>
       <div id="sourceList"></div>

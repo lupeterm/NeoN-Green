@@ -32,7 +32,7 @@ const S = {
   manual: [],            // [{lon, lat}] trees placed by hand
   placement: {key: null, trees: []}, layout: {key: null},  // cached tree placement, other measures' layout
   draw: {active: false, drawing: false, ring: []},
-  layerData: {}, existingTrees: [], icons: {}, iconTheme: null,
+  layerData: {}, existingTrees: [], icons: {}, iconTheme: null, canyon: null,
   job: 0, timer: null, refresh: null, url: null,
 };
 let worker = null;  // started in main() once its files are known to be current
@@ -63,6 +63,7 @@ async function main() {
   setupDataLayers();
   loadHotspots();
   setupStreetView();
+  loadCanyonScenarios();
   await loadOverlay(S.cfg.overlays[0]);
   await applyStreetHandoff();
 }
@@ -346,6 +347,68 @@ function goToHotspot(f) {
   });
 }
 
+// ------------------------------------------------------------------ canyon scenarios
+// Results of section 7 of street_tree_cooling_model.ipynb (a street-canyon box model of
+// canyon-average air temperature at peak hour), shown in the scenario panel. Pick a scenario
+// in the dropdown or click its bar; the notebook regenerates the file.
+
+const CANYON_PARTS = [  // same colours as the notebook's chart
+  ['dT_shade', 'Shade', '#2b8cbe'],
+  ['dT_crown', 'Crown heat', '#fdae6b'],
+  ['dT_ventilation', 'Less ventilation', '#e6550d'],
+];
+const INPUT_LABELS = {U: ['wind', 'm/s'], LE_crown: ['transpiration', 'W/m²'], c_d: ['drag c_d', ''],
+                      spacing: ['tree spacing', 'm'], d_crown: ['crown', 'm'], W: ['street width', 'm']};
+
+async function loadCanyonScenarios() {
+  if (!S.cfg.canyonScenarios) return;
+  try { S.canyon = await getJSON(S.cfg.canyonScenarios); } catch { return; }
+  const sel = $('canyonScenario');
+  for (const sc of S.canyon.scenarios) sel.add(new Option(sc.label, sc.id));
+  sel.onchange = () => renderCanyon(sel.value);
+  const b = S.canyon.base;
+  $('canyonNote').textContent = `Base case: street ${b.W} m wide, ${b.H} m high, ${b.K_down} W/m² sun, wind ${b.U} m/s at roof level, ` +
+    `${b.T_above} °C above the roofs; crowns ${b.d_crown} m every ${b.spacing} m. Each scenario changes one input. ` +
+    'Canyon-average air temperature, so smaller than the felt-temperature change above. From street_tree_cooling_model.ipynb.';
+  renderCanyon(S.canyon.scenarios[0].id);
+  $('canyonBox').hidden = S.measure !== 'trees';  // the box model is about trees
+}
+
+function renderCanyon(id) {
+  const all = S.canyon.scenarios, sc = all.find(s => s.id === id), o = sc.outputs;
+  $('canyonScenario').value = id;
+  const changes = Object.entries(sc.changes).map(([k, v]) => {
+    const [name, unit] = INPUT_LABELS[k] || [k, ''];
+    return `${name} ${v}${unit ? ' ' + unit : ''} (base ${S.canyon.base[k]})`;
+  });
+  const K = v => `${signed(v, 2)} K`;
+  $('canyonChanges').textContent = changes.length ? `Changed: ${changes.join(', ')}` : 'Base case, nothing changed';
+  $('canyonResult').innerHTML = [
+    ['Crown cover', `${Math.round(o.crown_cover * 100)} % of width`],
+    ...CANYON_PARTS.map(([k, label, colour]) => [`<i class="swatch" style="background:${colour}"></i>${label}`, K(o[k])]),
+    ['&nbsp; ↳ transpiration', K(o.dT_transpiration)],
+    ['Net tree effect', K(o.dT_total), o.dT_total > 0 ? 'big warm' : 'big'],
+    ['Canyon air', `${o.T_can_no_trees.toFixed(1)} → ${o.T_can_trees.toFixed(1)} °C`],
+  ].map(([k, v, cls]) => `<dt>${k}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
+    o.warnings.map(w => `<dt class="err" style="grid-column:1/-1">${esc(w)}</dt>`).join('');
+
+  // All scenarios on one axis: cooling parts to the left of zero, warming parts to the right.
+  const lo = Math.min(0, ...all.map(s => s.outputs.dT_shade)), hi = Math.max(0, ...all.map(s => s.outputs.dT_crown + s.outputs.dT_ventilation));
+  const pct = v => ((v - lo) / (hi - lo)) * 100;
+  const bar = (a, b, colour) => `<i style="left:${pct(Math.min(a, b))}%;width:${pct(Math.max(a, b)) - pct(Math.min(a, b))}%;background:${colour}"></i>`;
+  $('canyonChart').replaceChildren(...all.map(s => {
+    const q = s.outputs, row = document.createElement('button');
+    row.className = s.id === id ? 'active' : '';
+    row.title = `${s.label}: net ${K(q.dT_total)}`;
+    row.innerHTML = `<span>${esc(s.label.split(' (')[0])}</span><span class="track">` +
+      `<i class="zero" style="left:${pct(0)}%"></i>${bar(0, q.dT_shade, CANYON_PARTS[0][2])}${bar(0, q.dT_crown, CANYON_PARTS[1][2])}` +
+      `${bar(q.dT_crown, q.dT_crown + q.dT_ventilation, CANYON_PARTS[2][2])}<i class="net" style="left:${pct(q.dT_total)}%"></i></span>` +
+      `<b class="${q.dT_total < 0 ? 'cool' : 'warm'}">${signed(q.dT_total, 2)}</b>`;
+    row.onclick = () => renderCanyon(s.id);
+    return row;
+  }));
+}
+
 // Distance along a measured line of the point closest to (x, y).
 function locate({xy, cum}, x, y) {
   let best = Infinity, at = 0;
@@ -600,6 +663,7 @@ function setMeasure(kind) {
   $('measure').value = kind;
   $('measureNote').textContent = S.model.measures[kind].note || '';
   for (const el of document.querySelectorAll('[data-measure]')) el.hidden = el.dataset.measure !== kind;
+  if (S.canyon) $('canyonBox').hidden = kind !== 'trees';
   hint('');
   renderSources();
   update();
@@ -1112,7 +1176,7 @@ function showResult(st) {
                  (quantity === 'pm' && st.pct != null ? ` (${signed(st.pct)} %)` : ''), 'big'],
     ];
     if (quantity === 'pm' && trees) {
-      const share = S.canyon?.share ?? 0;
+      const share = S.canyonShare?.share ?? 0;
       rows.push(['Street type', share >= 0.5 ? `street canyon (${Math.round(share * 100)} % of the section)`
                                              : `open street (canyon: ${Math.round(share * 100)} %)`],
                 ['Crown cover', `${Math.round(st.coverage * 100)} % of the street`]);
@@ -1139,7 +1203,7 @@ function showResult(st) {
 // Share of the section with buildings close on both sides (a street canyon), cached per section.
 function canyonShare() {
   const st = S.street, hw = S.model.pollution?.canyon_max_halfwidth_m ?? 15, key = `${st.name}|${st.a}|${st.b}`;
-  if (S.canyon?.key === key) return S.canyon.share;
+  if (S.canyonShare?.key === key) return S.canyonShare.share;
   const inBuilding = (x, y) => st.obstacles.buildings.some(b => b.kind !== 'water'
     && x >= b.box[0] && x <= b.box[2] && y >= b.box[1] && y <= b.box[3] && NG.inPolygon(x, y, b.rings));
   let n = 0, both = 0;
@@ -1151,8 +1215,8 @@ function canyonShare() {
     n++;
     if (side(1) && side(-1)) both++;
   }
-  S.canyon = {key, share: n ? both / n : 0};
-  return S.canyon.share;
+  S.canyonShare = {key, share: n ? both / n : 0};
+  return S.canyonShare.share;
 }
 
 // ------------------------------------------------------------------ 3D street view (prototype)
@@ -1443,7 +1507,7 @@ function metres(expr, minPx = 0) {
 
 const num = x => (x == null || x === '' ? NaN : typeof x === 'number' ? x : parseFloat(String(x).replace(',', '.')));
 const quantile = (sorted, q) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))];
-const signed = v => { const r = +v.toFixed(1); return (r > 0 ? '+' : r < 0 ? '−' : '±') + Math.abs(r).toFixed(1); };
+const signed = (v, digits = 1) => { const r = +v.toFixed(digits); return (r > 0 ? '+' : r < 0 ? '−' : '±') + Math.abs(r).toFixed(digits); };
 const compass = deg => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(deg / 45) % 8];
 const fc = features => ({type: 'FeatureCollection', features});
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
