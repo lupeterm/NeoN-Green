@@ -688,7 +688,7 @@ function showResult(sun) {
     return {x: o.east, y: o.north, height_m: t.height_m, crown_diameter_m: t.crown_diameter_m};
   });
   const shadows = trees.map(t => NG.shadowEllipse(t, sun, S.model));
-  let n = 0, dT = 0, maxCooling = 0, shaded = 0, covered = 0;
+  let n = 0, dT = 0, shaded = 0, covered = 0;
   for (const dir of [1, -1]) {
     for (let a0 = s0 + cell / 2; a0 < s1; a0 += cell) {
       for (let l = -corridor + cell / 2; l < corridor; l += cell) {
@@ -697,7 +697,6 @@ function showResult(sun) {
         if (!trees.length) continue;
         const e = NG.treeEffect(east, north, trees, shadows, sun, S.model);
         dT += e.dT;
-        maxCooling = Math.min(maxCooling, e.dT);
         if (e.shade > 0.5) shaded += cell * cell;
         if (trees.some(t => Math.hypot(east - t.x, north - t.y) < t.crown_diameter_m / 2)) covered++;
       }
@@ -731,7 +730,6 @@ function showResult(sun) {
     ['Vehicle heat', `${fmt(trafficC)} °C`],
     ['Mean after', `${after.toFixed(1)} °C`],
     ['Change', `${Math.abs(after - before) < 0.1 ? fmt(after - before) : signed(after - before, 1)} °C`, 'big'],
-    ['Strongest cooling', `${signed(maxCooling, 1)} °C`],
     ['Shaded', `${Math.round(shaded).toLocaleString('en')} of ${Math.round(n * cell * cell).toLocaleString('en')} m²`],
     ['head', 'Air pollution'],
     ['NO₂ before', `${no2[0].toFixed(1)} µg/m³`],
@@ -762,7 +760,7 @@ function showResult(sun) {
     `<dt class="muted" style="grid-column:1/-1">The whole street in both views, within ${corridor} m of the centre line, ${s0}–${s1} m both ways. ` +
     `Each vehicle placed stands for ${p.trips_per_day} trips a day. Traffic scaled from Heilbronn's traffic station (NO₂ +${ref.no2_ugm3} µg/m³ ` +
     `from about ${ref.vehicles_per_day.toLocaleString('en')} vehicles a day) by each type's emission factor; vehicle heat as on the map; ` +
-    `${p.canyon ? 'in a street canyon, trees slightly raise pollution' : 'trees remove a little pollution'}. Estimates, not measurements (config/model.json).</dt>`;
+    `${p.canyon ? 'in a street canyon, trees slightly raise pollution' : 'trees remove a little pollution'}.</dt>`;
 }
 
 const signed = (v, digits) => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v).toFixed(digits);
