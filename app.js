@@ -386,7 +386,6 @@ function renderCanyon(id) {
   $('canyonResult').innerHTML = [
     ['Crown cover', `${Math.round(o.crown_cover * 100)} % of width`],
     ...CANYON_PARTS.map(([k, label, colour]) => [`<i class="swatch" style="background:${colour}"></i>${label}`, K(o[k])]),
-    ['&nbsp; ↳ transpiration', K(o.dT_transpiration)],
     ['Net tree effect', K(o.dT_total), o.dT_total > 0 ? 'big warm' : 'big'],
     ['Canyon air', `${o.T_can_no_trees.toFixed(1)} → ${o.T_can_trees.toFixed(1)} °C`],
   ].map(([k, v, cls]) => `<dt>${k}</dt><dd class="${cls || ''}">${v}</dd>`).join('') +
