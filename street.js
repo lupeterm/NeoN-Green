@@ -106,6 +106,7 @@ function setupUi() {
   $('time').value = S.cfg.default_time_min;
   for (const id of ['date', 'time', 'shadows']) $(id).oninput = draw;
   $('clear').onclick = () => { S.items = []; saveItems(); draw(); };
+  $('demo').onclick = demoScene;
   $('save').onclick = saveImage;
   $('toMap').onclick = toMap;
 
@@ -212,6 +213,17 @@ function onClick(pt) {
   hint('');
   S.hover = null;
   saveItems();
+  draw();
+}
+
+// A demonstration scene (config/street.json "demo"): trees, cars, the bus, a motorbike and bicycles in
+// both views, given as [kind, preset, metres east of the centre line, metres north along the street];
+// it replaces what is placed.
+function demoScene() {
+  const A = S.cfg.street_axis_bearing_deg * DEG, sa = Math.sin(A), ca = Math.cos(A);
+  S.items = S.cfg.demo.items.map(([kind, preset, l, s], i) => ({kind, preset, east: round2(s * sa + l * ca), north: round2(s * ca - l * sa), seed: i}));
+  saveItems();
+  hint('Demo scene placed in both views: look north and south. Remove all clears it.');
   draw();
 }
 

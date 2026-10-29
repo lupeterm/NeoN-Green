@@ -432,7 +432,8 @@ selects Weipertstraße there, plants them by hand and computes the cooling.
 
 Both views share one street: what you place is stored in metres from the common camera point,
 so it shows in whichever view looks its way, counts for spacing in both, and **Remove all** clears
-the street. As on the map, a panel on the right (once something is placed) gives the mean
+the street. **Demo scene** replaces it with a ready-made scene for demonstrations: trees on both
+footpaths, cars, the bus, a motorbike and bicycles in both views (`demo` in `config/street.json`). As on the map, a panel on the right (once something is placed) gives the mean
 temperature before and after over the street between its building fronts (14 m west and 10 m
 east of the centre line, from OpenStreetMap; `area_lateral_m`), 3–60 m in both directions, so both
 views show the same numbers, the area in a crown's shadow (the shadow itself, not its soft edge),
