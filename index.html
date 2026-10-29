@@ -135,25 +135,57 @@
     <p id="secLabel" class="muted"></p>
     <button id="view3d" class="primary">3D street view</button>
     <a id="streetViewLink" href="street.html" hidden>Open street view →</a>
-    <div class="seg">
-      <label><input type="radio" name="mode" value="even" checked>evenly spaced</label>
-      <label><input type="radio" name="mode" value="manual">by hand</label>
+    <label>Measure</label>
+    <select id="measure"></select>
+    <p id="measureNote" class="muted"></p>
+    <div data-measure="trees">
+      <div class="seg">
+        <label><input type="radio" name="mode" value="even" checked>evenly spaced</label>
+        <label><input type="radio" name="mode" value="manual">by hand</label>
+      </div>
+      <div id="evenCtl">
+        <label>Trees <span id="treeLabel"></span></label>
+        <input type="range" id="trees" min="0" max="40" value="8">
+      </div>
+      <div id="manualCtl" hidden>
+        <p class="muted">Click the map to plant a tree, click a new tree to remove it.</p>
+        <label><span id="manualCount" style="float:none"></span></label>
+        <button id="clearTrees">Remove all</button>
+      </div>
+      <label>Tree size</label>
+      <select id="preset"></select>
     </div>
-    <div id="evenCtl">
-      <label>Trees <span id="treeLabel"></span></label>
-      <input type="range" id="trees" min="0" max="40" value="8">
+    <div data-measure="sails" hidden>
+      <div class="seg">
+        <label><input type="radio" name="sailSpan" value="pavement" checked>over the pavements</label>
+        <label><input type="radio" name="sailSpan" value="across">across the street</label>
+      </div>
+      <label>Sails <span id="sailsLabel"></span></label>
+      <input type="range" id="sails" min="0">
     </div>
-    <div id="manualCtl" hidden>
-      <p class="muted">Click the map to plant a tree, click a new tree to remove it.</p>
-      <label><span id="manualCount" style="float:none"></span></label>
-      <button id="clearTrees">Remove all</button>
+    <div data-measure="beds" hidden>
+      <label>Bed width <span id="bedWidthLabel"></span></label>
+      <input type="range" id="bedWidth" step="0.5">
+      <label>Share of the section <span id="bedShareLabel"></span></label>
+      <input type="range" id="bedShare" min="10" max="100" step="10" value="100">
     </div>
-    <label>Tree size</label>
-    <select id="preset"></select>
+    <div data-measure="pavement" hidden>
+      <label>Albedo after coating <span id="albedoLabel"></span></label>
+      <input type="range" id="albedo" step="0.05">
+    </div>
+    <div data-measure="misting" hidden>
+      <label>Misting poles <span id="polesLabel"></span></label>
+      <input type="range" id="poles" min="0">
+    </div>
+    <div data-measure="traffic" hidden>
+      <label>Speed limit</label>
+      <select id="speed"><option value="">unchanged</option><option value="30">30 km/h</option></select>
+      <label>Motor traffic <span id="volumeLabel"></span></label>
+      <input type="range" id="volume" min="0" max="100" step="10" value="100">
+    </div>
     <p id="hint" class="muted"></p>
     <dl id="result"></dl>
-    <p class="muted">Simplified teaching model: crown shadows from the sun position plus evaporative cooling.
-      Parameters in <code>config/model.json</code>.</p>
+    <p class="muted">Simplified teaching model, one measure at a time. Parameters in <code>config/model.json</code>.</p>
     <section id="canyonBox" hidden>
       <h2>Canyon air temperature</h2>
       <label for="canyonScenario">Scenario <span>peak hour, box model</span></label>

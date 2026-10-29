@@ -34,6 +34,20 @@
     "max_total_C": 2.5,
     "night_factor": 0.5
   },
+  "pollution": {
+    "_about": "Particulate matter (PM10, PM2.5): % change of the street's concentration with full crown cover, scaled linearly by the crown cover of the street corridor.",
+    "canyon_increase_pct": 26,
+    "_canyon_increase_pct": "Street canyon: trees raise concentrations. Lower end of the +26 to +96 % reported by Abhijith et al. (2017).",
+    "deposition_pct_full_cover": 2,
+    "_deposition_pct_full_cover": "Open street: deposition on leaves. Nowak et al. (2006): about 0.7 % PM10 improvement at 33 % city tree cover.",
+    "canyon_max_halfwidth_m": 15,
+    "_canyon_max_halfwidth_m": "Buildings within this distance of the street axis on both sides make a point of the section count as street canyon."
+  },
+  "noise": {
+    "_about": "Road traffic noise: change in dB from new street trees.",
+    "tree_row_dB": 0,
+    "_tree_row_dB": "Rows of street trees are not tree belts; measured reductions need dense belts of 15-20 m depth (Van Renterghem et al. 2015)."
+  },
   "grid": {
     "_about": "Inverse distance weighting of the overlay points. Above dense_point_threshold points, only points within idw_radius_m count.",
     "idw_power": 2,
@@ -85,8 +99,145 @@
       "rail": 2.5
     }
   },
+  "measures": {
+    "_about": "Measures selectable in the scenario panel, one at a time, listed in 'order' (by how well they fit a street in Heilbronn). 'note' is shown under the selector.",
+    "order": [
+      "trees",
+      "sails",
+      "beds",
+      "pavement",
+      "misting",
+      "traffic"
+    ],
+    "trees": {
+      "label": "Street trees",
+      "note": "Strongest and best-studied cooling: shade plus evaporation. Needs room for roots and a decade to grow."
+    },
+    "sails": {
+      "label": "Shade sails",
+      "note": "Fabric stretched over the pavement or across the street. Shade from day one where trees cannot grow; needs anchors on facades or masts and comes down in winter.",
+      "_sails": "Number of sails: default, max. Over the pavements they alternate sides like trees; across the street they span it.",
+      "sails": [
+        6,
+        30
+      ],
+      "_shade_factor": "Share of the full tree-shade cooling (shade.max_cooling_C) under a sail: fabric lets some sun through and warms up.",
+      "shade_factor": 0.85,
+      "pavement": {
+        "length_m": 6,
+        "width_m": 4,
+        "height_m": 4
+      },
+      "_across": "Across the street: width = road plus pavement_m on both sides, high enough for lorries (4.5 m clearance).",
+      "across": {
+        "length_m": 6,
+        "pavement_m": 3,
+        "height_m": 6
+      }
+    },
+    "beds": {
+      "label": "Grass & flower beds",
+      "note": "Unseal a strip along the kerb (parking or wide pavement). Cools the ground a lot and the air a little; no shade.",
+      "_width": "Bed width in metres: default, min, max. Beds go on both sides, behind the kerb, where there is no building or other road.",
+      "width_m": [
+        2,
+        1,
+        4
+      ],
+      "sample_m": 3,
+      "_air": "Air cooling from each m² of bed: Gaussian (sigma_m), saturating at max_total_C; × night_factor after sunset.",
+      "per_m2_C": 0.01,
+      "sigma_m": 8,
+      "max_total_C": 0.6,
+      "night_factor": 1.0,
+      "_felt_on_bed_C": "Felt temperature drop standing on the bed in full sun (cooler ground radiates less), scaled like shade.",
+      "felt_on_bed_C": 0.5
+    },
+    "pavement": {
+      "label": "Reflective road surface",
+      "note": "A light coating on the roadway. Cools the road surface, barely the air, and reflects sun onto people walking by.",
+      "albedo_before": 0.1,
+      "_albedo": "Albedo after coating: default, min, max.",
+      "albedo": [
+        0.3,
+        0.15,
+        0.5
+      ],
+      "_air": "Air cooling per +0.1 albedo over the road, in full sun; × night_factor after sunset. Fades to 0 over fade_m beside the road.",
+      "air_C_per_0_1_albedo": 0.25,
+      "night_factor": 0.2,
+      "fade_m": 6,
+      "_reflected": "Felt temperature rise per +0.1 albedo from reflected sun, on the road and sidewalk_m beside it, scaled like shade.",
+      "reflected_felt_C_per_0_1_albedo": 1.0,
+      "sidewalk_m": 4
+    },
+    "misting": {
+      "label": "Misting poles",
+      "note": "Fine water spray, as on Spanish terraces. Strong but very local, needs water and hygiene checks, weaker in humid weather.",
+      "_poles": "Number of poles: default, max. Placed evenly on alternating sides like trees.",
+      "poles": [
+        4,
+        20
+      ],
+      "per_pole_C": 2.0,
+      "sigma_m": 4,
+      "max_total_C": 3.0,
+      "_operating_hours": "Switched on from / to (local hour).",
+      "operating_hours": [
+        11,
+        20
+      ],
+      "water_l_per_h_per_pole": 50
+    },
+    "traffic": {
+      "label": "Speed limit & less traffic",
+      "note": "Tempo 30 or fewer cars mostly cut noise. Engine heat is small, so the cooling is close to zero; fewer cars lower particles a little.",
+      "_current_limit_kmh": "Assumed current limit by road class.",
+      "current_limit_kmh": {
+        "motorway": 100,
+        "trunk": 70,
+        "primary": 50,
+        "secondary": 50,
+        "tertiary": 50,
+        "major_road": 50,
+        "residential": 30,
+        "living_street": 7,
+        "default": 50
+      },
+      "_vehicles_per_day": "Assumed motor vehicles per day by road class (no counts per street).",
+      "vehicles_per_day": {
+        "motorway": 60000,
+        "trunk": 30000,
+        "primary": 15000,
+        "secondary": 10000,
+        "tertiary": 5000,
+        "major_road": 10000,
+        "residential": 1000,
+        "unclassified": 1000,
+        "living_street": 200,
+        "service": 300,
+        "default": 1000
+      },
+      "_heat": "Waste heat per vehicle and km (a car using 6 l/100 km), spread over the roadway around the clock.",
+      "heat_MJ_per_vehicle_km": 2.0,
+      "_fuel_factor_30": "Fuel use at 30 instead of 50 km/h; studies find anything from a little less to a little more, depending on traffic flow.",
+      "fuel_factor_30": 0.95,
+      "noise_30_dB": -2.5,
+      "C_per_W_m2": 0.015,
+      "fade_m": 6,
+      "_pm": "Particulate matter: share of a street's PM that its own traffic adds, from the Heilbronn station pair (traffic DEBW152 Weinsberger Straße-Ost, a primary road, minus urban background DEBW015), annual means 2022-2025 (UBA). Conservative approximation, see README 'Traffic and particulate matter'.",
+      "pm_traffic_share": {
+        "pm10": 0.09,
+        "pm25": 0.06
+      },
+      "_pm_reference_vehicles_per_day": "Vehicles per day assumed at the reference station (road class primary). Quieter roads scale down linearly; busier ones are capped at the measured share.",
+      "pm_reference_vehicles_per_day": 15000,
+      "_pm_factor_30": "Traffic PM at 30 instead of 50 km/h. Studies disagree (exhaust not lower in Stuttgart, about -2 ± 3 % elsewhere), so no change.",
+      "pm_factor_30": 1.0
+    }
+  },
   "sources": {
-    "_about": "Shown under 'Model sources' in the scenario panel. {a.b} is replaced by that parameter's value.",
+    "_about": "Shown under 'Model sources' in the scenario panel. {a.b} is replaced by that parameter's value. 'measure' shows a part only for that measure.",
     "note": "The parameters are rough estimates, checked against these studies, not fitted to measurements.",
     "parts": [
       {
@@ -98,7 +249,8 @@
             "title": "Rahman & Ennos (2016): What we know and don't know about the cooling benefits of urban trees. Trees & Design Action Group",
             "url": "https://www.tdag.org.uk/uploads/4/2/8/0/4280686/what_is_known_and_not_know_cooling_benefits_of_urban_trees.pdf"
           }
-        ]
+        ],
+        "measure": "trees"
       },
       {
         "part": "Air cooling (evapotranspiration)",
@@ -112,6 +264,125 @@
           {
             "title": "Rahman & Ennos (2016): What we know and don't know about the cooling benefits of urban trees. Trees & Design Action Group",
             "url": "https://www.tdag.org.uk/uploads/4/2/8/0/4280686/what_is_known_and_not_know_cooling_benefits_of_urban_trees.pdf"
+          }
+        ],
+        "measure": "trees"
+      },
+      {
+        "measure": "sails",
+        "part": "Shade sails",
+        "model": "{measures.sails.shade_factor} × the tree shade: up to −{shade.max_cooling_C} °C felt in full shade, shadow projected from the sail height along the sun ray; no air cooling",
+        "observed": "In Tempe, Arizona, people in shade felt about one point cooler on a 9-point scale, and a shade canopy worked as well as tree shade. Tree shade lowers the felt temperature (PET) by 7–15 °C on hot days.",
+        "refs": [
+          {
+            "title": "Middel, Selover, Hagen & Chhetri (2016): Impact of shade on outdoor thermal comfort—a seasonal field study in Tempe, Arizona. International Journal of Biometeorology 60, 1849–1861",
+            "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5127889/"
+          },
+          {
+            "title": "Rahman & Ennos (2016): What we know and don't know about the cooling benefits of urban trees. Trees & Design Action Group",
+            "url": "https://www.tdag.org.uk/uploads/4/2/8/0/4280686/what_is_known_and_not_know_cooling_benefits_of_urban_trees.pdf"
+          }
+        ]
+      },
+      {
+        "measure": "beds",
+        "part": "Grass & flower beds",
+        "model": "−{measures.beds.per_m2_C} °C per m² of bed nearby, at most −{measures.beds.max_total_C} °C air cooling; −{measures.beds.felt_on_bed_C} °C felt on the bed in full sun",
+        "observed": "In Manchester, grass lowered the ground temperature by up to 24 °C but hardly changed globe (felt) or air temperature; tree shade lowered globe temperature by 5–7 °C.",
+        "refs": [
+          {
+            "title": "Armson, Stringer & Ennos (2012): The effect of tree shade and grass on surface and globe temperatures in an urban area. Urban Forestry & Urban Greening 11, 245–255",
+            "url": "https://doi.org/10.1016/j.ufug.2012.05.002"
+          }
+        ]
+      },
+      {
+        "measure": "pavement",
+        "part": "Reflective road surface",
+        "model": "−{measures.pavement.air_C_per_0_1_albedo} °C air per +0.1 albedo in full sun (× {measures.pavement.night_factor} at night), +{measures.pavement.reflected_felt_C_per_0_1_albedo} °C felt per +0.1 albedo on road and pavement",
+        "observed": "Coated streets in Los Angeles were 4–6 °C cooler at the surface, the air only 0.5 °C cooler in the afternoon and about 0.1 °C at night, while the radiant heat on pedestrians was 4 °C higher at midday.",
+        "refs": [
+          {
+            "title": "Middel, Turner, Schneider, Hu & Stiller (2020): Solar reflective pavements—A policy panacea to heat mitigation? Environmental Research Letters 15, 064016",
+            "url": "https://doi.org/10.1088/1748-9326/ab87d4"
+          }
+        ]
+      },
+      {
+        "measure": "misting",
+        "part": "Misting poles",
+        "model": "−{measures.misting.per_pole_C} °C per pole, at most −{measures.misting.max_total_C} °C, fading over about {measures.misting.sigma_m} m, switched on {measures.misting.operating_hours.0}–{measures.misting.operating_hours.1} h",
+        "observed": "Field studies measured roughly 2–5 °C cooler air near misting systems, more in dry heat and still air, less in humid or windy weather; humidity rises.",
+        "refs": [
+          {
+            "title": "Ulpiani (2019): Water mist spray for outdoor cooling: A systematic review of technologies, methods and impacts. Applied Energy 254, 113340",
+            "url": "https://doi.org/10.1016/j.apenergy.2019.113340"
+          },
+          {
+            "title": "Ulpiani, Di Giuseppe, Di Perna, D'Orazio & Zinzi (2019): Thermal comfort improvement in urban spaces with water spray systems: Field measurements and survey. Building and Environment 156, 46–61",
+            "url": "https://iris.univpm.it/bitstream/11566/265086/2/Postprint%20BAE.pdf"
+          }
+        ]
+      },
+      {
+        "measure": "traffic",
+        "part": "Speed limit & less traffic",
+        "model": "engine heat {measures.traffic.heat_MJ_per_vehicle_km} MJ per vehicle-km over the roadway, {measures.traffic.C_per_W_m2} °C per W/m²; Tempo 30: fuel × {measures.traffic.fuel_factor_30}, noise {measures.traffic.noise_30_dB} dB(A)",
+        "observed": "Tempo 30 on main roads lowered noise by 1–4 dB(A) in follow-up measurements. Vehicle heat warms street air mostly at night and by a few tenths of a degree at most.",
+        "refs": [
+          {
+            "title": "Umweltbundesamt (2016): Lärm- und Klimaschutz durch Tempo 30 (Texte 30/2016, summary)",
+            "url": "https://www.umweltbundesamt.de/sites/default/files/medien/378/publikationen/texte_30_2016_kurz_laerm-_und_klimaschutz_durch_tempo_30_0.pdf"
+          },
+          {
+            "title": "Spatiotemporal impact of vehicle heat on urban thermal environment: A case study in Hong Kong (PolyU)",
+            "url": "https://research.polyu.edu.hk/en/publications/spatiotemporal-impact-of-vehicle-heat-on-urban-thermal-environmen-2/"
+          }
+        ]
+      },
+      {
+        "measure": "traffic",
+        "part": "Less traffic and particulate matter",
+        "model": "the street's own traffic adds {measures.traffic.pm_traffic_share.pm10} of PM10 and {measures.traffic.pm_traffic_share.pm25} of PM2.5 on a main road, fewer on quieter roads; that part falls with the traffic; Tempo 30 × {measures.traffic.pm_factor_30}",
+        "observed": "Heilbronn, annual means 2022–2025: Weinsberger Straße (traffic) 15–17 µg/m³ PM10 against 13–16 at the urban background station, i.e. 1–2 µg/m³ (6–13 %) more; PM2.5 0.4–0.7 µg/m³ (4–8 %) more. In 2016–2018 the difference was still 4–5 µg/m³ PM10. In Berlin around 2000, main streets had up to 40 % more PM10 than the background, half of it from exhaust and tyres, half from stirred-up road dust. Today most traffic PM is not from exhausts but from brakes, tyres and road dust.",
+        "refs": [
+          {
+            "title": "Umweltbundesamt, air data: annual balances PM10 and PM2.5, stations DEBW152 Heilbronn Weinsberger Straße-Ost and DEBW015 Heilbronn",
+            "url": "https://luftdaten.umweltbundesamt.de/api/air-data/v3/annualbalances/json?component=1&year=2024&lang=en"
+          },
+          {
+            "title": "Lenschow et al. (2001): Some ideas about the sources of PM10. Atmospheric Environment 35, S23–S33",
+            "url": "https://doi.org/10.1016/S1352-2310(01)00122-4"
+          },
+          {
+            "title": "Harrison, Allan, Carruthers, Heal, Lewis, Marner, Murrells & Williams (2021): Non-exhaust vehicle emissions of particulate matter and VOC from road traffic: A review. Atmospheric Environment 262, 118592",
+            "url": "https://eprints.whiterose.ac.uk/175727/"
+          }
+        ]
+      },
+      {
+        "part": "Particulate matter (PM10, PM2.5)",
+        "model": "street canyon: +{pollution.canyon_increase_pct} % with full crown cover; open street: −{pollution.deposition_pct_full_cover} %; scaled by the crown cover of the street (linear scaling is an assumption)",
+        "observed": "Trees in street canyons raised pollutant concentrations by 26–96 % on average; hedges lowered them by 24–61 % at the footpath; on open roads, dense vegetation barriers lowered them by 15–60 %. City-wide, trees improve PM10 by about 0.7 % (Atlanta, 33 % tree cover).",
+        "refs": [
+          {
+            "title": "Abhijith, Kumar, Gallagher, McNabola, Baldauf, Pilla, Broderick, Di Sabatino & Pulvirenti (2017): Air pollution abatement performances of green infrastructure in open road and built-up street canyon environments – A review. Atmospheric Environment 162, 71–86",
+            "url": "https://researchrepository.ucd.ie/rest/bitstreams/26234/retrieve"
+          },
+          {
+            "title": "Nowak, Crane & Stevens (2006): Air pollution removal by urban trees and shrubs in the United States. Urban Forestry & Urban Greening 4, 115–123",
+            "url": "https://www.itreetools.org/documents/55/UFUG_Air_Pollution_Removal.pdf"
+          }
+        ]
+      },
+      {
+        "part": "Road traffic noise",
+        "model": "{noise.tree_row_dB} dB for rows of street trees",
+        "observed": "Measured attenuation by 35 tree belts 20 m deep: below 3, 3–6 or 6–9 dB(A); a 15 m deep optimised belt can match a 1–2 m noise wall. Single rows of trees are not reported to reduce noise.",
+        "refs": [
+          {
+            "title": "Van Renterghem, Forssén, Attenborough, Jean, Defrance, Hornikx & Kang (2015): Using natural means to reduce surface transport noise during propagation outdoors. Applied Acoustics 92, 86–101",
+            "url": "https://users.ugent.be/~tvrenter/publicaties/reviewnaturalmeans.pdf"
           }
         ]
       },

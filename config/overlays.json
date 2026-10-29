@@ -108,7 +108,8 @@
       "domain": [
         22,
         44
-      ]
+      ],
+      "quantity": "temperature"
     },
     {
       "id": "bikes-snapshot",
@@ -124,7 +125,143 @@
       "domain": [
         16,
         34
+      ],
+      "quantity": "temperature"
+    },
+    {
+      "id": "pm10-sensors",
+      "label": "PM10 – citizen sensors, 2 Jul 2025",
+      "url": "data/heat_sensors.csv",
+      "format": "csv",
+      "lon": "lon",
+      "lat": "lat",
+      "value": "pm10",
+      "time": "zeit",
+      "unit": "µg/m³",
+      "domain": [
+        0,
+        30
+      ],
+      "quantity": "pm",
+      "pm_size": "pm10",
+      "ramp": [
+        "#f2f0f7",
+        "#dadaeb",
+        "#bcbddc",
+        "#9e9ac8",
+        "#807dba",
+        "#6a51a3",
+        "#4a1486"
       ]
+    },
+    {
+      "id": "pm25-sensors",
+      "label": "PM2.5 – citizen sensors, 2 Jul 2025",
+      "url": "data/heat_sensors.csv",
+      "format": "csv",
+      "lon": "lon",
+      "lat": "lat",
+      "value": "pm25",
+      "time": "zeit",
+      "unit": "µg/m³",
+      "domain": [
+        0,
+        20
+      ],
+      "quantity": "pm",
+      "pm_size": "pm25",
+      "ramp": [
+        "#f2f0f7",
+        "#dadaeb",
+        "#bcbddc",
+        "#9e9ac8",
+        "#807dba",
+        "#6a51a3",
+        "#4a1486"
+      ]
+    },
+    {
+      "id": "pm10-bikes",
+      "label": "PM10 – senseBox:bike, 1–7 Sep 2026",
+      "url": "data/atrai_bike.csv",
+      "format": "csv",
+      "lon": "lon",
+      "lat": "lat",
+      "value": "pm10",
+      "time": "zeit",
+      "maxTimeGapMinutes": 60,
+      "unit": "µg/m³",
+      "domain": [
+        0,
+        30
+      ],
+      "quantity": "pm",
+      "pm_size": "pm10",
+      "ramp": [
+        "#f2f0f7",
+        "#dadaeb",
+        "#bcbddc",
+        "#9e9ac8",
+        "#807dba",
+        "#6a51a3",
+        "#4a1486"
+      ]
+    },
+    {
+      "id": "pm25-bikes",
+      "label": "PM2.5 – senseBox:bike, 1–7 Sep 2026",
+      "url": "data/atrai_bike.csv",
+      "format": "csv",
+      "lon": "lon",
+      "lat": "lat",
+      "value": "pm25",
+      "time": "zeit",
+      "maxTimeGapMinutes": 60,
+      "unit": "µg/m³",
+      "domain": [
+        0,
+        20
+      ],
+      "quantity": "pm",
+      "pm_size": "pm25",
+      "ramp": [
+        "#f2f0f7",
+        "#dadaeb",
+        "#bcbddc",
+        "#9e9ac8",
+        "#807dba",
+        "#6a51a3",
+        "#4a1486"
+      ]
+    },
+    {
+      "id": "noise-road",
+      "label": "Noise – road traffic Lden (EU noise mapping 2022)",
+      "url": "data/noise_road_lden.csv",
+      "format": "csv",
+      "lon": "lon",
+      "lat": "lat",
+      "value": "lden",
+      "unit": "dB",
+      "domain": [
+        55,
+        77
+      ],
+      "quantity": "noise",
+      "ramp": [
+        "#1a9850",
+        "#a6d96a",
+        "#fee08b",
+        "#fdae61",
+        "#f46d43",
+        "#d73027",
+        "#7b3294"
+      ],
+      "interpolation": {
+        "mode": "smooth",
+        "sigma_m": 15,
+        "cell_m": 25
+      }
     }
   ],
   "layers": [

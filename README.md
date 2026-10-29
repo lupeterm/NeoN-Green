@@ -1,7 +1,8 @@
 # NeoN-Green: "What if we planted trees here?"
 
 An interactive street map of Heilbronn with a heat overlay. Draw around part of a street
-and plant trees on it, evenly spaced or by hand. The overlay recalculates live, and the
+and plant trees on it, evenly spaced or by hand, or try another measure instead: shade sails,
+grass and flower beds, a reflective road surface, misting poles, or a speed limit and less traffic. The overlay recalculates live, and the
 panel shows how much cooler the street gets on average. Tree shadows follow the sun for
 the chosen date and time of day. Existing trees and environment data from the city's open
 data portal can be shown as extra layers.
@@ -21,18 +22,20 @@ SunCalc load from unpkg, and the basemap is CARTO Positron.
 
 ## Using it
 
-1. Pick the heat dataset, date and time of day in the left panel. The sun position updates with them.
+1. Pick the data, date and time of day in the left panel: heat (citizen sensors or senseBox:bike),
+   particulate matter (PM10, PM2.5 from the same sensors) or road traffic noise. The sun position
+   updates with date and time.
 2. Zoom in to street level and press **Draw a section**, then drag around the part of the street
    you mean. The street with the longest stretch inside the shape is chosen, and the section snaps
    to exactly that stretch. Clicking a street instead selects all of it. Or click one of the heat
    hotspots listed under the colour scale: the map flies there, selects the street and preselects
    200 m around the hotspot.
-3. In the right panel, choose **evenly spaced** and set the number of trees, or **by hand** and
+3. In the right panel, pick a **measure** (see "Measures" below). For trees, choose **evenly spaced** and set the number of trees, or **by hand** and
    click the map to plant trees and click a new tree to remove it. Switching to by hand starts
    from the current even layout.
 4. Read the result: the mean value within 10 m on both sides of the section, before and after,
    plus the strongest local cooling and the shaded area.
-5. Under **Canyon air temperature**, pick one of the scenarios from the cooling notebook (calm or
+5. With the trees measure selected, under **Canyon air temperature**, pick one of the scenarios from the cooling notebook (calm or
    windy day, drought, denser row, smaller trees, narrow street …) in the dropdown or by clicking its
    row. It shows how shade, crown heat and reduced ventilation add up to the net change of the
    canyon-average air temperature at peak hour, next to the net effect of all other scenarios
@@ -66,13 +69,35 @@ centre line, up to `placement.max_offset_m` but never past a building or water, 
 slides along the street until it fits. The panel says how many of the requested trees fit; a click by hand that
 does not fit says why.
 
+## Measures
+
+The scenario panel tries one measure at a time; the list is sorted by how well each fits a
+street in Heilbronn. Each changes the same heat map, and the panel adds what matters for it.
+
+| Measure | Controls | Effect in the model | Also shown |
+|---|---|---|---|
+| Street trees | number or by hand, size | crown shade (felt) and evaporation (air) | shaded area |
+| Shade sails | number, over the pavements or across the street | shade like a crown (× `shade_factor`), no air cooling | shaded area, sail area |
+| Grass & flower beds | bed width, share of the section | a little air cooling around the beds, slightly lower felt temperature on them | bed area |
+| Reflective road surface | albedo after coating | a little air cooling over the road, but reflected sun raises the felt temperature on road and pavements | both parts separately |
+| Misting poles | number of poles | strong, very local air cooling, only during operating hours | water use |
+| Speed limit & less traffic | 30 km/h, share of motor traffic | less engine heat over the road: almost nothing | engine heat in W/m², noise in dB(A) |
+
+Beds are strips behind both kerbs (they move outward past tram tracks or other roads, never into a building).
+Sails over the pavements alternate sides like trees (4 m high); across the street they span road
+and pavements 6 m high. Misting poles are spaced like trees but ignore existing trees. Traffic volumes and current
+speed limits are not known per street and are assumed from the road class. All parameters, with
+notes, are under `measures` in `config/model.json`; "Model sources" shows the studies for the
+selected measure. In the 3D street view trees and sails are drawn in the air; beds, coating
+and mist reach show as flat areas on the ground.
+
 ## Files
 
 ```
 index.html          page and styles
 app.js              map, data loading, street selection, UI
 worker.js           background computation: interpolation, scenario, PNG rendering
-model.js            tree cooling model (shared by app and worker)
+model.js            cooling model for trees and the other measures (shared by app and worker)
 config/overlays.json  heat datasets ("overlays") and extra map layers ("layers")
 config/model.json     model and tree placement parameters
 data/heat_sensors.csv sensor.community temperatures, Heilbronn, 2 July 2025, 10-minute means
@@ -88,6 +113,7 @@ scripts/fetch_atrai.py    regenerates data/atrai_bike.csv for any period
 scripts/find_hotspots.py  regenerates data/hotspots.geojson
 scripts/fetch_opendata.py    mirrors the portal's environment datasets into opendata/ (git-ignored)
 scripts/prepare_opendata.py  builds the environment layers and the tree file from that mirror
+scripts/prepare_noise.py     builds data/noise_road_lden.csv from the EU noise mapping 2022
 street.html, street.js    street view: place trees and cars on Weipertstraße
 config/street.json        photo views, their camera calibration and the centre views
 data/street/*.jpg         the photos, 1200 x 1600
@@ -178,6 +204,13 @@ Points are interpolated by inverse distance weighting. Sparse networks (up to 30
 use all points everywhere. Dense data such as bike tracks only uses points within
 `grid.idw_radius_m` and leaves gaps elsewhere.
 
+Gridded data can set `"interpolation"` on its overlay instead: `{"mode": "nearest", "radius_m": 20}`
+keeps each grid cell's value (crisp but boxy), `{"mode": "smooth", "sigma_m": 15, "cell_m": 25}`
+takes a Gaussian-weighted mean of the grid points nearby. Where the grid ends, a place only gets a
+value if at least half the weight of a full grid falls on existing points, so the edge is smoothed
+too rather than extended. The noise map uses `smooth`: its 5 dB bands (sampled every 25 m) then
+show as gradual transitions, which is a drawing aid, not a finer measurement.
+
 ## The model
 
 `model.js`, with parameters in `config/model.json`:
@@ -187,6 +220,75 @@ use all points everywhere. Dense data such as bike tracks only uses points withi
   up to `shade.max_cooling_C`, scaled by sun altitude. No effect when the sun is below the horizon.
 * **Evapotranspiration.** Each tree cools the air around it by a Gaussian bump. Several trees
   add up but saturate at `evapotranspiration.max_total_C`, and the effect is weaker at night.
+* **Other measures** (`measureEffect()` in `model.js`): a sail's shadow is its rectangle moved
+  away from the sun by height / tan(sun altitude), cooling like crown shade. Beds and misting poles add Gaussian
+  bumps like trees (per m² of bed, per pole), saturating. Coating and traffic act on the roadway
+  and fade over `fade_m` beside it. The coating's reflected sun adds to the felt temperature on
+  the road and `sidewalk_m` beside it, scaled with sun height like shade.
+* **Particulate matter (PM10, PM2.5).** New trees change the concentration in the street
+  corridor by a percentage that depends on the street type and scales with the share of the
+  corridor under their crowns: up to `pollution.canyon_increase_pct` more in a street canyon
+  (tree crowns slow the air exchange), up to `pollution.deposition_pct_full_cover` less on an
+  open street (deposition on leaves). A point of the section counts as street canyon when
+  buildings stand within `pollution.canyon_max_halfwidth_m` of the street axis on both sides;
+  the two effects are blended by the canyon share of the section. The linear scaling with crown
+  cover is a simplification.
+* **Noise.** Rows of street trees change road traffic noise by `noise.tree_row_dB` (0 dB):
+  measurable reductions need dense tree belts of 15–20 m depth, which streets do not have.
+
+Which part applies follows the selected data: overlays have a `quantity` of `temperature`,
+`pm` or `noise` in `config/overlays.json`. Particulate matter and noise are modelled for trees;
+of the other measures only "speed limit & less traffic" changes them: the noise map by the panel's
+dB(A) change (at most −20 dB when car-free), particulate matter as described below. The rest
+leave PM and noise unchanged, and the panel says so.
+
+### Traffic and particulate matter (a conservative approximation)
+
+No study gives the share of a street's particulate matter that comes from its own traffic for
+every street in Heilbronn, so the model estimates it from the city's two permanent stations:
+the traffic station DEBW152 Weinsberger Straße-Ost (OSM class `primary`) and the urban background
+station DEBW015. Their difference is the part the street adds on top of what reaches it from the
+rest of the city and the region. Annual means in µg/m³ from the
+[UBA air data API](https://luftdaten.umweltbundesamt.de/api/air-data/v3/annualbalances/json?component=1&year=2024&lang=en)
+(component 1 = PM10, 9 = PM2.5):
+
+| Year | PM10 traffic | PM10 background | difference | PM2.5 traffic | PM2.5 background | difference |
+|---|---|---|---|---|---|---|
+| 2016 | 24 | 20 | 4 | 15 | 13 | 2 |
+| 2017 | 24 | 20 | 4 | 14 | 13 | 1 |
+| 2018 | 25 | 20 | 5 | 14 | 12 | 2 |
+| 2019 | 22 | 18 | 4 | 12 | 11 | 1 |
+| 2020 | 17 | 16 | 1 | 9.8 | 9.2 | 0.6 |
+| 2021 | 15 | 16 | −1 | 8.9 | 9.0 | −0.1 |
+| 2022 | 17 | 16 | 1 | 9.9 | 9.5 | 0.4 |
+| 2023 | 15 | 13 | 2 | 8.3 | 7.7 | 0.6 |
+| 2024 | 16 | 14 | 2 | 8.7 | 8.0 | 0.7 |
+| 2025 | 17 | 16 | 1 | 9.9 | 9.4 | 0.5 |
+
+The difference has shrunk from 4–5 µg/m³ PM10 before 2020 to 1–2 µg/m³ since. The model uses the
+recent years (2022–2025; 2020–21 left out for the pandemic): about **9 % of PM10 and 6 % of PM2.5**
+at the traffic station come from the street itself (`measures.traffic.pm_traffic_share`).
+
+How it is applied, and why it is conservative:
+
+* Removing a share of the traffic removes the same share of that street part, nothing more. Most
+  traffic particles today come from brakes, tyres and road dust, not exhausts (Harrison et al. 2021),
+  so they scale with the number of vehicles, and electric cars would change little.
+* Traffic volumes per street are not known; the share is scaled linearly by the vehicles per day
+  assumed for the road class, relative to a `primary` road (`pm_reference_vehicles_per_day`).
+  Busier roads are capped at the measured share instead of extrapolated.
+* Tempo 30 alone changes nothing (`pm_factor_30` = 1): studies range from no lower exhaust
+  emissions (LUBW, Stuttgart) to about −2 ± 3 %, and the possible drop in road dust and brake wear
+  is not quantified.
+* The station difference is an upper bound for local traffic in one way (other sources near the
+  station count too) and a lower bound in another (the background station also sees some traffic).
+  We have not found a source apportionment for PM at Weinsberger Straße; the clean air plan
+  (Luftreinhalteplan 2020) only breaks down NO₂, where road traffic accounts for 66 %.
+* For comparison, Berlin around 2000 had up to 40 % more PM10 at main streets than in the background
+  (Lenschow et al. 2001), with older vehicles. The Heilbronn numbers are the relevant ones today.
+
+Example: halving the traffic on a main road lowers PM10 there by about 4.5 %, on a residential
+street (1,000 vehicles a day assumed) by about 0.3 %.
 
 Known simplifications: buildings neither cast shadows nor block tree shadows, road widths are
 estimated from the road class, and wind and surfaces are ignored. The model adds the shade
@@ -204,6 +306,15 @@ values. Current references:
   tree shade lowers PET by 7–15 °C on hot days; green areas can cool more at night than by day.
 * Rahman et al. (2018), [Vertical air temperature gradients under the shade of two contrasting urban tree species](https://treefund.org/wp-content/uploads/2018/04/Rahman-et-al.-2018.pdf),
   Science of the Total Environment 633: air under canopies 0.5–1.8 °C cooler (Munich), 0.1–2.8 °C in other studies.
+* Middel, Selover, Hagen & Chhetri (2016), [Impact of shade on outdoor thermal comfort](https://pmc.ncbi.nlm.nih.gov/articles/PMC5127889/):
+  a shade canopy felt as cool as tree shade.
+* Armson, Stringer & Ennos (2012), [The effect of tree shade and grass on surface and globe temperatures in an urban area](https://doi.org/10.1016/j.ufug.2012.05.002):
+  grass cools the ground by up to 24 °C but hardly the felt temperature.
+* Middel et al. (2020), [Solar reflective pavements—A policy panacea to heat mitigation?](https://doi.org/10.1088/1748-9326/ab87d4):
+  coated streets 4–6 °C cooler at the surface, air 0.5 °C, but 4 °C more radiant heat on pedestrians at midday.
+* Ulpiani (2019), [Water mist spray for outdoor cooling: A systematic review](https://doi.org/10.1016/j.apenergy.2019.113340).
+* Umweltbundesamt (2016), [Lärm- und Klimaschutz durch Tempo 30](https://www.umweltbundesamt.de/sites/default/files/medien/378/publikationen/texte_30_2016_kurz_laerm-_und_klimaschutz_durch_tempo_30_0.pdf):
+  1–4 dB(A) less noise on main roads.
 * [SunCalc](https://github.com/mourner/suncalc) for the sun position.
 
 ### Canyon scenarios
@@ -363,6 +474,7 @@ weight files whole, because moving memory-mapped weights to the GPU is extremely
 | Data | Source | Licence |
 |---|---|---|
 | `data/heat_sensors.csv` | [sensor.community](https://sensor.community) archive | ODbL |
+| `data/noise_road_lden.csv` | Umweltbundesamt, Lärmkartierung Deutschland 2022 (data of Stadt Heilbronn), road traffic Lden in the agglomeration, sampled on a 25 m grid | © UBA, attribution |
 | `data/trees_hn_2026.geojson` | [Stadt Heilbronn, Baumkataster](https://opendata.heilbronn.de/dataset/baumkataster), 1 Jan 2026 | DL-DE BY 2.0 |
 | Environment layers | [opendata.heilbronn.de](https://opendata.heilbronn.de) (biomass plants: LUBW); street geometry and locations © OpenStreetMap contributors | CC BY 4.0 / DL-DE BY 2.0; geometry ODbL |
 | `data/atrai_bike.csv` | [openSenseMap](https://opensensemap.org) archive, grouptag `heilbronn` | PDDL |
