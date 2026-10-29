@@ -78,7 +78,7 @@
       "street_bearing_deg": 22,
       "ground": [[0, 1024], [0, 592], [300, 553], [690, 503], [806, 498], [1000, 503], [1300, 530], [1536, 545], [1536, 1024]],
       "kerbs": {"left": [0, 745], "right": [1536, 688]},
-      "stop": {"sign": [1215, 552], "pole": [1250, 548]}
+      "stop": {"pole": [1250, 548], "roof_y": 417, "lines": [["5", "Industrieplatz"], ["31", "Kirchhausen"], ["32", "Frankenbach"]]}
     },
     {
       "id": "south",
@@ -98,7 +98,7 @@
       "street_bearing_deg": 202,
       "ground": [[0, 1024], [0, 552], [230, 548], [500, 515], [800, 493], [1000, 500], [1200, 545], [1536, 560], [1536, 1024]],
       "kerbs": {"left": [0, 595], "right": [1536, 668]},
-      "stop": {"sign": [1450, 592], "pole": [1165, 562]},
+      "stop": {"pole": [1165, 562], "roof_y": 352, "lines": [["5", "Böckingen"], ["31", "Horkheim"], ["32", "Sontheim"]]},
       "edit": {
         "_about": "Lane layout: the lane next to the centre line is for all traffic, the strip along the kerb by the stop (beyond the solid line) is the bus lane. The model removes the BUS lettering from the general lane ('instruction'; only the area around the bright pixels in 'remove.box', not near 'keep_line', the bus lane's edge, is kept); the script paints BUS into the bus lane ('quad', image pixels).",
         "remove": {
@@ -123,6 +123,7 @@
   },
   "stop": {
     "name": "Etzelstraße",
-    "_about": "Bus stop at the shelter in each view (OpenStreetMap: stop 'Etzelstraße', about 30 m south of the camera point, platforms on both sides). sign: ground point (image pixels) of the blue name board beside the shelter, as at many stops in Heilbronn; pole: ground point of the H stop sign."
+    "name_lines": ["Etzel", "straße"],
+    "_about": "Bus stop at the shelter in each view (OpenStreetMap: stop 'Etzelstraße', about 30 m south of the camera point, platforms on both sides). The sign as photographed at the southbound platform: white panel with a round top, H symbol, name on blue (name_lines), lines with destinations. Per view: pole, the sign's ground point in image pixels; roof_y, the image height of the shelter roof there, which the panel stands on and which sets its size; and the lines of that platform (OSM route relations: southbound 5 Jäkleinstraße in Böckingen, 31 Horkheim, 32 Sontheim, as on the sign; northbound 5 Industrieplatz, 31 Kirchhausen, 32 Frankenbach)."
   }
 }

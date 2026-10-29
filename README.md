@@ -416,9 +416,12 @@ in front, riding along it. The bus runs as SWH line 32, which uses Weipertstraß
 route relations): its destination display reads "32 Frankenbach Maihalde" northbound and "32
 Sontheim Güldensteinstr." southbound (`bus` in `config/street.json`). The app writes it onto the
 display, since the image model cannot be trusted with lettering. For the same reason the app draws
-the stop's name, "Etzelstraße" (the stop at the Open Space), on a blue-and-white board beside the
-shelter in both views, as at many stops in Heilbronn, with a stop pole and its H sign (`stop` in
-`config/street.json`; ground points in pixels per view). Tree shadows follow the sun for the chosen date and time (the panel
+the stop sign of "Etzelstraße" (the stop at the Open Space) at the shelter in both views, as it
+stands there: a white panel with a round top on a pole above the shelter roof, with the H symbol,
+the name on blue and the lines with their destinations, those of each platform (OpenStreetMap
+route relations): 5 Böckingen, 31 Horkheim, 32 Sontheim southbound, as on the sign, and 5
+Industrieplatz, 31 Kirchhausen, 32 Frankenbach northbound (`stop` in `config/street.json`; pole and
+roof height in pixels per view). Tree shadows follow the sun for the chosen date and time (the panel
 says where the sun stands and where shadows fall), and so does the light: warm low sun around
 sunrise and sunset, blue dusk, and night with head- and tail lights (and the bus's lit line number) once the sun is 8° below
 the horizon (the time slider covers the whole day). **Save

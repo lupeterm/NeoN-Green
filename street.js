@@ -274,61 +274,95 @@ function render(opts = {}) {
 }
 
 // ------------------------------------------------------------------ bus stop
-// The stop's blue name board beside the shelter and a stop sign (green H on yellow, as in Germany),
-// drawn into the view at the image positions in config/street.json ("stop" per view).
+// The stop sign as at Etzelstraße (Heilbronn): a white panel with a round top on a pole at the
+// shelter, standing just above its roof, with the H symbol, the stop's name on blue and the lines
+// with their destinations (config/street.json "stop": per view the pole's ground point, the image
+// height of the shelter roof there, and the lines). The size comes from the roof in the image, as
+// the AI shelters are not always the size the camera calibration gives at that distance.
 
-const STOP_YELLOW = '#f7d117', STOP_GREEN = '#0b6b3a', STOP_BLUE = '#1f4e96';
+const SIGN = {width_m: 0.47, height_m: 1.0, bottom_m: 2.45};   // the panel, and its lower edge (the roof) above the ground
+const SIGN_COLOURS = {blue: '#4482cb', teal: '#1f8a7c', yellow: '#eeb24a', red: '#b53047', grey: '#cfd3d6', ink: '#27324f'};
 
 function busStop() {
-  const stop = S.view.stop, name = S.cfg.stop && S.cfg.stop.name;
-  if (!stop || !name) return;
-  const {ctx} = S;
-  const at = px => { const g = S.cam.toGround(...px); return g && S.cam.project(g.x, 0, g.z); };
-  // name board beside the shelter: blue with a white border and white lettering, on two posts,
-  // standing across the footpath so it faces the traffic (and the camera), 1.5 x 0.45 m, top at 2.6 m
-  const b = at(stop.sign);
-  if (b) {
-    const s = b.scale, w = 1.5 * s, h = 0.45 * s, x = b.u - w / 2, y = b.v - 2.6 * s;
-    ctx.save();
-    ctx.fillStyle = '#6c7378';
-    for (const dx of [-0.55, 0.55]) ctx.fillRect(b.u + (dx - 0.03) * s, y + h, 0.06 * s, 2.6 * s - h);
-    ctx.fillStyle = STOP_BLUE;
-    ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = Math.max(1, 0.03 * s);
-    ctx.strokeRect(x + 0.04 * s, y + 0.04 * s, w - 0.08 * s, h - 0.08 * s);
-    ctx.fillStyle = '#fff';
-    ctx.font = `700 ${(0.22 * s).toFixed(1)}px "DejaVu Sans", system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(name, b.u, y + h / 2 + 0.01 * s, w - 0.2 * s);
-    ctx.restore();
-  }
-  // stop sign (H) on its pole, at the size the perspective gives
-  const p = at(stop.pole);
-  if (!p) return;
-  const s = p.scale;
+  const stop = S.view.stop, cfg = S.cfg.stop;
+  if (!stop || !cfg) return;
+  const [u, v] = stop.pole, s = (v - stop.roof_y) / SIGN.bottom_m, {ctx} = S, top = SIGN.bottom_m + SIGN.height_m;
+  const p = {u, v};
   ctx.save();
-  ctx.fillStyle = '#6c7378';
-  ctx.fillRect(p.u - 0.035 * s, p.v - 2.6 * s, 0.07 * s, 2.6 * s);
-  stopH(ctx, p.u, p.v - 2.35 * s, 0.22 * s);
+  ctx.fillStyle = '#5d6367';  // the pole, up behind the panel
+  ctx.fillRect(p.u - 0.035 * s, p.v - (top - 0.1) * s, 0.07 * s, (top - 0.1) * s);
+  // the panel is drawn in a 300 x 640 box (its width : height), scaled to its size there
+  const k = (SIGN.width_m * s) / 300;
+  ctx.translate(p.u - 150 * k, p.v - top * s);
+  ctx.scale(k, k);
+  stopSign(ctx, cfg.name_lines, stop.lines);
   ctx.restore();
 }
 
-// The German stop symbol: a green H on a yellow disc with a green ring.
-function stopH(ctx, x, y, r) {
+// The panel in its own 300 x 640 box, from the photo of the sign.
+function stopSign(ctx, nameLines, lines) {
+  const W = 300, H = 640, C = SIGN_COLOURS, R = W / 2;
+  const roundTop = (x0, y0, x1, y1) => {   // a rectangle with a semicircular top
+    const r = (x1 - x0) / 2;
+    ctx.beginPath();
+    ctx.moveTo(x0, y1); ctx.lineTo(x0, y0 + r);
+    ctx.arc(x0 + r, y0 + r, r, Math.PI, 0);
+    ctx.lineTo(x1, y1); ctx.closePath();
+  };
+  const font = (px, weight = 700) => `${weight} ${px}px "DejaVu Sans", system-ui, sans-serif`;
+  // white panel with a thin grey edge
+  roundTop(0, 0, W, H);
+  ctx.fillStyle = '#f4f4f1'; ctx.fill();
+  ctx.strokeStyle = '#9aa0a4'; ctx.lineWidth = 3; ctx.stroke();
+  // blue field following the round top, a white arch band inside its top, blue below
+  const m = 28, blueEnd = 405;
+  roundTop(m, m, W - m, blueEnd);
+  ctx.fillStyle = C.blue; ctx.fill();
   ctx.save();
-  ctx.fillStyle = STOP_YELLOW;
-  ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI); ctx.fill();
-  ctx.strokeStyle = STOP_GREEN;
-  ctx.lineWidth = r * 0.16;
-  ctx.beginPath(); ctx.arc(x, y, r * 0.9, 0, 2 * Math.PI); ctx.stroke();
-  ctx.fillStyle = STOP_GREEN;
-  ctx.font = `700 ${(r * 1.25).toFixed(1)}px "DejaVu Sans", system-ui, sans-serif`;
+  roundTop(m + 8, m + 8, W - m - 8, blueEnd);
+  ctx.clip();
+  ctx.fillStyle = '#f4f4f1';
+  ctx.fillRect(0, 0, W, 138);
+  ctx.restore();
+  // H symbol: yellow disc, teal ring and H, with a thin white edge
+  const cx = R, cy = 165, r = 92;
+  ctx.beginPath(); ctx.arc(cx, cy, r + 4, 0, 2 * Math.PI); ctx.fillStyle = '#f4f4f1'; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, 2 * Math.PI); ctx.fillStyle = C.teal; ctx.fill();
+  ctx.beginPath(); ctx.arc(cx, cy, r - 17, 0, 2 * Math.PI); ctx.fillStyle = C.yellow; ctx.fill();
+  ctx.fillStyle = C.teal;   // the H as bars, as on the sign
+  ctx.fillRect(cx - 42, cy - 50, 22, 100);
+  ctx.fillRect(cx + 20, cy - 50, 22, 100);
+  ctx.fillRect(cx - 20, cy - 10, 40, 20);
+  // stop name in white, on two lines as on the sign
+  ctx.fillStyle = '#eef2f6';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('H', x, y + r * 0.06);
-  ctx.restore();
+  ctx.font = font(38);
+  nameLines.forEach((t, i) => ctx.fillText(t, R, 300 + i * 52, W - 2 * m - 30));
+  // lines: red number boxes, a small white marker, destinations in dark blue on grey
+  const top = blueEnd + 6, row = 38;
+  ctx.fillStyle = C.grey;
+  ctx.fillRect(m + 4, top, W - 2 * m - 4, row * lines.length + 6);
+  lines.forEach(([num, dest], i) => {
+    const y = top + 3 + i * row;
+    ctx.fillStyle = C.red;
+    ctx.fillRect(m + 6, y, 52, row - 4);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(m + 61, y + 3, 10, row - 10);
+    ctx.strokeStyle = C.blue; ctx.lineWidth = 2;
+    ctx.strokeRect(m + 61, y + 3, 10, row - 10);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'right';
+    ctx.font = font(26);
+    ctx.fillText(num, m + 55, y + row / 2);
+    ctx.fillStyle = C.ink;
+    ctx.textAlign = 'left';
+    ctx.font = font(21);
+    ctx.fillText(dest, m + 80, y + row / 2, W - m - 88);
+  });
+  // fixing bolts at the bottom
+  ctx.fillStyle = '#8a8f93';
+  for (const x of [34, R - 30, R + 30, W - 34]) { ctx.beginPath(); ctx.arc(x, H - 26, 5, 0, 2 * Math.PI); ctx.fill(); }
 }
 
 // Contact shadows and sun shadows on the ground (drawn under every object).
